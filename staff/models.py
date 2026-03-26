@@ -101,3 +101,37 @@ class StaffRole(models.Model):
 
     def __str__(self):
         return self.name
+        
+class StaffUserRole(models.Model):
+    user = models.ForeignKey(
+        "auth.User",
+        on_delete=models.CASCADE,
+        db_column="user_id",
+        related_name="staff_roles"
+    )
+
+    role = models.ForeignKey(
+        "StaffRole",
+        on_delete=models.CASCADE,
+        db_column="role_id",
+        related_name="user_links"
+    )
+
+    assigned_at = models.DateTimeField()
+    assigned_by_user = models.ForeignKey(
+        "auth.User",
+        on_delete=models.SET_NULL,
+        db_column="assigned_by_user_id",
+        blank=True,
+        null=True,
+        related_name="assigned_staff_roles"
+    )
+    created_at = models.DateTimeField()
+
+    class Meta:
+        db_table = "staff_user_roles"
+        ordering = ["user", "role"]
+        unique_together = [("user", "role")]
+
+    def __str__(self):
+        return f"{self.user.username} → {self.role.code}"
