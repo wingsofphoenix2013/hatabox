@@ -86,3 +86,18 @@ class StaffEmployee(models.Model):
 
     def __str__(self):
         return f"{self.last_name} {self.first_name}"
+        
+class StaffRole(models.Model):
+    code = models.CharField(max_length=50, unique=True)
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+
+    class Meta:
+        db_table = "staff_roles"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
