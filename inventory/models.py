@@ -16,7 +16,8 @@ class InvUnit(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.symbol})"
-        
+
+
 class InvItemCategory(models.Model):
     code = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=150)
@@ -31,8 +32,9 @@ class InvItemCategory(models.Model):
 
     def __str__(self):
         return self.name
-        
-        class InvItem(models.Model):
+
+
+class InvItem(models.Model):
     internal_code = models.CharField(max_length=100, unique=True)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
