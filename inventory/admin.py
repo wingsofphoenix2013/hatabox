@@ -36,7 +36,7 @@ class InvItemCategoryAdmin(admin.ModelAdmin):
 
 @admin.register(InvItem)
 class InvItemAdmin(admin.ModelAdmin):
-    list_display = ("id", "internal_code", "name", "category", "unit", "qr_item", "is_active")
+    list_display = ("id", "internal_code", "name", "category", "unit", "qr_item", "is_active", "image")
     list_filter = ("is_active", "qr_item", "category", "unit")
     search_fields = ("internal_code", "name", "description")
     autocomplete_fields = ("category", "unit")

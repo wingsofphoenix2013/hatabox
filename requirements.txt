@@ -4,3 +4,5 @@ psycopg[binary]
 dj-database-url
 whitenoise
 django-jazzmin
+django-storages[s3]
+Pillow

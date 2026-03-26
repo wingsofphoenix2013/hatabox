@@ -53,7 +53,7 @@ class InvItem(models.Model):
         related_name="items",
     )
 
-    image_path = models.CharField(max_length=500, blank=True, null=True)
+    image = models.ImageField(upload_to="items/", blank=True, null=True)
     qr_item = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
 
