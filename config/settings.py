@@ -74,6 +74,7 @@ AWS_S3_ENDPOINT_URL = f'https://{os.environ.get("R2_ACCOUNT_ID")}.r2.cloudflares
 AWS_S3_REGION_NAME = "auto"
 AWS_QUERYSTRING_AUTH = False
 AWS_DEFAULT_ACL = None
+AWS_S3_CUSTOM_DOMAIN = os.environ.get("R2_PUBLIC_BASE_URL", "").replace("https://", "").replace("http://", "")
 
 STORAGES = {
     "default": {
@@ -86,6 +87,7 @@ STORAGES = {
             "region_name": AWS_S3_REGION_NAME,
             "default_acl": AWS_DEFAULT_ACL,
             "querystring_auth": AWS_QUERYSTRING_AUTH,
+            "custom_domain": AWS_S3_CUSTOM_DOMAIN,
         },
     },
     "staticfiles": {
