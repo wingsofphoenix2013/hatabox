@@ -20,6 +20,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "staff.apps.StaffConfig",
     "inventory.apps.InventoryConfig",
+    "vendors.apps.VendorsConfig",
 ]
 
 # MIDDLEWARE
