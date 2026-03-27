@@ -4,12 +4,12 @@ import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# SECURITY
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key")
-
 DEBUG = os.environ.get("DEBUG", "False") == "True"
-
 ALLOWED_HOSTS = ["*"]
 
+# APPS
 INSTALLED_APPS = [
     "jazzmin",
     "django.contrib.admin",
@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     "inventory.apps.InventoryConfig",
 ]
 
+# MIDDLEWARE
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -34,6 +35,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "config.urls"
 
+# TEMPLATES
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -51,30 +53,57 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-DATABASES = {
-    "default": dj_database_url.parse(
-        os.environ.get("DATABASE_URL"),
-        conn_max_age=600,
-        ssl_require=True,
-    )
-}
+# DATABASE (critical fix)
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
+if DATABASE_URL:
+    DATABASES = {
+        "default": dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=True,
+        )
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
+
+# LOCALE
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 
+# STATIC
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# STORAGE (safe for local)
 AWS_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY")
 AWS_STORAGE_BUCKET_NAME = os.environ.get("R2_BUCKET_NAME")
-AWS_S3_ENDPOINT_URL = f'https://{os.environ.get("R2_ACCOUNT_ID")}.r2.cloudflarestorage.com'
+
+R2_ACCOUNT_ID = os.environ.get("R2_ACCOUNT_ID")
+AWS_S3_ENDPOINT_URL = (
+    f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+    if R2_ACCOUNT_ID
+    else None
+)
+
 AWS_S3_REGION_NAME = "auto"
 AWS_QUERYSTRING_AUTH = False
 AWS_DEFAULT_ACL = None
-AWS_S3_CUSTOM_DOMAIN = os.environ.get("R2_PUBLIC_BASE_URL", "").replace("https://", "").replace("http://", "")
+
+R2_PUBLIC_BASE_URL = os.environ.get("R2_PUBLIC_BASE_URL", "")
+AWS_S3_CUSTOM_DOMAIN = (
+    R2_PUBLIC_BASE_URL.replace("https://", "").replace("http://", "")
+    if R2_PUBLIC_BASE_URL
+    else None
+)
 
 STORAGES = {
     "default": {
