@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Brand, Country, ExternalOrderStatus, ExternalOrderPaymentStatus
+from .models import Brand, Country, ExternalOrderStatus, ExternalOrderPaymentStatus, TaxType
 
 
 @admin.register(Brand)
@@ -23,5 +23,17 @@ class ExternalOrderStatusAdmin(admin.ModelAdmin):
 @admin.register(ExternalOrderPaymentStatus)
 class ExternalOrderPaymentStatusAdmin(admin.ModelAdmin):
     list_display = ("name", "code", "sort_order", "is_active")
+    search_fields = ("name", "code")
+    ordering = ("sort_order",)
+    
+@admin.register(TaxType)
+class TaxTypeAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "is_vat_payer",
+        "is_profit_tax_payer",
+        "sort_order",
+        "is_active",
+    )
     search_fields = ("name", "code")
     ordering = ("sort_order",)

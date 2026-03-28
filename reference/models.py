@@ -44,3 +44,21 @@ class ExternalOrderPaymentStatus(models.Model):
 
     def __str__(self):
         return self.name
+        
+class TaxType(models.Model):
+    code = models.CharField("Код", max_length=50, unique=True)
+    name = models.CharField("Назва", max_length=255)
+
+    is_vat_payer = models.BooleanField("Платник ПДВ", default=False)
+    is_profit_tax_payer = models.BooleanField("Платник податку на прибуток", default=False)
+
+    sort_order = models.PositiveIntegerField("Порядок", default=0)
+    is_active = models.BooleanField("Активний", default=True)
+
+    class Meta:
+        ordering = ["sort_order", "name"]
+        verbose_name = "Система оподаткування"
+        verbose_name_plural = "Системи оподаткування"
+
+    def __str__(self):
+        return self.name

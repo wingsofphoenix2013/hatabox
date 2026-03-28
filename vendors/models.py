@@ -1,22 +1,17 @@
 from django.db import models
-from reference.models import Brand, Country
+from reference.models import Brand, Country, TaxType
+
 
 class Vendor(models.Model):
-
-    class TaxType(models.TextChoices):
-        LLC_VAT = "LLC_VAT", "ТОВ / платник ПДВ"
-        LLC_NO_VAT = "LLC_NO_VAT", "ТОВ / не платник ПДВ"
-        FOP_2 = "FOP_2", "ФОП 2 група"
-        FOP_3 = "FOP_3", "ФОП 3 група"
-        NON_PROFIT = "NON_PROFIT", "Благодійна організація"
-
     code = models.CharField(max_length=50, unique=True, verbose_name="Код")
     name = models.CharField(max_length=255, verbose_name="Назва")
     legal_name = models.CharField(max_length=255, blank=True, verbose_name="Повна назва")
 
-    tax_type = models.CharField(
-        max_length=20,
-        choices=TaxType.choices,
+    tax_type = models.ForeignKey(
+        TaxType,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         verbose_name="Форма оподаткування"
     )
 
