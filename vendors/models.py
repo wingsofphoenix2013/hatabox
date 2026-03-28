@@ -20,8 +20,8 @@ class Vendor(models.Model):
         choices=TaxType.choices
     )
 
-    edrpou = models.CharField(max_length=20, blank=True)
-    ipn = models.CharField(max_length=20, blank=True)
+    edrpou = models.CharField(max_length=20, blank=True, verbose_name="ЄДРПОУ")
+    ipn = models.CharField(max_length=20, blank=True, verbose_name="ІПН")
 
     phone = models.CharField(max_length=50, blank=True)
     email = models.EmailField(blank=True)
