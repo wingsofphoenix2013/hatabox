@@ -6,3 +6,5 @@ whitenoise
 django-jazzmin
 django-storages[s3]
 Pillow
+djangorestframework
+django-cors-headers
