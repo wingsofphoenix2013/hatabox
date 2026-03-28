@@ -1,5 +1,5 @@
 from django.db import models
-
+from reference.models import Brand, Country
 
 class Vendor(models.Model):
 
@@ -12,13 +12,12 @@ class Vendor(models.Model):
 
     code = models.CharField(max_length=50, unique=True, verbose_name="Код")
     name = models.CharField(max_length=255, verbose_name="Назва")
-
     legal_name = models.CharField(max_length=255, blank=True, verbose_name="Повна назва")
 
     tax_type = models.CharField(
         max_length=20,
         choices=TaxType.choices,
-        verbose_name="Форма опадоткування"
+        verbose_name="Форма оподаткування"
     )
 
     edrpou = models.CharField(max_length=20, blank=True, verbose_name="ЄДРПОУ")
@@ -47,6 +46,22 @@ class VendorItem(models.Model):
     )
 
     vendor_sku = models.CharField(max_length=100, blank=True)
+
+    brand = models.ForeignKey(
+        Brand,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        verbose_name="Бренд"
+    )
+
+    country_of_origin = models.ForeignKey(
+        Country,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        verbose_name="Країна походження"
+    )
 
     is_active = models.BooleanField(default=True)
 

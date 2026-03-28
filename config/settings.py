@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     "staff.apps.StaffConfig",
     "inventory.apps.InventoryConfig",
     "vendors.apps.VendorsConfig",
+    "reference.apps.ReferenceConfig",
 ]
 
 # MIDDLEWARE

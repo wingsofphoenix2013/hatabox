@@ -12,3 +12,5 @@ class VendorAdmin(admin.ModelAdmin):
 class VendorItemAdmin(admin.ModelAdmin):
     list_display = ("vendor", "item", "is_active")
     search_fields = ("vendor__name", "item__name")
+    list_display = ("vendor", "item", "brand", "country_of_origin", "is_active")
+    search_fields = ("vendor__name", "item__name", "brand__name")
