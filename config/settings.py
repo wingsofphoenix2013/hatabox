@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     "inventory.apps.InventoryConfig",
     "vendors.apps.VendorsConfig",
     "reference.apps.ReferenceConfig",
+    "orders.apps.OrdersConfig",
 ]
 
 # MIDDLEWARE
