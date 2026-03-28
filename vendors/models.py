@@ -10,23 +10,24 @@ class Vendor(models.Model):
         FOP_3 = "FOP_3", "ФОП 3 група"
         NON_PROFIT = "NON_PROFIT", "Благодійна організація"
 
-    code = models.CharField(max_length=50, unique=True)
-    name = models.CharField(max_length=255)
+    code = models.CharField(max_length=50, unique=True, verbose_name="Код")
+    name = models.CharField(max_length=255, verbose_name="Назва")
 
-    legal_name = models.CharField(max_length=255, blank=True)
+    legal_name = models.CharField(max_length=255, blank=True, verbose_name="Повна назва")
 
     tax_type = models.CharField(
         max_length=20,
-        choices=TaxType.choices
+        choices=TaxType.choices,
+        verbose_name="Форма опадоткування"
     )
 
     edrpou = models.CharField(max_length=20, blank=True, verbose_name="ЄДРПОУ")
     ipn = models.CharField(max_length=20, blank=True, verbose_name="ІПН")
 
-    phone = models.CharField(max_length=50, blank=True)
-    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=50, blank=True, verbose_name="Основний телефон")
+    email = models.EmailField(blank=True, verbose_name="Основний e-mail")
 
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, verbose_name="Діючий")
 
     def __str__(self):
         return self.name
