@@ -7,8 +7,8 @@ class InvUnit(models.Model):
     symbol = models.CharField(max_length=20)
     is_active = models.BooleanField(default=True)
     sort_order = models.IntegerField(default=0)
-    created_at = models.DateTimeField()
-    updated_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "inv_units"
@@ -23,8 +23,8 @@ class InvItemCategory(models.Model):
     name = models.CharField(max_length=150)
     is_active = models.BooleanField(default=True)
     sort_order = models.IntegerField(default=0)
-    created_at = models.DateTimeField()
-    updated_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "inv_item_categories"
@@ -57,8 +57,8 @@ class InvItem(models.Model):
     qr_item = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
 
-    created_at = models.DateTimeField()
-    updated_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "inv_items"

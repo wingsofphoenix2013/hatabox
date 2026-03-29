@@ -1,4 +1,5 @@
-from rest_framework.viewsets import ReadOnlyModelViewSet
+from rest_framework.viewsets import ReadOnlyModelViewSet, ModelViewSet
+from rest_framework.permissions import DjangoModelPermissions
 
 from .models import InvUnit, InvItemCategory, InvItem
 from .serializers import InvUnitSerializer, InvItemCategorySerializer, InvItemSerializer
@@ -12,6 +13,7 @@ class InvItemCategoryViewSet(ReadOnlyModelViewSet):
     queryset = InvItemCategory.objects.filter(is_active=True)
     serializer_class = InvItemCategorySerializer
     
-class InvItemViewSet(ReadOnlyModelViewSet):
+class InvItemViewSet(ModelViewSet):
     queryset = InvItem.objects.filter(is_active=True)
     serializer_class = InvItemSerializer
+    permission_classes = [DjangoModelPermissions]
