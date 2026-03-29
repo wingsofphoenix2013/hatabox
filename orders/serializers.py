@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import ExternalOrder
+from .models import ExternalOrder, ExternalOrderItem
 
 
 class ExternalOrderSerializer(serializers.ModelSerializer):
@@ -12,3 +12,12 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
         model = ExternalOrder
         fields = "__all__"
         read_only_fields = ("created_by", "created_at", "updated_at")
+        
+
+class ExternalOrderItemSerializer(serializers.ModelSerializer):
+    vendor_item_name = serializers.CharField(source="vendor_item.item.name", read_only=True)
+    vendor_name = serializers.CharField(source="vendor_item.vendor.name", read_only=True)
+
+    class Meta:
+        model = ExternalOrderItem
+        fields = "__all__"

@@ -1,8 +1,8 @@
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import DjangoModelPermissions
 
-from .models import ExternalOrder
-from .serializers import ExternalOrderSerializer
+from .models import ExternalOrder, ExternalOrderItem
+from .serializers import ExternalOrderSerializer, ExternalOrderItemSerializer
 
 
 class ExternalOrderViewSet(ModelViewSet):
@@ -12,3 +12,8 @@ class ExternalOrderViewSet(ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
+        
+class ExternalOrderItemViewSet(ModelViewSet):
+    queryset = ExternalOrderItem.objects.all()
+    serializer_class = ExternalOrderItemSerializer
+    permission_classes = [DjangoModelPermissions]
