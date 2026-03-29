@@ -3,7 +3,7 @@ from django.urls import path, include
 
 from rest_framework.routers import DefaultRouter
 
-from inventory.api_views import InvUnitViewSet
+from inventory.api_views import InvUnitViewSet, InvItemCategoryViewSet
 from vendors.api_views import VendorViewSet
 from orders.api_views import ExternalOrderViewSet, ExternalOrderItemViewSet
 from reference.api_views import ExternalOrderStatusViewSet, ExternalOrderPaymentStatusViewSet
@@ -11,6 +11,7 @@ from reference.api_views import ExternalOrderStatusViewSet, ExternalOrderPayment
 
 router = DefaultRouter()
 router.register("units", InvUnitViewSet)
+router.register("categories", InvItemCategoryViewSet)
 router.register("vendors", VendorViewSet)
 router.register("orders", ExternalOrderViewSet)
 router.register("order-items", ExternalOrderItemViewSet)
