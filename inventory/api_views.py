@@ -1,7 +1,7 @@
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
-from .models import InvUnit, InvItemCategory
-from .serializers import InvUnitSerializer, InvItemCategorySerializer
+from .models import InvUnit, InvItemCategory, InvItem
+from .serializers import InvUnitSerializer, InvItemCategorySerializer, InvItemSerializer
 
 
 class InvUnitViewSet(ReadOnlyModelViewSet):
@@ -11,3 +11,7 @@ class InvUnitViewSet(ReadOnlyModelViewSet):
 class InvItemCategoryViewSet(ReadOnlyModelViewSet):
     queryset = InvItemCategory.objects.filter(is_active=True)
     serializer_class = InvItemCategorySerializer
+    
+class InvItemViewSet(ReadOnlyModelViewSet):
+    queryset = InvItem.objects.filter(is_active=True)
+    serializer_class = InvItemSerializer
