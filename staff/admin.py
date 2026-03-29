@@ -12,12 +12,6 @@ class StaffDepartmentAdmin(admin.ModelAdmin):
     ordering = ("sort_order", "name")
     readonly_fields = ("created_at", "updated_at")
 
-    def save_model(self, request, obj, form, change):
-        if not obj.created_at:
-            obj.created_at = timezone.now()
-        obj.updated_at = timezone.now()
-        super().save_model(request, obj, form, change)
-
 
 @admin.register(StaffPosition)
 class StaffPositionAdmin(admin.ModelAdmin):
@@ -27,11 +21,6 @@ class StaffPositionAdmin(admin.ModelAdmin):
     ordering = ("sort_order", "name")
     readonly_fields = ("created_at", "updated_at")
 
-    def save_model(self, request, obj, form, change):
-        if not obj.created_at:
-            obj.created_at = timezone.now()
-        obj.updated_at = timezone.now()
-        super().save_model(request, obj, form, change)
 
 @admin.register(StaffRole)
 class StaffRoleAdmin(admin.ModelAdmin):
@@ -41,11 +30,6 @@ class StaffRoleAdmin(admin.ModelAdmin):
     ordering = ("name",)
     readonly_fields = ("created_at", "updated_at")
 
-    def save_model(self, request, obj, form, change):
-        if not obj.created_at:
-            obj.created_at = timezone.now()
-        obj.updated_at = timezone.now()
-        super().save_model(request, obj, form, change)
 
 @admin.register(StaffUserRole)
 class StaffUserRoleAdmin(admin.ModelAdmin):
@@ -85,9 +69,3 @@ class StaffEmployeeAdmin(admin.ModelAdmin):
     autocomplete_fields = ("department", "position", "user")
     ordering = ("last_name", "first_name")
     readonly_fields = ("created_at", "updated_at")
-
-    def save_model(self, request, obj, form, change):
-        if not obj.created_at:
-            obj.created_at = timezone.now()
-        obj.updated_at = timezone.now()
-        super().save_model(request, obj, form, change)

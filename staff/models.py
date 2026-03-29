@@ -7,8 +7,8 @@ class StaffDepartment(models.Model):
     description = models.TextField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     sort_order = models.IntegerField(default=0)
-    created_at = models.DateTimeField()
-    updated_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "staff_departments"
@@ -24,8 +24,8 @@ class StaffPosition(models.Model):
     description = models.TextField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     sort_order = models.IntegerField(default=0)
-    created_at = models.DateTimeField()
-    updated_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "staff_positions"
@@ -77,8 +77,8 @@ class StaffEmployee(models.Model):
 
     notes = models.TextField(blank=True, null=True)
 
-    created_at = models.DateTimeField()
-    updated_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "staff_employees"
@@ -92,8 +92,8 @@ class StaffRole(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField()
-    updated_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "staff_roles"
