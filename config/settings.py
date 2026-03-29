@@ -132,10 +132,12 @@ STORAGES = {
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
+    "https://hatabox-frontend.onrender.com",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
+    "https://hatabox-frontend.onrender.com",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
