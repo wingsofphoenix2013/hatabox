@@ -4,11 +4,13 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from vendors.api_views import VendorViewSet
 from orders.api_views import ExternalOrderViewSet
+from reference.api_views import ExternalOrderStatusViewSet
 
 
 router = DefaultRouter()
 router.register("vendors", VendorViewSet)
 router.register("orders", ExternalOrderViewSet)
+router.register("order-statuses", ExternalOrderStatusViewSet)
 
 
 urlpatterns = [
