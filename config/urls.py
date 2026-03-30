@@ -7,6 +7,7 @@ from inventory.api_views import InvUnitViewSet, InvItemCategoryViewSet, InvItemV
 from vendors.api_views import VendorViewSet
 from orders.api_views import ExternalOrderViewSet, ExternalOrderItemViewSet
 from reference.api_views import ExternalOrderStatusViewSet, ExternalOrderPaymentStatusViewSet
+from accounts.views import login_view
 
 
 router = DefaultRouter()
@@ -22,5 +23,6 @@ router.register("payment-statuses", ExternalOrderPaymentStatusViewSet)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/login/", login_view),
     path("api/", include(router.urls)),
 ]
