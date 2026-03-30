@@ -19,3 +19,15 @@ def login_view(request):
             {"detail": "Invalid credentials"},
             status=status.HTTP_400_BAD_REQUEST
         )
+        
+@api_view(["GET"])
+def me_view(request):
+    if request.user.is_authenticated:
+        return Response({
+            "id": request.user.id,
+            "username": request.user.username,
+        })
+    return Response(
+        {"detail": "Unauthorized"},
+        status=status.HTTP_401_UNAUTHORIZED
+    )
