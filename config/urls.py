@@ -1,5 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
+from django.http import JsonResponse
+from django.views.decorators.csrf import ensure_csrf_cookie
 
 from rest_framework.routers import DefaultRouter
 
@@ -8,6 +10,11 @@ from vendors.api_views import VendorViewSet
 from orders.api_views import ExternalOrderViewSet, ExternalOrderItemViewSet
 from reference.api_views import ExternalOrderStatusViewSet, ExternalOrderPaymentStatusViewSet
 from accounts.views import login_view, me_view
+
+
+@ensure_csrf_cookie
+def csrf_view(request):
+    return JsonResponse({"detail": "CSRF cookie set"})
 
 
 router = DefaultRouter()
@@ -25,5 +32,6 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/login/", login_view),
     path("api/me/", me_view),
+    path("api/csrf/", csrf_view),
     path("api/", include(router.urls)),
 ]
