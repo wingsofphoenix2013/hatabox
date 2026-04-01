@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.http import JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.middleware.csrf import get_token
 
 from rest_framework.routers import DefaultRouter
 
@@ -14,7 +15,9 @@ from accounts.views import login_view, me_view
 
 @ensure_csrf_cookie
 def csrf_view(request):
-    return JsonResponse({"detail": "CSRF cookie set"})
+    return JsonResponse({
+        "csrfToken": get_token(request)
+    })
 
 
 router = DefaultRouter()
