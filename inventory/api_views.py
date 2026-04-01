@@ -1,3 +1,5 @@
+from django.db import models
+
 from rest_framework.viewsets import ReadOnlyModelViewSet, ModelViewSet
 from rest_framework.permissions import DjangoModelPermissions
 
@@ -24,5 +26,12 @@ class InvItemViewSet(ModelViewSet):
         category = self.request.query_params.getlist("category")
         if category:
             queryset = queryset.filter(category_id__in=category)
+            
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(name__icontains=search) |
+                models.Q(internal_code__icontains=search)
+            )
 
         return queryset
