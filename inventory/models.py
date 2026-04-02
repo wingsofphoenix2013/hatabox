@@ -53,7 +53,12 @@ class InvItem(models.Model):
         related_name="items",
     )
 
-    image = models.ImageField(upload_to="items/", db_column="image_path", blank=True, null=True)
+    image = models.ImageField(
+        upload_to="items/",
+        db_column="image_path",
+        blank=True,
+        null=True,
+    )
     qr_item = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
 
@@ -66,3 +71,65 @@ class InvItem(models.Model):
 
     def __str__(self):
         return f"{self.internal_code} — {self.name}"
+
+
+class ProductFamily(models.Model):
+    class DeveloperChoices(models.TextChoices):
+        OWN = "own", "Власний"
+        EXTERNAL = "external", "Зовнішній"
+
+    code = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    developer = models.CharField(
+        max_length=20,
+        choices=DeveloperChoices.choices,
+    )
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "product_families"
+        ordering = ["name"]
+
+    def __str__(self):
+        return f"{self.code} — {self.name}"
+
+
+class ProductFamilyLibrary(models.Model):
+    class AttachmentTypeChoices(models.TextChoices):
+        PHOTO = "photo", "Фотографія"
+        VIDEO = "video", "Відео"
+        DRAWING = "drawing", "Креслення"
+        DOCUMENTATION = "documentation", "Документація"
+
+    product_family = models.ForeignKey(
+        "ProductFamily",
+        on_delete=models.CASCADE,
+        db_column="product_family_id",
+        related_name="library_items",
+    )
+    file = models.FileField(
+        upload_to="product_family_library/",
+        blank=True,
+        null=True,
+    )
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    attachment_type = models.CharField(
+        max_length=30,
+        choices=AttachmentTypeChoices.choices,
+    )
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "product_family_library"
+        ordering = ["name", "id"]
+
+    def __str__(self):
+        return f"{self.product_family.code} — {self.name}"

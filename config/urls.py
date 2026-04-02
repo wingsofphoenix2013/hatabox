@@ -6,7 +6,13 @@ from django.middleware.csrf import get_token
 
 from rest_framework.routers import DefaultRouter
 
-from inventory.api_views import InvUnitViewSet, InvItemCategoryViewSet, InvItemViewSet
+from inventory.api_views import (
+    InvUnitViewSet,
+    InvItemCategoryViewSet,
+    InvItemViewSet,
+    ProductFamilyViewSet,
+    ProductFamilyLibraryViewSet,
+)
 from vendors.api_views import VendorViewSet
 from orders.api_views import ExternalOrderViewSet, ExternalOrderItemViewSet
 from reference.api_views import ExternalOrderStatusViewSet, ExternalOrderPaymentStatusViewSet
@@ -24,6 +30,8 @@ router = DefaultRouter()
 router.register("units", InvUnitViewSet)
 router.register("categories", InvItemCategoryViewSet)
 router.register("items", InvItemViewSet)
+router.register("product-families", ProductFamilyViewSet)
+router.register("product-family-library", ProductFamilyLibraryViewSet)
 router.register("vendors", VendorViewSet)
 router.register("orders", ExternalOrderViewSet)
 router.register("order-items", ExternalOrderItemViewSet)
