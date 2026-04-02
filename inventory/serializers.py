@@ -374,6 +374,7 @@ class ProductStepSerializer(serializers.ModelSerializer):
             "product_family_name",
             "name",
             "sort_order",
+            "description",
             "created_at",
             "updated_at",
             "library_items",

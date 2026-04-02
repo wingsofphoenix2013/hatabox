@@ -207,6 +207,7 @@ class ProductStepAdmin(admin.ModelAdmin):
     list_filter = ("product",)
     search_fields = (
         "name",
+        "description",
         "product__code",
         "product__version",
         "product__product_family__code",
