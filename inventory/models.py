@@ -133,3 +133,82 @@ class ProductFamilyLibrary(models.Model):
 
     def __str__(self):
         return f"{self.product_family.code} — {self.name}"
+        
+class Product(models.Model):
+    product_family = models.ForeignKey(
+        "ProductFamily",
+        on_delete=models.PROTECT,
+        db_column="product_family_id",
+        related_name="products",
+    )
+    version = models.CharField(max_length=50)
+    code = models.CharField(max_length=150, unique=True)
+    description = models.TextField(blank=True, null=True)
+    is_base_modification = models.BooleanField(default=False)
+    development_started_at = models.DateField()
+    development_finished_at = models.DateField()
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "products"
+        ordering = ["product_family__name", "version"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["product_family", "version"],
+                name="uq_product_family_version",
+            ),
+            models.UniqueConstraint(
+                fields=["product_family"],
+                condition=models.Q(is_base_modification=True),
+                name="uq_product_family_single_base_modification",
+            ),
+            models.CheckConstraint(
+                check=models.Q(
+                    development_finished_at__gte=models.F("development_started_at")
+                ),
+                name="chk_product_development_dates_order",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.code}"
+
+
+class ProductLibrary(models.Model):
+    class AttachmentTypeChoices(models.TextChoices):
+        PHOTO = "photo", "Фотографія"
+        VIDEO = "video", "Відео"
+        DRAWING = "drawing", "Креслення"
+        DOCUMENTATION = "documentation", "Документація"
+
+    product = models.ForeignKey(
+        "Product",
+        on_delete=models.CASCADE,
+        db_column="product_id",
+        related_name="library_items",
+    )
+    file = models.FileField(
+        upload_to="product_library/",
+        blank=True,
+        null=True,
+    )
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    attachment_type = models.CharField(
+        max_length=30,
+        choices=AttachmentTypeChoices.choices,
+    )
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "product_library"
+        ordering = ["name", "id"]
+
+    def __str__(self):
+        return f"{self.product.code} — {self.name}"

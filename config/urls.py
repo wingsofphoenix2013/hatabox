@@ -12,6 +12,8 @@ from inventory.api_views import (
     InvItemViewSet,
     ProductFamilyViewSet,
     ProductFamilyLibraryViewSet,
+    ProductViewSet,
+    ProductLibraryViewSet,
 )
 from vendors.api_views import VendorViewSet
 from orders.api_views import ExternalOrderViewSet, ExternalOrderItemViewSet
@@ -32,6 +34,8 @@ router.register("categories", InvItemCategoryViewSet)
 router.register("items", InvItemViewSet)
 router.register("product-families", ProductFamilyViewSet)
 router.register("product-family-library", ProductFamilyLibraryViewSet)
+router.register("products", ProductViewSet)
+router.register("product-library", ProductLibraryViewSet)
 router.register("vendors", VendorViewSet)
 router.register("orders", ExternalOrderViewSet)
 router.register("order-items", ExternalOrderItemViewSet)

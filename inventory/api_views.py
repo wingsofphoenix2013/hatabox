@@ -9,6 +9,8 @@ from .models import (
     InvItem,
     ProductFamily,
     ProductFamilyLibrary,
+    Product,
+    ProductLibrary,
 )
 from .serializers import (
     InvUnitSerializer,
@@ -16,6 +18,8 @@ from .serializers import (
     InvItemSerializer,
     ProductFamilySerializer,
     ProductFamilyLibrarySerializer,
+    ProductSerializer,
+    ProductLibrarySerializer,
 )
 
 
@@ -97,6 +101,75 @@ class ProductFamilyLibraryViewSet(ModelViewSet):
                 | models.Q(description__icontains=search)
                 | models.Q(product_family__code__icontains=search)
                 | models.Q(product_family__name__icontains=search)
+            )
+
+        return queryset
+        
+class ProductViewSet(ModelViewSet):
+    queryset = Product.objects.filter(is_active=True).select_related("product_family")
+    serializer_class = ProductSerializer
+    permission_classes = [DjangoModelPermissions]
+
+    def get_queryset(self):
+        queryset = self.queryset.prefetch_related("library_items")
+
+        product_family = self.request.query_params.getlist("product_family")
+        if product_family:
+            queryset = queryset.filter(product_family_id__in=product_family)
+
+        is_base_modification = self.request.query_params.get("is_base_modification")
+        if is_base_modification is not None:
+            value = is_base_modification.strip().lower()
+            if value in ("true", "1"):
+                queryset = queryset.filter(is_base_modification=True)
+            elif value in ("false", "0"):
+                queryset = queryset.filter(is_base_modification=False)
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(code__icontains=search)
+                | models.Q(version__icontains=search)
+                | models.Q(description__icontains=search)
+                | models.Q(product_family__code__icontains=search)
+                | models.Q(product_family__name__icontains=search)
+            )
+
+        return queryset
+
+
+class ProductLibraryViewSet(ModelViewSet):
+    queryset = ProductLibrary.objects.filter(is_active=True).select_related(
+        "product",
+        "product__product_family",
+    )
+    serializer_class = ProductLibrarySerializer
+    permission_classes = [DjangoModelPermissions]
+
+    def get_queryset(self):
+        queryset = self.queryset
+
+        product = self.request.query_params.getlist("product")
+        if product:
+            queryset = queryset.filter(product_id__in=product)
+
+        product_family = self.request.query_params.getlist("product_family")
+        if product_family:
+            queryset = queryset.filter(product__product_family_id__in=product_family)
+
+        attachment_type = self.request.query_params.getlist("attachment_type")
+        if attachment_type:
+            queryset = queryset.filter(attachment_type__in=attachment_type)
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(name__icontains=search)
+                | models.Q(description__icontains=search)
+                | models.Q(product__code__icontains=search)
+                | models.Q(product__version__icontains=search)
+                | models.Q(product__product_family__code__icontains=search)
+                | models.Q(product__product_family__name__icontains=search)
             )
 
         return queryset
