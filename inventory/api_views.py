@@ -123,6 +123,12 @@ class ProductViewSet(ModelViewSet):
         if product_family:
             queryset = queryset.filter(product_family_id__in=product_family)
 
+        product_family_code = self.request.query_params.get("product_family_code")
+        if product_family_code:
+            queryset = queryset.filter(
+                product_family__code__icontains=product_family_code
+            )
+
         is_base_modification = self.request.query_params.get("is_base_modification")
         if is_base_modification is not None:
             value = is_base_modification.strip().lower()
