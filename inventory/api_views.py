@@ -11,6 +11,9 @@ from .models import (
     ProductFamilyLibrary,
     Product,
     ProductLibrary,
+    ProductStep,
+    ProductStepLibrary,
+    ProductStepItem,
 )
 from .serializers import (
     InvUnitSerializer,
@@ -20,6 +23,9 @@ from .serializers import (
     ProductFamilyLibrarySerializer,
     ProductSerializer,
     ProductLibrarySerializer,
+    ProductStepSerializer,
+    ProductStepLibrarySerializer,
+    ProductStepItemSerializer,
 )
 
 
@@ -170,6 +176,123 @@ class ProductLibraryViewSet(ModelViewSet):
                 | models.Q(product__version__icontains=search)
                 | models.Q(product__product_family__code__icontains=search)
                 | models.Q(product__product_family__name__icontains=search)
+            )
+
+        return queryset
+        
+class ProductStepViewSet(ModelViewSet):
+    queryset = ProductStep.objects.select_related(
+        "product",
+        "product__product_family",
+    )
+    serializer_class = ProductStepSerializer
+    permission_classes = [DjangoModelPermissions]
+
+    def get_queryset(self):
+        queryset = self.queryset.prefetch_related("library_items", "step_items__inv_item__unit")
+
+        product = self.request.query_params.getlist("product")
+        if product:
+            queryset = queryset.filter(product_id__in=product)
+
+        product_family = self.request.query_params.getlist("product_family")
+        if product_family:
+            queryset = queryset.filter(product__product_family_id__in=product_family)
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(name__icontains=search)
+                | models.Q(product__code__icontains=search)
+                | models.Q(product__version__icontains=search)
+                | models.Q(product__product_family__code__icontains=search)
+                | models.Q(product__product_family__name__icontains=search)
+            )
+
+        return queryset
+
+
+class ProductStepLibraryViewSet(ModelViewSet):
+    queryset = ProductStepLibrary.objects.filter(is_active=True).select_related(
+        "product_step",
+        "product_step__product",
+        "product_step__product__product_family",
+    )
+    serializer_class = ProductStepLibrarySerializer
+    permission_classes = [DjangoModelPermissions]
+
+    def get_queryset(self):
+        queryset = self.queryset
+
+        product_step = self.request.query_params.getlist("product_step")
+        if product_step:
+            queryset = queryset.filter(product_step_id__in=product_step)
+
+        product = self.request.query_params.getlist("product")
+        if product:
+            queryset = queryset.filter(product_step__product_id__in=product)
+
+        product_family = self.request.query_params.getlist("product_family")
+        if product_family:
+            queryset = queryset.filter(product_step__product__product_family_id__in=product_family)
+
+        attachment_type = self.request.query_params.getlist("attachment_type")
+        if attachment_type:
+            queryset = queryset.filter(attachment_type__in=attachment_type)
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(name__icontains=search)
+                | models.Q(description__icontains=search)
+                | models.Q(product_step__name__icontains=search)
+                | models.Q(product_step__product__code__icontains=search)
+                | models.Q(product_step__product__version__icontains=search)
+                | models.Q(product_step__product__product_family__code__icontains=search)
+                | models.Q(product_step__product__product_family__name__icontains=search)
+            )
+
+        return queryset
+
+
+class ProductStepItemViewSet(ModelViewSet):
+    queryset = ProductStepItem.objects.select_related(
+        "product_step",
+        "product_step__product",
+        "product_step__product__product_family",
+        "inv_item",
+        "inv_item__unit",
+    )
+    serializer_class = ProductStepItemSerializer
+    permission_classes = [DjangoModelPermissions]
+
+    def get_queryset(self):
+        queryset = self.queryset
+
+        product_step = self.request.query_params.getlist("product_step")
+        if product_step:
+            queryset = queryset.filter(product_step_id__in=product_step)
+
+        product = self.request.query_params.getlist("product")
+        if product:
+            queryset = queryset.filter(product_step__product_id__in=product)
+
+        product_family = self.request.query_params.getlist("product_family")
+        if product_family:
+            queryset = queryset.filter(product_step__product__product_family_id__in=product_family)
+
+        inv_item = self.request.query_params.getlist("inv_item")
+        if inv_item:
+            queryset = queryset.filter(inv_item_id__in=inv_item)
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(inv_item__internal_code__icontains=search)
+                | models.Q(inv_item__name__icontains=search)
+                | models.Q(product_step__name__icontains=search)
+                | models.Q(product_step__product__code__icontains=search)
+                | models.Q(product_step__product__version__icontains=search)
             )
 
         return queryset

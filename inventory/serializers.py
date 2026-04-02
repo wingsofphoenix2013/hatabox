@@ -8,6 +8,9 @@ from .models import (
     ProductFamilyLibrary,
     Product,
     ProductLibrary,
+    ProductStep,
+    ProductStepLibrary,
+    ProductStepItem,
 )
 
 
@@ -197,4 +200,182 @@ class ProductSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "library_items",
+        ]
+        
+class ProductStepLibrarySerializer(serializers.ModelSerializer):
+    attachment_type_display = serializers.CharField(
+        source="get_attachment_type_display",
+        read_only=True,
+    )
+    file_url = serializers.SerializerMethodField()
+    product_step_name = serializers.CharField(
+        source="product_step.name",
+        read_only=True,
+    )
+    product_step_sort_order = serializers.IntegerField(
+        source="product_step.sort_order",
+        read_only=True,
+    )
+    product_id = serializers.IntegerField(
+        source="product_step.product.id",
+        read_only=True,
+    )
+    product_code = serializers.CharField(
+        source="product_step.product.code",
+        read_only=True,
+    )
+    product_version = serializers.CharField(
+        source="product_step.product.version",
+        read_only=True,
+    )
+    product_family_id = serializers.IntegerField(
+        source="product_step.product.product_family.id",
+        read_only=True,
+    )
+    product_family_code = serializers.CharField(
+        source="product_step.product.product_family.code",
+        read_only=True,
+    )
+    product_family_name = serializers.CharField(
+        source="product_step.product.product_family.name",
+        read_only=True,
+    )
+
+    class Meta:
+        model = ProductStepLibrary
+        fields = [
+            "id",
+            "product_step",
+            "product_step_name",
+            "product_step_sort_order",
+            "product_id",
+            "product_code",
+            "product_version",
+            "product_family_id",
+            "product_family_code",
+            "product_family_name",
+            "name",
+            "description",
+            "attachment_type",
+            "attachment_type_display",
+            "file",
+            "file_url",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_file_url(self, obj):
+        if obj.file:
+            request = self.context.get("request")
+            if request:
+                return request.build_absolute_uri(obj.file.url)
+            return obj.file.url
+        return None
+
+
+class ProductStepItemSerializer(serializers.ModelSerializer):
+    inv_item_internal_code = serializers.CharField(
+        source="inv_item.internal_code",
+        read_only=True,
+    )
+    inv_item_name = serializers.CharField(
+        source="inv_item.name",
+        read_only=True,
+    )
+    inv_item_unit_id = serializers.IntegerField(
+        source="inv_item.unit.id",
+        read_only=True,
+    )
+    inv_item_unit_name = serializers.CharField(
+        source="inv_item.unit.name",
+        read_only=True,
+    )
+    inv_item_unit_symbol = serializers.CharField(
+        source="inv_item.unit.symbol",
+        read_only=True,
+    )
+    product_step_name = serializers.CharField(
+        source="product_step.name",
+        read_only=True,
+    )
+    product_step_sort_order = serializers.IntegerField(
+        source="product_step.sort_order",
+        read_only=True,
+    )
+    product_id = serializers.IntegerField(
+        source="product_step.product.id",
+        read_only=True,
+    )
+    product_code = serializers.CharField(
+        source="product_step.product.code",
+        read_only=True,
+    )
+
+    class Meta:
+        model = ProductStepItem
+        fields = [
+            "id",
+            "product_step",
+            "product_step_name",
+            "product_step_sort_order",
+            "product_id",
+            "product_code",
+            "inv_item",
+            "inv_item_internal_code",
+            "inv_item_name",
+            "inv_item_unit_id",
+            "inv_item_unit_name",
+            "inv_item_unit_symbol",
+            "quantity",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class ProductStepSerializer(serializers.ModelSerializer):
+    product_id = serializers.IntegerField(
+        source="product.id",
+        read_only=True,
+    )
+    product_code = serializers.CharField(
+        source="product.code",
+        read_only=True,
+    )
+    product_version = serializers.CharField(
+        source="product.version",
+        read_only=True,
+    )
+    product_family_id = serializers.IntegerField(
+        source="product.product_family.id",
+        read_only=True,
+    )
+    product_family_code = serializers.CharField(
+        source="product.product_family.code",
+        read_only=True,
+    )
+    product_family_name = serializers.CharField(
+        source="product.product_family.name",
+        read_only=True,
+    )
+    library_items = ProductStepLibrarySerializer(many=True, read_only=True)
+    step_items = ProductStepItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ProductStep
+        fields = [
+            "id",
+            "product",
+            "product_id",
+            "product_code",
+            "product_version",
+            "product_family_id",
+            "product_family_code",
+            "product_family_name",
+            "name",
+            "sort_order",
+            "created_at",
+            "updated_at",
+            "library_items",
+            "step_items",
         ]
