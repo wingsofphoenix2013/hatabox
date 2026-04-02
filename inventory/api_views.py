@@ -1,6 +1,9 @@
 from django.db import models
+from django.db.models import Sum
 
 from rest_framework.permissions import DjangoModelPermissions
+from rest_framework.decorators import action
+from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from .models import (
@@ -26,6 +29,7 @@ from .serializers import (
     ProductStepSerializer,
     ProductStepLibrarySerializer,
     ProductStepItemSerializer,
+    ProductMaterialPlanSerializer,
 )
 
 
@@ -148,6 +152,84 @@ class ProductViewSet(ModelViewSet):
             )
 
         return queryset
+
+    @action(detail=True, methods=["get"], url_path="material-plan")
+    def material_plan(self, request, pk=None):
+        product = self.get_object()
+
+        summary_queryset = (
+            ProductStepItem.objects.filter(product_step__product=product)
+            .values(
+                "inv_item_id",
+                "inv_item__internal_code",
+                "inv_item__name",
+                "inv_item__unit_id",
+                "inv_item__unit__name",
+                "inv_item__unit__symbol",
+            )
+            .annotate(total_quantity=Sum("quantity"))
+            .order_by("inv_item__name", "inv_item_id")
+        )
+
+        summary_items = [
+            {
+                "inv_item_id": row["inv_item_id"],
+                "inv_item_internal_code": row["inv_item__internal_code"],
+                "inv_item_name": row["inv_item__name"],
+                "unit_id": row["inv_item__unit_id"],
+                "unit_name": row["inv_item__unit__name"],
+                "unit_symbol": row["inv_item__unit__symbol"],
+                "total_quantity": row["total_quantity"],
+            }
+            for row in summary_queryset
+        ]
+
+        steps_queryset = (
+            ProductStep.objects.filter(product=product)
+            .prefetch_related("step_items__inv_item__unit")
+            .order_by("sort_order", "id")
+        )
+
+        steps = []
+        for step in steps_queryset:
+            step_items = []
+            for step_item in step.step_items.all():
+                step_items.append(
+                    {
+                        "inv_item_id": step_item.inv_item_id,
+                        "inv_item_internal_code": step_item.inv_item.internal_code,
+                        "inv_item_name": step_item.inv_item.name,
+                        "unit_id": step_item.inv_item.unit_id,
+                        "unit_name": step_item.inv_item.unit.name,
+                        "unit_symbol": step_item.inv_item.unit.symbol,
+                        "quantity": step_item.quantity,
+                    }
+                )
+
+            steps.append(
+                {
+                    "id": step.id,
+                    "name": step.name,
+                    "sort_order": step.sort_order,
+                    "items": step_items,
+                }
+            )
+
+        payload = {
+            "product": {
+                "id": product.id,
+                "code": product.code,
+                "version": product.version,
+                "product_family_id": product.product_family_id,
+                "product_family_code": product.product_family.code,
+                "product_family_name": product.product_family.name,
+            },
+            "summary_items": summary_items,
+            "steps": steps,
+        }
+
+        serializer = ProductMaterialPlanSerializer(payload)
+        return Response(serializer.data)
 
 
 class ProductLibraryViewSet(ModelViewSet):
