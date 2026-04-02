@@ -165,12 +165,6 @@ class Product(models.Model):
                 condition=models.Q(is_base_modification=True),
                 name="uq_product_family_single_base_modification",
             ),
-            models.CheckConstraint(
-                check=models.Q(
-                    development_finished_at__gte=models.F("development_started_at")
-                ),
-                name="chk_product_development_dates_order",
-            ),
         ]
 
     def __str__(self):
