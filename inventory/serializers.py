@@ -381,20 +381,32 @@ class ProductStepSerializer(serializers.ModelSerializer):
             "step_items",
         ]
         
+class ProductMaterialPlanSummaryItemStepSerializer(serializers.Serializer):
+    product_step_id = serializers.IntegerField()
+    product_step_name = serializers.CharField()
+    sort_order = serializers.IntegerField()
+    quantity = serializers.DecimalField(max_digits=12, decimal_places=3)
+
+
 class ProductMaterialPlanSummaryItemSerializer(serializers.Serializer):
     inv_item_id = serializers.IntegerField()
     inv_item_internal_code = serializers.CharField()
     inv_item_name = serializers.CharField()
+    inv_item_category_id = serializers.IntegerField()
+    inv_item_category_name = serializers.CharField()
     unit_id = serializers.IntegerField()
     unit_name = serializers.CharField()
     unit_symbol = serializers.CharField()
     total_quantity = serializers.DecimalField(max_digits=12, decimal_places=3)
+    steps = ProductMaterialPlanSummaryItemStepSerializer(many=True)
 
 
 class ProductMaterialPlanStepItemSerializer(serializers.Serializer):
     inv_item_id = serializers.IntegerField()
     inv_item_internal_code = serializers.CharField()
     inv_item_name = serializers.CharField()
+    inv_item_category_id = serializers.IntegerField()
+    inv_item_category_name = serializers.CharField()
     unit_id = serializers.IntegerField()
     unit_name = serializers.CharField()
     unit_symbol = serializers.CharField()
