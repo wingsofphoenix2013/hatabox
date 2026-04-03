@@ -20,6 +20,12 @@ class Vendor(models.Model):
 
     phone = models.CharField(max_length=50, blank=True, verbose_name="Основний телефон")
     email = models.EmailField(blank=True, verbose_name="Основний e-mail")
+    logo = models.ImageField(
+        upload_to="vendors/logos/",
+        blank=True,
+        null=True,
+        verbose_name="Логотип"
+    )
 
     is_active = models.BooleanField(default=True, verbose_name="Діючий")
 

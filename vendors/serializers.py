@@ -9,4 +9,19 @@ class VendorSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Vendor
-        fields = "__all__"
+        fields = [
+            "id",
+            "code",
+            "name",
+            "legal_name",
+            "tax_type",
+            "tax_type_name",
+            "is_vat_payer",
+            "is_profit_tax_payer",
+            "edrpou",
+            "ipn",
+            "phone",
+            "email",
+            "logo",
+            "is_active",
+        ]
