@@ -21,6 +21,8 @@ from inventory.api_views import (
 from vendors.api_views import VendorViewSet, VendorItemViewSet
 from orders.api_views import ExternalOrderViewSet, ExternalOrderItemViewSet
 from reference.api_views import (
+    BrandViewSet,
+    CountryViewSet,
     ExternalOrderStatusViewSet,
     ExternalOrderPaymentStatusViewSet,
     TaxTypeViewSet,
@@ -53,6 +55,8 @@ router.register("orders", ExternalOrderViewSet)
 router.register("order-items", ExternalOrderItemViewSet)
 router.register("order-statuses", ExternalOrderStatusViewSet)
 router.register("payment-statuses", ExternalOrderPaymentStatusViewSet)
+router.register("brands", BrandViewSet)
+router.register("countries", CountryViewSet)
 
 
 urlpatterns = [

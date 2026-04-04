@@ -1,5 +1,23 @@
 from rest_framework import serializers
-from .models import ExternalOrderStatus, ExternalOrderPaymentStatus, TaxType
+from .models import (
+    Brand,
+    Country,
+    ExternalOrderStatus,
+    ExternalOrderPaymentStatus,
+    TaxType,
+)
+
+
+class BrandSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Brand
+        fields = "__all__"
+
+
+class CountrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Country
+        fields = "__all__"
 
 
 class ExternalOrderStatusSerializer(serializers.ModelSerializer):
