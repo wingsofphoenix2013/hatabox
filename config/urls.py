@@ -18,7 +18,7 @@ from inventory.api_views import (
     ProductStepLibraryViewSet,
     ProductStepItemViewSet,
 )
-from vendors.api_views import VendorViewSet
+from vendors.api_views import VendorViewSet, VendorItemViewSet
 from orders.api_views import ExternalOrderViewSet, ExternalOrderItemViewSet
 from reference.api_views import (
     ExternalOrderStatusViewSet,
@@ -47,6 +47,7 @@ router.register("product-steps", ProductStepViewSet)
 router.register("product-step-library", ProductStepLibraryViewSet)
 router.register("product-step-items", ProductStepItemViewSet)
 router.register("vendors", VendorViewSet)
+router.register("vendor-items", VendorItemViewSet)
 router.register("tax-types", TaxTypeViewSet)
 router.register("orders", ExternalOrderViewSet)
 router.register("order-items", ExternalOrderItemViewSet)

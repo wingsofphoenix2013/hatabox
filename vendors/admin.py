@@ -11,6 +11,21 @@ class VendorAdmin(admin.ModelAdmin):
 
 @admin.register(VendorItem)
 class VendorItemAdmin(admin.ModelAdmin):
-    list_display = ("vendor", "item", "brand", "country_of_origin", "is_active")
-    search_fields = ("vendor__name", "item__name", "brand__name")
+    list_display = (
+        "vendor",
+        "vendor_sku",
+        "name",
+        "item",
+        "brand",
+        "country_of_origin",
+        "is_active",
+    )
+    search_fields = (
+        "vendor__name",
+        "vendor_sku",
+        "name",
+        "item__name",
+        "item__internal_code",
+        "brand__name",
+    )
     list_filter = ("vendor", "brand", "country_of_origin", "is_active")

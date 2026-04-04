@@ -46,7 +46,8 @@ class VendorItem(models.Model):
         related_name="vendor_items"
     )
 
-    vendor_sku = models.CharField(max_length=100, blank=True)
+    vendor_sku = models.CharField(max_length=100)
+    name = models.CharField(max_length=255, verbose_name="Назва постачальника")
 
     brand = models.ForeignKey(
         Brand,
@@ -66,5 +67,13 @@ class VendorItem(models.Model):
 
     is_active = models.BooleanField(default=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["vendor", "vendor_sku"],
+                name="uq_vendor_item_vendor_vendor_sku",
+            ),
+        ]
+
     def __str__(self):
-        return f"{self.vendor} → {self.item}"
+        return f"{self.vendor} → {self.vendor_sku} → {self.name}"
