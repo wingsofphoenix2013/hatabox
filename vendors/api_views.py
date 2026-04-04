@@ -36,7 +36,7 @@ class VendorItemViewSet(ModelViewSet):
         "item__unit",
         "brand",
         "country_of_origin",
-    )
+    ).order_by("item__name", "vendor_sku", "id")
     serializer_class = VendorItemSerializer
     permission_classes = [DjangoModelPermissions]
 
@@ -47,9 +47,9 @@ class VendorItemViewSet(ModelViewSet):
         if vendor:
             queryset = queryset.filter(vendor_id__in=vendor)
 
-        item = self.request.query_params.getlist("item")
-        if item:
-            queryset = queryset.filter(item_id__in=item)
+        inv_item = self.request.query_params.getlist("inv_item")
+        if inv_item:
+            queryset = queryset.filter(item_id__in=inv_item)
 
         brand = self.request.query_params.getlist("brand")
         if brand:
@@ -74,3 +74,7 @@ class VendorItemViewSet(ModelViewSet):
             )
 
         return queryset
+
+    def perform_destroy(self, instance):
+        instance.is_active = False
+        instance.save(update_fields=["is_active"])
