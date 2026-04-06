@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Prefetch
 
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import DjangoModelPermissions
@@ -8,12 +9,29 @@ from .serializers import VendorSerializer, VendorItemSerializer
 
 
 class VendorViewSet(ModelViewSet):
-    queryset = Vendor.objects.filter(is_active=True)
+    queryset = Vendor.objects.filter(is_active=True).prefetch_related(
+        Prefetch(
+            "vendor_items",
+            queryset=VendorItem.objects.filter(
+                is_active=True,
+                item__is_active=True,
+            ).select_related("item__category"),
+            to_attr="active_vendor_items_for_categories",
+        )
+    ).order_by("name", "id")
     serializer_class = VendorSerializer
     permission_classes = [DjangoModelPermissions]
 
     def get_queryset(self):
         queryset = self.queryset
+
+        item_category = self.request.query_params.getlist("item_category")
+        if item_category:
+            queryset = queryset.filter(
+                vendor_items__is_active=True,
+                vendor_items__item__is_active=True,
+                vendor_items__item__category_id__in=item_category,
+            ).distinct()
 
         search = self.request.query_params.get("search")
         if search:

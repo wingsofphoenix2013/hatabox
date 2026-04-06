@@ -7,6 +7,9 @@ class VendorSerializer(serializers.ModelSerializer):
     is_vat_payer = serializers.BooleanField(source="tax_type.is_vat_payer", read_only=True)
     is_profit_tax_payer = serializers.BooleanField(source="tax_type.is_profit_tax_payer", read_only=True)
 
+    item_category_ids = serializers.SerializerMethodField()
+    item_category_names = serializers.SerializerMethodField()
+
     class Meta:
         model = Vendor
         fields = [
@@ -24,7 +27,34 @@ class VendorSerializer(serializers.ModelSerializer):
             "email",
             "logo",
             "is_active",
+            "item_category_ids",
+            "item_category_names",
         ]
+
+    def _get_sorted_unique_categories(self, obj):
+        vendor_items = getattr(obj, "active_vendor_items_for_categories", [])
+
+        categories_map = {}
+        for vendor_item in vendor_items:
+            item = getattr(vendor_item, "item", None)
+            if not item or not getattr(item, "is_active", False):
+                continue
+
+            category = getattr(item, "category", None)
+            if not category:
+                continue
+
+            categories_map[category.id] = category.name
+
+        return sorted(categories_map.items(), key=lambda x: (x[1], x[0]))
+
+    def get_item_category_ids(self, obj):
+        categories = self._get_sorted_unique_categories(obj)
+        return [category_id for category_id, _ in categories]
+
+    def get_item_category_names(self, obj):
+        categories = self._get_sorted_unique_categories(obj)
+        return [category_name for _, category_name in categories]
 
 
 class VendorItemSerializer(serializers.ModelSerializer):
