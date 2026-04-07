@@ -101,6 +101,31 @@ class ExternalOrderItemSerializer(serializers.ModelSerializer):
     def get_remaining_quantity(self, obj):
         received_quantity = self.get_received_quantity(obj)
         return obj.quantity - received_quantity
+        
+    def validate(self, attrs):
+        order = attrs.get("order")
+        vendor_item = attrs.get("vendor_item")
+
+        if self.instance is not None:
+            order = self.instance.order
+
+            if vendor_item is None:
+                vendor_item = self.instance.vendor_item
+
+        if order is None:
+            return attrs
+
+        if order.status != ExternalOrder.StatusChoices.DRAFT:
+            raise serializers.ValidationError(
+                "Редагування рядків замовлення дозволене лише для замовлень у статусі 'Чернетка'."
+            )
+
+        if vendor_item is not None and vendor_item.vendor_id != order.vendor_id:
+            raise serializers.ValidationError(
+                "Товар постачальника повинен належати тому ж постачальнику, що і замовлення."
+            )
+
+        return attrs
 
 
 class ExternalOrderItemNestedSerializer(ExternalOrderItemSerializer):
@@ -192,6 +217,41 @@ class ExternalReceiptItemSerializer(serializers.ModelSerializer):
             "received_quantity",
         ]
 
+    def validate(self, attrs):
+        receipt_document = attrs.get("receipt_document")
+        order_item = attrs.get("order_item")
+        received_quantity = attrs.get("received_quantity")
+
+        if self.instance is not None:
+            if receipt_document is None:
+                receipt_document = self.instance.receipt_document
+            if order_item is None:
+                order_item = self.instance.order_item
+            if received_quantity is None:
+                received_quantity = self.instance.received_quantity
+
+        if receipt_document is None or order_item is None or received_quantity is None:
+            return attrs
+
+        if receipt_document.order_id != order_item.order_id:
+            raise serializers.ValidationError(
+                "Рядок приходу повинен належати тому ж замовленню, що і документ приходу."
+            )
+
+        already_received = Decimal("0.000")
+        receipt_items = order_item.receipt_items.all()
+
+        for receipt_item in receipt_items:
+            if self.instance is not None and receipt_item.id == self.instance.id:
+                continue
+            already_received += receipt_item.received_quantity
+
+        if already_received + received_quantity > order_item.quantity:
+            raise serializers.ValidationError(
+                "Отримана кількість не може перевищувати замовлену кількість по рядку замовлення."
+            )
+
+        return attrs
 
 class ExternalReceiptItemNestedSerializer(ExternalReceiptItemSerializer):
     class Meta(ExternalReceiptItemSerializer.Meta):

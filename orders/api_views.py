@@ -3,6 +3,7 @@ from django.db.models import Prefetch
 
 from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.viewsets import ModelViewSet
+from rest_framework.exceptions import ValidationError
 
 from .models import (
     ExternalOrder,
@@ -140,6 +141,13 @@ class ExternalOrderItemViewSet(ModelViewSet):
             )
 
         return queryset
+
+    def perform_destroy(self, instance):
+        if instance.order.status != ExternalOrder.StatusChoices.DRAFT:
+            raise ValidationError(
+                "Видалення рядків замовлення дозволене лише для замовлень у статусі 'Чернетка'."
+            )
+        instance.delete()
 
 
 class ExternalPaymentDocumentViewSet(ModelViewSet):
