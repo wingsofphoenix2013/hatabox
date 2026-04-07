@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 
 from rest_framework import serializers
@@ -301,8 +302,16 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
     order_total_amount = serializers.SerializerMethodField()
     paid_amount = serializers.SerializerMethodField()
     remaining_amount = serializers.SerializerMethodField()
+
+    payment_percent = serializers.SerializerMethodField()
+    receipt_percent = serializers.SerializerMethodField()
+
     receipt_state = serializers.SerializerMethodField()
     receipt_state_name = serializers.SerializerMethodField()
+
+    is_receipt_overdue = serializers.SerializerMethodField()
+    receipt_overdue_days = serializers.SerializerMethodField()
+    receipt_expected_days = serializers.SerializerMethodField()
 
     class Meta:
         model = ExternalOrder
@@ -324,8 +333,13 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
             "order_total_amount",
             "paid_amount",
             "remaining_amount",
+            "payment_percent",
+            "receipt_percent",
             "receipt_state",
             "receipt_state_name",
+            "is_receipt_overdue",
+            "receipt_overdue_days",
+            "receipt_expected_days",
             "items",
         ]
         read_only_fields = ("created_by", "created_at", "updated_at")
@@ -356,33 +370,70 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
 
     def get_remaining_amount(self, obj):
         return self.get_order_total_amount(obj) - self.get_paid_amount(obj)
+    def get_payment_percent(self, obj):
+        order_total_amount = self.get_order_total_amount(obj)
+        paid_amount = self.get_paid_amount(obj)
 
-    def _get_receipt_progress(self, obj):
+        if order_total_amount <= 0:
+            return 0
+
+        percent = round((paid_amount / order_total_amount) * 100)
+        return max(0, min(100, percent))
+
+    def _get_receipt_progress_data(self, obj):
         items = getattr(obj, "prefetched_items", None)
         if items is None:
             items = obj.items.all()
 
-        total_ordered = Decimal("0.000")
-        total_received = Decimal("0.000")
+        order_total_amount = Decimal("0.00")
+        received_total_amount = Decimal("0.00")
+        expected_delivery_date_min = None
 
         for item in items:
-            total_ordered += item.quantity
+            line_total_amount = item.quantity * item.agreed_price
+            order_total_amount += line_total_amount
 
             receipt_items = getattr(item, "prefetched_receipt_items", None)
             if receipt_items is None:
                 receipt_items = item.receipt_items.all()
 
+            received_quantity = Decimal("0.000")
             for receipt_item in receipt_items:
-                total_received += receipt_item.received_quantity
+                received_quantity += receipt_item.received_quantity
 
-        return total_ordered, total_received
+            capped_received_quantity = min(received_quantity, item.quantity)
+            received_total_amount += capped_received_quantity * item.agreed_price
 
+            if received_quantity < item.quantity and item.expected_delivery_date is not None:
+                if (
+                    expected_delivery_date_min is None
+                    or item.expected_delivery_date < expected_delivery_date_min
+                ):
+                    expected_delivery_date_min = item.expected_delivery_date
+
+        return {
+            "order_total_amount": order_total_amount - obj.discount_amount,
+            "received_total_amount": received_total_amount,
+            "expected_delivery_date_min": expected_delivery_date_min,
+        }
+
+    def get_receipt_percent(self, obj):
+        progress = self._get_receipt_progress_data(obj)
+        order_total_amount = progress["order_total_amount"]
+        received_total_amount = progress["received_total_amount"]
+
+        if order_total_amount <= 0:
+            return 0
+
+        percent = round((received_total_amount / order_total_amount) * 100)
+        return max(0, min(100, percent))
+        
     def get_receipt_state(self, obj):
-        total_ordered, total_received = self._get_receipt_progress(obj)
+        receipt_percent = self.get_receipt_percent(obj)
 
-        if total_received == 0:
+        if receipt_percent == 0:
             return "not_received"
-        if total_received < total_ordered:
+        if receipt_percent < 100:
             return "partially_received"
         return "fully_received"
 
@@ -394,3 +445,40 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
         if state == "partially_received":
             return "Частково отримано"
         return "Отримано повністю"
+
+    def get_is_receipt_overdue(self, obj):
+        receipt_percent = self.get_receipt_percent(obj)
+        if receipt_percent >= 100:
+            return False
+
+        progress = self._get_receipt_progress_data(obj)
+        expected_delivery_date_min = progress["expected_delivery_date_min"]
+
+        if expected_delivery_date_min is None:
+            return False
+
+        return date.today() > expected_delivery_date_min
+
+    def get_receipt_overdue_days(self, obj):
+        if not self.get_is_receipt_overdue(obj):
+            return 0
+
+        progress = self._get_receipt_progress_data(obj)
+        expected_delivery_date_min = progress["expected_delivery_date_min"]
+        return (date.today() - expected_delivery_date_min).days
+
+    def get_receipt_expected_days(self, obj):
+        receipt_percent = self.get_receipt_percent(obj)
+        if receipt_percent >= 100:
+            return 0
+
+        progress = self._get_receipt_progress_data(obj)
+        expected_delivery_date_min = progress["expected_delivery_date_min"]
+
+        if expected_delivery_date_min is None:
+            return 0
+
+        if date.today() > expected_delivery_date_min:
+            return 0
+
+        return (expected_delivery_date_min - date.today()).days
