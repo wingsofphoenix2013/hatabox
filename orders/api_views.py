@@ -428,6 +428,57 @@ class ExternalPaymentDocumentViewSet(ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
+    def perform_update(self, serializer):
+        old_status = serializer.instance.status
+
+        with transaction.atomic():
+            payment_document = serializer.save()
+
+            if (
+                old_status == ExternalPaymentDocument.StatusChoices.DRAFT
+                and payment_document.status in [
+                    ExternalPaymentDocument.StatusChoices.APPROVED,
+                    ExternalPaymentDocument.StatusChoices.PAID,
+                ]
+            ):
+                order = payment_document.order
+
+                items_total_amount = Decimal("0.00")
+                for item in order.items.all():
+                    items_total_amount += item.quantity * item.agreed_price
+
+                order_total_amount = items_total_amount - order.discount_amount
+
+                committed_total = Decimal("0.00")
+                committed_payments = ExternalPaymentDocument.objects.filter(
+                    order=order,
+                    status__in=[
+                        ExternalPaymentDocument.StatusChoices.APPROVED,
+                        ExternalPaymentDocument.StatusChoices.PAID,
+                    ],
+                )
+
+                for payment in committed_payments:
+                    committed_total += payment.payment_amount
+
+                remaining_amount = order_total_amount - committed_total
+
+                if remaining_amount > 0:
+                    existing_draft = ExternalPaymentDocument.objects.filter(
+                        order=order,
+                        status=ExternalPaymentDocument.StatusChoices.DRAFT,
+                    ).exclude(id=payment_document.id)
+
+                    if not existing_draft.exists():
+                        ExternalPaymentDocument.objects.create(
+                            payment_no=f"AUTO-{order.order_no}-{ExternalPaymentDocument.objects.filter(order=order).count() + 1}",
+                            order=order,
+                            status=ExternalPaymentDocument.StatusChoices.DRAFT,
+                            payment_amount=remaining_amount,
+                            created_by=self.request.user,
+                            comment="Автоматично створено на залишок суми замовлення.",
+                        )
+
 
 class ExternalReceiptDocumentViewSet(ModelViewSet):
     queryset = ExternalReceiptDocument.objects.select_related(

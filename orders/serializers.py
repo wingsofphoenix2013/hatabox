@@ -164,19 +164,60 @@ class ExternalPaymentDocumentSerializer(serializers.ModelSerializer):
             "comment",
         ]
         read_only_fields = ("created_by", "created_at", "updated_at")
-        
+
     def validate(self, attrs):
         order = attrs.get("order")
+        payment_amount = attrs.get("payment_amount")
 
-        if self.instance is not None and order is None:
-            order = self.instance.order
+        if self.instance is not None:
+            if order is None:
+                order = self.instance.order
+            if payment_amount is None:
+                payment_amount = self.instance.payment_amount
 
         if order is None:
             return attrs
 
+        # 1. Запрет для draft заказа
         if order.status == ExternalOrder.StatusChoices.DRAFT:
             raise serializers.ValidationError(
                 "Платіжний документ не можна створити або редагувати, поки замовлення перебуває у статусі 'Чернетка'."
+            )
+
+        # 2. Проверка суммы > 0
+        if payment_amount is None or payment_amount <= 0:
+            raise serializers.ValidationError(
+                "Сума платіжного документа повинна бути більше 0."
+            )
+
+        # 3. Считаем сумму заказа
+        items_total_amount = Decimal("0.00")
+        for item in order.items.all():
+            items_total_amount += item.quantity * item.agreed_price
+
+        order_total_amount = items_total_amount - order.discount_amount
+
+        # 4. Считаем уже существующие платежи (draft + approved + paid)
+        existing_payments = ExternalPaymentDocument.objects.filter(
+            order=order,
+            status__in=[
+                ExternalPaymentDocument.StatusChoices.DRAFT,
+                ExternalPaymentDocument.StatusChoices.APPROVED,
+                ExternalPaymentDocument.StatusChoices.PAID,
+            ],
+        )
+
+        if self.instance is not None:
+            existing_payments = existing_payments.exclude(id=self.instance.id)
+
+        planned_total = Decimal("0.00")
+        for payment in existing_payments:
+            planned_total += payment.payment_amount
+
+        # 5. Проверка превышения суммы заказа
+        if planned_total + payment_amount > order_total_amount:
+            raise serializers.ValidationError(
+                "Сума всіх платіжних документів не може перевищувати суму замовлення."
             )
 
         return attrs
@@ -305,6 +346,21 @@ class ExternalReceiptDocumentSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ("created_by", "created_at", "updated_at")
 
+    def validate(self, attrs):
+        order = attrs.get("order")
+
+        if self.instance is not None and order is None:
+            order = self.instance.order
+
+        if order is None:
+            return attrs
+
+        if order.status == ExternalOrder.StatusChoices.DRAFT:
+            raise serializers.ValidationError(
+                "Документ приходу не можна створити або редагувати, поки замовлення перебуває у статусі 'Чернетка'."
+            )
+
+        return attrs
 
 class ExternalOrderSerializer(serializers.ModelSerializer):
     vendor_code = serializers.CharField(source="vendor.code", read_only=True)
