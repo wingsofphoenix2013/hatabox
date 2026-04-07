@@ -19,7 +19,15 @@ from inventory.api_views import (
     ProductStepItemViewSet,
 )
 from vendors.api_views import VendorViewSet, VendorItemViewSet
-from orders.api_views import ExternalOrderViewSet, ExternalOrderItemViewSet
+
+from orders.api_views import (
+    ExternalOrderViewSet,
+    ExternalOrderItemViewSet,
+    ExternalPaymentDocumentViewSet,
+    ExternalReceiptDocumentViewSet,
+    ExternalReceiptItemViewSet,
+)
+
 from reference.api_views import (
     BrandViewSet,
     CountryViewSet,
@@ -51,8 +59,9 @@ router.register("product-step-items", ProductStepItemViewSet)
 router.register("vendors", VendorViewSet)
 router.register("vendor-items", VendorItemViewSet)
 router.register("tax-types", TaxTypeViewSet)
-router.register("orders", ExternalOrderViewSet)
-router.register("order-items", ExternalOrderItemViewSet)
+router.register("payment-documents", ExternalPaymentDocumentViewSet)
+router.register("receipt-documents", ExternalReceiptDocumentViewSet)
+router.register("receipt-items", ExternalReceiptItemViewSet)
 router.register("order-statuses", ExternalOrderStatusViewSet)
 router.register("payment-statuses", ExternalOrderPaymentStatusViewSet)
 router.register("brands", BrandViewSet)

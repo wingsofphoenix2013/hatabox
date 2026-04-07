@@ -1,24 +1,54 @@
 from django.db import models
+from django.db.models import Prefetch
 
-from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import DjangoModelPermissions
+from rest_framework.viewsets import ModelViewSet
 
-from .models import ExternalOrder, ExternalOrderItem
-from .serializers import ExternalOrderSerializer, ExternalOrderItemSerializer
+from .models import (
+    ExternalOrder,
+    ExternalOrderItem,
+    ExternalPaymentDocument,
+    ExternalReceiptDocument,
+    ExternalReceiptItem,
+)
+from .serializers import (
+    ExternalOrderSerializer,
+    ExternalOrderItemSerializer,
+    ExternalPaymentDocumentSerializer,
+    ExternalReceiptDocumentSerializer,
+    ExternalReceiptItemSerializer,
+)
 
 
 class ExternalOrderViewSet(ModelViewSet):
-    queryset = ExternalOrder.objects.filter(is_active=True).select_related(
+    queryset = ExternalOrder.objects.select_related(
         "vendor",
-        "status",
-        "payment_status",
         "created_by",
     ).prefetch_related(
-        "items__vendor_item__vendor",
-        "items__vendor_item__item__category",
-        "items__vendor_item__item__unit",
-        "items__vendor_item__brand",
-        "items__vendor_item__country_of_origin",
+        Prefetch(
+            "items",
+            queryset=ExternalOrderItem.objects.select_related(
+                "vendor_item",
+                "vendor_item__vendor",
+                "vendor_item__item",
+                "vendor_item__item__category",
+                "vendor_item__item__unit",
+                "vendor_item__brand",
+                "vendor_item__country_of_origin",
+            ).prefetch_related(
+                Prefetch(
+                    "receipt_items",
+                    queryset=ExternalReceiptItem.objects.select_related("receipt_document"),
+                    to_attr="prefetched_receipt_items",
+                )
+            ),
+            to_attr="prefetched_items",
+        ),
+        Prefetch(
+            "payment_documents",
+            queryset=ExternalPaymentDocument.objects.select_related("created_by"),
+            to_attr="prefetched_payment_documents",
+        ),
     ).order_by("-created_at", "-id")
     serializer_class = ExternalOrderSerializer
     permission_classes = [DjangoModelPermissions]
@@ -32,11 +62,7 @@ class ExternalOrderViewSet(ModelViewSet):
 
         status = self.request.query_params.getlist("status")
         if status:
-            queryset = queryset.filter(status_id__in=status)
-
-        payment_status = self.request.query_params.getlist("payment_status")
-        if payment_status:
-            queryset = queryset.filter(payment_status_id__in=payment_status)
+            queryset = queryset.filter(status__in=status)
 
         created_by = self.request.query_params.getlist("created_by")
         if created_by:
@@ -49,10 +75,6 @@ class ExternalOrderViewSet(ModelViewSet):
                 | models.Q(comment__icontains=search)
                 | models.Q(vendor__code__icontains=search)
                 | models.Q(vendor__name__icontains=search)
-                | models.Q(status__code__icontains=search)
-                | models.Q(status__name__icontains=search)
-                | models.Q(payment_status__code__icontains=search)
-                | models.Q(payment_status__name__icontains=search)
                 | models.Q(created_by__username__icontains=search)
             )
 
@@ -63,7 +85,7 @@ class ExternalOrderViewSet(ModelViewSet):
 
 
 class ExternalOrderItemViewSet(ModelViewSet):
-    queryset = ExternalOrderItem.objects.filter(is_active=True).select_related(
+    queryset = ExternalOrderItem.objects.select_related(
         "order",
         "order__vendor",
         "vendor_item",
@@ -73,6 +95,12 @@ class ExternalOrderItemViewSet(ModelViewSet):
         "vendor_item__item__unit",
         "vendor_item__brand",
         "vendor_item__country_of_origin",
+    ).prefetch_related(
+        Prefetch(
+            "receipt_items",
+            queryset=ExternalReceiptItem.objects.select_related("receipt_document"),
+            to_attr="prefetched_receipt_items",
+        )
     ).order_by("order__order_no", "id")
     serializer_class = ExternalOrderItemSerializer
     permission_classes = [DjangoModelPermissions]
@@ -109,6 +137,141 @@ class ExternalOrderItemViewSet(ModelViewSet):
                 | models.Q(vendor_item__brand__name__icontains=search)
                 | models.Q(vendor_item__country_of_origin__name__icontains=search)
                 | models.Q(vendor_item__country_of_origin__code__icontains=search)
+            )
+
+        return queryset
+
+
+class ExternalPaymentDocumentViewSet(ModelViewSet):
+    queryset = ExternalPaymentDocument.objects.select_related(
+        "order",
+        "order__vendor",
+        "created_by",
+    ).order_by("-created_at", "-id")
+    serializer_class = ExternalPaymentDocumentSerializer
+    permission_classes = [DjangoModelPermissions]
+
+    def get_queryset(self):
+        queryset = self.queryset
+
+        order = self.request.query_params.getlist("order")
+        if order:
+            queryset = queryset.filter(order_id__in=order)
+
+        vendor = self.request.query_params.getlist("vendor")
+        if vendor:
+            queryset = queryset.filter(order__vendor_id__in=vendor)
+
+        status = self.request.query_params.getlist("status")
+        if status:
+            queryset = queryset.filter(status__in=status)
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(payment_no__icontains=search)
+                | models.Q(comment__icontains=search)
+                | models.Q(order__order_no__icontains=search)
+                | models.Q(order__vendor__code__icontains=search)
+                | models.Q(order__vendor__name__icontains=search)
+                | models.Q(created_by__username__icontains=search)
+            )
+
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+
+class ExternalReceiptDocumentViewSet(ModelViewSet):
+    queryset = ExternalReceiptDocument.objects.select_related(
+        "order",
+        "order__vendor",
+        "created_by",
+    ).prefetch_related(
+        Prefetch(
+            "items",
+            queryset=ExternalReceiptItem.objects.select_related(
+                "order_item",
+                "order_item__order",
+                "order_item__vendor_item",
+                "order_item__vendor_item__item",
+                "order_item__vendor_item__item__unit",
+            ),
+        )
+    ).order_by("-created_at", "-id")
+    serializer_class = ExternalReceiptDocumentSerializer
+    permission_classes = [DjangoModelPermissions]
+
+    def get_queryset(self):
+        queryset = self.queryset
+
+        order = self.request.query_params.getlist("order")
+        if order:
+            queryset = queryset.filter(order_id__in=order)
+
+        vendor = self.request.query_params.getlist("vendor")
+        if vendor:
+            queryset = queryset.filter(order__vendor_id__in=vendor)
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(receipt_no__icontains=search)
+                | models.Q(comment__icontains=search)
+                | models.Q(order__order_no__icontains=search)
+                | models.Q(order__vendor__code__icontains=search)
+                | models.Q(order__vendor__name__icontains=search)
+                | models.Q(created_by__username__icontains=search)
+            )
+
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+
+class ExternalReceiptItemViewSet(ModelViewSet):
+    queryset = ExternalReceiptItem.objects.select_related(
+        "receipt_document",
+        "receipt_document__order",
+        "order_item",
+        "order_item__order",
+        "order_item__vendor_item",
+        "order_item__vendor_item__item",
+        "order_item__vendor_item__item__unit",
+    ).order_by("receipt_document__receipt_no", "id")
+    serializer_class = ExternalReceiptItemSerializer
+    permission_classes = [DjangoModelPermissions]
+
+    def get_queryset(self):
+        queryset = self.queryset
+
+        receipt_document = self.request.query_params.getlist("receipt_document")
+        if receipt_document:
+            queryset = queryset.filter(receipt_document_id__in=receipt_document)
+
+        order = self.request.query_params.getlist("order")
+        if order:
+            queryset = queryset.filter(order_item__order_id__in=order)
+
+        vendor = self.request.query_params.getlist("vendor")
+        if vendor:
+            queryset = queryset.filter(order_item__order__vendor_id__in=vendor)
+
+        order_item = self.request.query_params.getlist("order_item")
+        if order_item:
+            queryset = queryset.filter(order_item_id__in=order_item)
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(receipt_document__receipt_no__icontains=search)
+                | models.Q(order_item__order__order_no__icontains=search)
+                | models.Q(order_item__vendor_item__vendor_sku__icontains=search)
+                | models.Q(order_item__vendor_item__name__icontains=search)
+                | models.Q(order_item__vendor_item__item__internal_code__icontains=search)
+                | models.Q(order_item__vendor_item__item__name__icontains=search)
             )
 
         return queryset
