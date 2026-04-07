@@ -102,7 +102,7 @@ class ExternalOrderItemSerializer(serializers.ModelSerializer):
     def get_remaining_quantity(self, obj):
         received_quantity = self.get_received_quantity(obj)
         return obj.quantity - received_quantity
-        
+
     def validate(self, attrs):
         order = attrs.get("order")
         vendor_item = attrs.get("vendor_item")
@@ -254,6 +254,7 @@ class ExternalReceiptItemSerializer(serializers.ModelSerializer):
 
         return attrs
 
+
 class ExternalReceiptItemNestedSerializer(ExternalReceiptItemSerializer):
     class Meta(ExternalReceiptItemSerializer.Meta):
         fields = ExternalReceiptItemSerializer.Meta.fields
@@ -344,7 +345,17 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ("created_by", "created_at", "updated_at")
 
+    def _get_annotated_value(self, obj, attr_name):
+        value = getattr(obj, attr_name, None)
+        if value is not None:
+            return value
+        return None
+
     def get_items_total_amount(self, obj):
+        annotated = self._get_annotated_value(obj, "items_total_amount")
+        if annotated is not None:
+            return annotated
+
         total = Decimal("0.00")
         items = getattr(obj, "prefetched_items", None)
         if items is None:
@@ -355,9 +366,17 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
         return total
 
     def get_order_total_amount(self, obj):
+        annotated = self._get_annotated_value(obj, "order_total_amount")
+        if annotated is not None:
+            return annotated
+
         return self.get_items_total_amount(obj) - obj.discount_amount
 
     def get_paid_amount(self, obj):
+        annotated = self._get_annotated_value(obj, "paid_amount")
+        if annotated is not None:
+            return annotated
+
         total = Decimal("0.00")
         payment_documents = getattr(obj, "prefetched_payment_documents", None)
         if payment_documents is None:
@@ -370,7 +389,12 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
 
     def get_remaining_amount(self, obj):
         return self.get_order_total_amount(obj) - self.get_paid_amount(obj)
+
     def get_payment_percent(self, obj):
+        annotated = self._get_annotated_value(obj, "payment_percent")
+        if annotated is not None:
+            return annotated
+
         order_total_amount = self.get_order_total_amount(obj)
         paid_amount = self.get_paid_amount(obj)
 
@@ -418,6 +442,10 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
         }
 
     def get_receipt_percent(self, obj):
+        annotated = self._get_annotated_value(obj, "receipt_percent")
+        if annotated is not None:
+            return annotated
+
         progress = self._get_receipt_progress_data(obj)
         order_total_amount = progress["order_total_amount"]
         received_total_amount = progress["received_total_amount"]
@@ -427,7 +455,7 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
 
         percent = round((received_total_amount / order_total_amount) * 100)
         return max(0, min(100, percent))
-        
+
     def get_receipt_state(self, obj):
         receipt_percent = self.get_receipt_percent(obj)
 
@@ -447,6 +475,10 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
         return "Отримано повністю"
 
     def get_is_receipt_overdue(self, obj):
+        annotated = self._get_annotated_value(obj, "is_receipt_overdue")
+        if annotated is not None:
+            return annotated
+
         receipt_percent = self.get_receipt_percent(obj)
         if receipt_percent >= 100:
             return False
@@ -463,8 +495,11 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
         if not self.get_is_receipt_overdue(obj):
             return 0
 
-        progress = self._get_receipt_progress_data(obj)
-        expected_delivery_date_min = progress["expected_delivery_date_min"]
+        expected_delivery_date_min = getattr(obj, "expected_delivery_date_min", None)
+        if expected_delivery_date_min is None:
+            progress = self._get_receipt_progress_data(obj)
+            expected_delivery_date_min = progress["expected_delivery_date_min"]
+
         return (date.today() - expected_delivery_date_min).days
 
     def get_receipt_expected_days(self, obj):
@@ -472,8 +507,10 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
         if receipt_percent >= 100:
             return 0
 
-        progress = self._get_receipt_progress_data(obj)
-        expected_delivery_date_min = progress["expected_delivery_date_min"]
+        expected_delivery_date_min = getattr(obj, "expected_delivery_date_min", None)
+        if expected_delivery_date_min is None:
+            progress = self._get_receipt_progress_data(obj)
+            expected_delivery_date_min = progress["expected_delivery_date_min"]
 
         if expected_delivery_date_min is None:
             return 0

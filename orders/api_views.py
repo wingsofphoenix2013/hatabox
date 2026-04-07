@@ -1,5 +1,23 @@
+from datetime import date
+
 from django.db import models
-from django.db.models import Prefetch
+from django.db.models import (
+    BooleanField,
+    Case,
+    DateField,
+    DecimalField,
+    ExpressionWrapper,
+    F,
+    IntegerField,
+    OuterRef,
+    Prefetch,
+    Q,
+    Subquery,
+    Sum,
+    Value,
+    When,
+)
+from django.db.models.functions import Cast, Coalesce, Least, Round
 
 from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.viewsets import ModelViewSet
@@ -54,8 +72,141 @@ class ExternalOrderViewSet(ModelViewSet):
     serializer_class = ExternalOrderSerializer
     permission_classes = [DjangoModelPermissions]
 
+    def _with_registry_annotations(self, queryset):
+        today = date.today()
+
+        paid_amount_subquery = (
+            ExternalPaymentDocument.objects.filter(
+                order_id=OuterRef("pk"),
+                status=ExternalPaymentDocument.StatusChoices.PAID,
+            )
+            .values("order_id")
+            .annotate(total=Sum("payment_amount"))
+            .values("total")[:1]
+        )
+
+        order_items_base = ExternalOrderItem.objects.filter(order_id=OuterRef("pk")).annotate(
+            receipt_quantity_total=Coalesce(
+                Subquery(
+                    ExternalReceiptItem.objects.filter(order_item_id=OuterRef("pk"))
+                    .values("order_item_id")
+                    .annotate(total=Sum("received_quantity"))
+                    .values("total")[:1]
+                ),
+                Value(0),
+                output_field=DecimalField(max_digits=12, decimal_places=3),
+            ),
+            ordered_line_amount=ExpressionWrapper(
+                F("quantity") * F("agreed_price"),
+                output_field=DecimalField(max_digits=18, decimal_places=2),
+            ),
+            received_quantity_capped=Case(
+                When(receipt_quantity_total__gt=F("quantity"), then=F("quantity")),
+                default=F("receipt_quantity_total"),
+                output_field=DecimalField(max_digits=12, decimal_places=3),
+            ),
+            received_line_amount=ExpressionWrapper(
+                F("received_quantity_capped") * F("agreed_price"),
+                output_field=DecimalField(max_digits=18, decimal_places=2),
+            ),
+        )
+
+        items_total_amount_subquery = (
+            order_items_base.values("order_id")
+            .annotate(total=Sum("ordered_line_amount"))
+            .values("total")[:1]
+        )
+
+        received_total_amount_subquery = (
+            order_items_base.values("order_id")
+            .annotate(total=Sum("received_line_amount"))
+            .values("total")[:1]
+        )
+
+        expected_delivery_date_min_subquery = (
+            order_items_base.filter(
+                expected_delivery_date__isnull=False,
+                receipt_quantity_total__lt=F("quantity"),
+            )
+            .order_by("expected_delivery_date")
+            .values("expected_delivery_date")[:1]
+        )
+
+        queryset = queryset.annotate(
+            items_total_amount=Coalesce(
+                Subquery(items_total_amount_subquery),
+                Value(0),
+                output_field=DecimalField(max_digits=18, decimal_places=2),
+            ),
+            paid_amount=Coalesce(
+                Subquery(paid_amount_subquery),
+                Value(0),
+                output_field=DecimalField(max_digits=18, decimal_places=2),
+            ),
+            received_total_amount=Coalesce(
+                Subquery(received_total_amount_subquery),
+                Value(0),
+                output_field=DecimalField(max_digits=18, decimal_places=2),
+            ),
+            expected_delivery_date_min=Subquery(
+                expected_delivery_date_min_subquery,
+                output_field=DateField(),
+            ),
+        ).annotate(
+            order_total_amount=ExpressionWrapper(
+                F("items_total_amount") - F("discount_amount"),
+                output_field=DecimalField(max_digits=18, decimal_places=2),
+            ),
+        ).annotate(
+            payment_percent=Case(
+                When(order_total_amount__lte=0, then=Value(0)),
+                default=Cast(
+                    Least(
+                        Value(100),
+                        Round(
+                            ExpressionWrapper(
+                                F("paid_amount") * Value(100.0) / F("order_total_amount"),
+                                output_field=DecimalField(max_digits=18, decimal_places=6),
+                            )
+                        ),
+                    ),
+                    IntegerField(),
+                ),
+                output_field=IntegerField(),
+            ),
+            receipt_percent=Case(
+                When(order_total_amount__lte=0, then=Value(0)),
+                default=Cast(
+                    Least(
+                        Value(100),
+                        Round(
+                            ExpressionWrapper(
+                                F("received_total_amount") * Value(100.0) / F("order_total_amount"),
+                                output_field=DecimalField(max_digits=18, decimal_places=6),
+                            )
+                        ),
+                    ),
+                    IntegerField(),
+                ),
+                output_field=IntegerField(),
+            ),
+        ).annotate(
+            is_receipt_overdue=Case(
+                When(
+                    receipt_percent__lt=100,
+                    expected_delivery_date_min__isnull=False,
+                    expected_delivery_date_min__lt=today,
+                    then=Value(True),
+                ),
+                default=Value(False),
+                output_field=BooleanField(),
+            ),
+        )
+
+        return queryset
+
     def get_queryset(self):
-        queryset = self.queryset
+        queryset = self._with_registry_annotations(self.queryset)
 
         vendor = self.request.query_params.getlist("vendor")
         if vendor:
@@ -69,6 +220,53 @@ class ExternalOrderViewSet(ModelViewSet):
         if created_by:
             queryset = queryset.filter(created_by_id__in=created_by)
 
+        payment_ranges = self.request.query_params.getlist("payment_range")
+        if payment_ranges:
+            payment_q = Q()
+            valid_payment_filter = False
+
+            for value in payment_ranges:
+                if value == "0":
+                    payment_q |= Q(payment_percent=0)
+                    valid_payment_filter = True
+                elif value == "1-49":
+                    payment_q |= Q(payment_percent__gte=1, payment_percent__lte=49)
+                    valid_payment_filter = True
+                elif value == "50-99":
+                    payment_q |= Q(payment_percent__gte=50, payment_percent__lte=99)
+                    valid_payment_filter = True
+                elif value == "100":
+                    payment_q |= Q(payment_percent=100)
+                    valid_payment_filter = True
+
+            if valid_payment_filter:
+                queryset = queryset.filter(payment_q)
+
+        receipt_ranges = self.request.query_params.getlist("receipt_range")
+        if receipt_ranges:
+            receipt_q = Q()
+            valid_receipt_filter = False
+
+            for value in receipt_ranges:
+                if value == "overdue":
+                    receipt_q |= Q(is_receipt_overdue=True)
+                    valid_receipt_filter = True
+                elif value == "0":
+                    receipt_q |= Q(receipt_percent=0)
+                    valid_receipt_filter = True
+                elif value == "1-49":
+                    receipt_q |= Q(receipt_percent__gte=1, receipt_percent__lte=49)
+                    valid_receipt_filter = True
+                elif value == "50-99":
+                    receipt_q |= Q(receipt_percent__gte=50, receipt_percent__lte=99)
+                    valid_receipt_filter = True
+                elif value == "100":
+                    receipt_q |= Q(receipt_percent=100)
+                    valid_receipt_filter = True
+
+            if valid_receipt_filter:
+                queryset = queryset.filter(receipt_q)
+
         search = self.request.query_params.get("search")
         if search:
             queryset = queryset.filter(
@@ -78,6 +276,19 @@ class ExternalOrderViewSet(ModelViewSet):
                 | models.Q(vendor__name__icontains=search)
                 | models.Q(created_by__username__icontains=search)
             )
+
+        ordering = self.request.query_params.get("ordering")
+        allowed_ordering = {
+            "order_total_amount",
+            "-order_total_amount",
+            "payment_percent",
+            "-payment_percent",
+            "receipt_percent",
+            "-receipt_percent",
+        }
+
+        if ordering in allowed_ordering:
+            queryset = queryset.order_by(ordering, "-id")
 
         return queryset
 
