@@ -164,6 +164,22 @@ class ExternalPaymentDocumentSerializer(serializers.ModelSerializer):
             "comment",
         ]
         read_only_fields = ("created_by", "created_at", "updated_at")
+        
+    def validate(self, attrs):
+        order = attrs.get("order")
+
+        if self.instance is not None and order is None:
+            order = self.instance.order
+
+        if order is None:
+            return attrs
+
+        if order.status == ExternalOrder.StatusChoices.DRAFT:
+            raise serializers.ValidationError(
+                "Платіжний документ не можна створити або редагувати, поки замовлення перебуває у статусі 'Чернетка'."
+            )
+
+        return attrs
 
 
 class ExternalReceiptItemSerializer(serializers.ModelSerializer):

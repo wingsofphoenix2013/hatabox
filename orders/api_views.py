@@ -1,6 +1,7 @@
 from datetime import date
+from decimal import Decimal
 
-from django.db import models
+from django.db import models, transaction
 from django.db.models import (
     BooleanField,
     Case,
@@ -295,6 +296,32 @@ class ExternalOrderViewSet(ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
+    def perform_update(self, serializer):
+        old_status = serializer.instance.status
+
+        with transaction.atomic():
+            order = serializer.save()
+
+            if (
+                old_status == ExternalOrder.StatusChoices.DRAFT
+                and order.status == ExternalOrder.StatusChoices.IN_PROGRESS
+            ):
+                items_total_amount = Decimal("0.00")
+                for item in order.items.all():
+                    items_total_amount += item.quantity * item.agreed_price
+
+                order_total_amount = items_total_amount - order.discount_amount
+                auto_payment_no = f"AUTO-{order.order_no}"
+
+                if not ExternalPaymentDocument.objects.filter(payment_no=auto_payment_no).exists():
+                    ExternalPaymentDocument.objects.create(
+                        payment_no=auto_payment_no,
+                        order=order,
+                        status=ExternalPaymentDocument.StatusChoices.DRAFT,
+                        payment_amount=order_total_amount,
+                        created_by=self.request.user,
+                        comment="Автоматично створено при переведенні замовлення в статус 'В роботі'.",
+                    )
 
 class ExternalOrderItemViewSet(ModelViewSet):
     queryset = ExternalOrderItem.objects.select_related(
