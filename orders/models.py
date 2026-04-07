@@ -82,12 +82,6 @@ class ExternalOrderItem(models.Model):
         verbose_name="Ціна",
     )
 
-    lead_time_days = models.PositiveIntegerField(
-        null=True,
-        blank=True,
-        verbose_name="Термін поставки (днів)",
-    )
-
     expected_delivery_date = models.DateField(
         null=True,
         blank=True,

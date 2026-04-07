@@ -79,7 +79,6 @@ class ExternalOrderItemSerializer(serializers.ModelSerializer):
             "vendor_item_country_of_origin_code",
             "quantity",
             "agreed_price",
-            "lead_time_days",
             "expected_delivery_date",
             "line_total_amount",
             "received_quantity",

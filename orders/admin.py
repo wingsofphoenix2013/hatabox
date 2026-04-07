@@ -48,7 +48,6 @@ class ExternalOrderItemAdmin(admin.ModelAdmin):
         "vendor_item",
         "quantity",
         "agreed_price",
-        "lead_time_days",
         "expected_delivery_date",
     )
     search_fields = (
