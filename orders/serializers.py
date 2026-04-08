@@ -178,6 +178,11 @@ class ExternalPaymentDocumentSerializer(serializers.ModelSerializer):
         if order is None:
             return attrs
 
+        if order.status == ExternalOrder.StatusChoices.COMPLETED:
+            raise serializers.ValidationError(
+                "Неможливо змінювати платіжні документи для завершеного замовлення."
+            )
+
         # 1. Запрет для draft заказа
         if order.status == ExternalOrder.StatusChoices.DRAFT:
             raise serializers.ValidationError(
@@ -291,6 +296,11 @@ class ExternalReceiptItemSerializer(serializers.ModelSerializer):
         if receipt_document is None or order_item is None or received_quantity is None:
             return attrs
 
+        if order_item.order.status == ExternalOrder.StatusChoices.COMPLETED:
+            raise serializers.ValidationError(
+                "Неможливо змінювати рядки приходу для завершеного замовлення."
+            )
+
         if receipt_document.order_id != order_item.order_id:
             raise serializers.ValidationError(
                 "Рядок приходу повинен належати тому ж замовленню, що і документ приходу."
@@ -354,6 +364,11 @@ class ExternalReceiptDocumentSerializer(serializers.ModelSerializer):
 
         if order is None:
             return attrs
+
+        if order.status == ExternalOrder.StatusChoices.COMPLETED:
+            raise serializers.ValidationError(
+                "Неможливо змінювати документи приходу для завершеного замовлення."
+            )
 
         if order.status == ExternalOrder.StatusChoices.DRAFT:
             raise serializers.ValidationError(
