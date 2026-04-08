@@ -39,6 +39,44 @@ from .serializers import (
     ExternalReceiptItemSerializer,
 )
 
+def try_complete_order(order):
+    items_total_amount = Decimal("0.00")
+    for item in order.items.all():
+        items_total_amount += item.quantity * item.agreed_price
+
+    order_total_amount = items_total_amount - order.discount_amount
+
+    paid_amount = Decimal("0.00")
+    for payment in order.payment_documents.all():
+        if payment.status == ExternalPaymentDocument.StatusChoices.PAID:
+            paid_amount += payment.payment_amount
+
+    received_total_amount = Decimal("0.00")
+    for item in order.items.all():
+        received_quantity = Decimal("0.000")
+        for receipt_item in item.receipt_items.all():
+            received_quantity += receipt_item.received_quantity
+
+        capped_received_quantity = min(received_quantity, item.quantity)
+        received_total_amount += capped_received_quantity * item.agreed_price
+
+    payment_percent = 0
+    receipt_percent = 0
+
+    if order_total_amount > 0:
+        payment_percent = round((paid_amount / order_total_amount) * 100)
+        receipt_percent = round((received_total_amount / order_total_amount) * 100)
+
+    payment_percent = max(0, min(100, payment_percent))
+    receipt_percent = max(0, min(100, receipt_percent))
+
+    if (
+        payment_percent == 100
+        and receipt_percent == 100
+        and order.status != ExternalOrder.StatusChoices.COMPLETED
+    ):
+        order.status = ExternalOrder.StatusChoices.COMPLETED
+        order.save(update_fields=["status"])
 
 class ExternalOrderViewSet(ModelViewSet):
     queryset = ExternalOrder.objects.select_related(
@@ -326,43 +364,7 @@ class ExternalOrderViewSet(ModelViewSet):
                         comment="Автоматично створено при переведенні замовлення в статус 'В роботі'.",
                     )
 
-            items_total_amount = Decimal("0.00")
-            for item in order.items.all():
-                items_total_amount += item.quantity * item.agreed_price
-
-            order_total_amount = items_total_amount - order.discount_amount
-
-            paid_amount = Decimal("0.00")
-            for payment in order.payment_documents.all():
-                if payment.status == ExternalPaymentDocument.StatusChoices.PAID:
-                    paid_amount += payment.payment_amount
-
-            received_total_amount = Decimal("0.00")
-            for item in order.items.all():
-                received_quantity = Decimal("0.000")
-                for receipt_item in item.receipt_items.all():
-                    received_quantity += receipt_item.received_quantity
-
-                capped_received_quantity = min(received_quantity, item.quantity)
-                received_total_amount += capped_received_quantity * item.agreed_price
-
-            payment_percent = 0
-            receipt_percent = 0
-
-            if order_total_amount > 0:
-                payment_percent = round((paid_amount / order_total_amount) * 100)
-                receipt_percent = round((received_total_amount / order_total_amount) * 100)
-
-            payment_percent = max(0, min(100, payment_percent))
-            receipt_percent = max(0, min(100, receipt_percent))
-
-            if (
-                payment_percent == 100
-                and receipt_percent == 100
-                and order.status != ExternalOrder.StatusChoices.COMPLETED
-            ):
-                order.status = ExternalOrder.StatusChoices.COMPLETED
-                order.save(update_fields=["status"])
+            try_complete_order(order)
 
 class ExternalOrderItemViewSet(ModelViewSet):
     queryset = ExternalOrderItem.objects.select_related(
@@ -474,6 +476,7 @@ class ExternalPaymentDocumentViewSet(ModelViewSet):
 
         with transaction.atomic():
             payment_document = serializer.save()
+            order = payment_document.order
 
             if (
                 old_status == ExternalPaymentDocument.StatusChoices.DRAFT
@@ -482,8 +485,6 @@ class ExternalPaymentDocumentViewSet(ModelViewSet):
                     ExternalPaymentDocument.StatusChoices.PAID,
                 ]
             ):
-                order = payment_document.order
-
                 items_total_amount = Decimal("0.00")
                 for item in order.items.all():
                     items_total_amount += item.quantity * item.agreed_price
@@ -519,6 +520,8 @@ class ExternalPaymentDocumentViewSet(ModelViewSet):
                             created_by=self.request.user,
                             comment="Автоматично створено на залишок суми замовлення.",
                         )
+
+            try_complete_order(order)
 
 
 class ExternalReceiptDocumentViewSet(ModelViewSet):
@@ -613,3 +616,13 @@ class ExternalReceiptItemViewSet(ModelViewSet):
             )
 
         return queryset
+        
+    def perform_create(self, serializer):
+        with transaction.atomic():
+            receipt_item = serializer.save()
+            try_complete_order(receipt_item.order_item.order)
+
+    def perform_update(self, serializer):
+        with transaction.atomic():
+            receipt_item = serializer.save()
+            try_complete_order(receipt_item.order_item.order)
