@@ -134,6 +134,21 @@ class ExternalOrderItemNestedSerializer(ExternalOrderItemSerializer):
         fields = ExternalOrderItemSerializer.Meta.fields
 
 
+class ExternalPaymentDocumentShortSerializer(serializers.ModelSerializer):
+    status_name = serializers.CharField(source="get_status_display", read_only=True)
+
+    class Meta:
+        model = ExternalPaymentDocument
+        fields = [
+            "id",
+            "payment_no",
+            "status",
+            "status_name",
+            "payment_amount",
+            "payment_date",
+        ]
+
+
 class ExternalPaymentDocumentSerializer(serializers.ModelSerializer):
     order_no = serializers.CharField(source="order.order_no", read_only=True)
     order_vendor_id = serializers.IntegerField(source="order.vendor.id", read_only=True)
@@ -385,6 +400,11 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
     created_by_username = serializers.CharField(source="created_by.username", read_only=True)
 
     items = ExternalOrderItemNestedSerializer(many=True, read_only=True)
+    payment_documents = ExternalPaymentDocumentShortSerializer(
+        many=True,
+        read_only=True,
+        source="prefetched_payment_documents",
+    )
 
     items_total_amount = serializers.SerializerMethodField()
     order_total_amount = serializers.SerializerMethodField()
@@ -429,6 +449,7 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
             "receipt_overdue_days",
             "receipt_expected_days",
             "items",
+            "payment_documents",
         ]
         read_only_fields = ("created_by", "created_at", "updated_at")
 
