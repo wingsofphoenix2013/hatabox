@@ -151,6 +151,7 @@ class ExternalPaymentDocumentShortSerializer(serializers.ModelSerializer):
 
 
 class ExternalPaymentDocumentSerializer(serializers.ModelSerializer):
+    clear_image = serializers.BooleanField(write_only=True, required=False, default=False)
     order_no = serializers.CharField(source="order.order_no", read_only=True)
     order_vendor_id = serializers.IntegerField(source="order.vendor.id", read_only=True)
     order_vendor_code = serializers.CharField(source="order.vendor.code", read_only=True)
@@ -179,9 +180,20 @@ class ExternalPaymentDocumentSerializer(serializers.ModelSerializer):
             "updated_at",
             "comment",
             "image",
+            "clear_image",
         ]
         read_only_fields = ("created_by", "created_at", "updated_at")
 
+    def update(self, instance, validated_data):
+        clear_image = validated_data.pop("clear_image", False)
+
+        if clear_image:
+            if instance.image:
+                instance.image.delete(save=False)
+            validated_data["image"] = None
+
+        return super().update(instance, validated_data)
+        
     def validate(self, attrs):
         order = attrs.get("order")
         payment_amount = attrs.get("payment_amount")
@@ -345,6 +357,7 @@ class ExternalReceiptItemNestedSerializer(ExternalReceiptItemSerializer):
 
 
 class ExternalReceiptDocumentSerializer(serializers.ModelSerializer):
+    clear_image = serializers.BooleanField(write_only=True, required=False, default=False)
     order_no = serializers.CharField(source="order.order_no", read_only=True)
     order_vendor_id = serializers.IntegerField(source="order.vendor.id", read_only=True)
     order_vendor_code = serializers.CharField(source="order.vendor.code", read_only=True)
@@ -369,9 +382,21 @@ class ExternalReceiptDocumentSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "comment",
+            "image",
+            "clear_image",
             "items",
         ]
         read_only_fields = ("created_by", "created_at", "updated_at")
+
+    def update(self, instance, validated_data):
+        clear_image = validated_data.pop("clear_image", False)
+
+        if clear_image:
+            if instance.image:
+                instance.image.delete(save=False)
+            validated_data["image"] = None
+
+        return super().update(instance, validated_data)
 
     def validate(self, attrs):
         order = attrs.get("order")
@@ -395,6 +420,7 @@ class ExternalReceiptDocumentSerializer(serializers.ModelSerializer):
         return attrs
 
 class ExternalOrderSerializer(serializers.ModelSerializer):
+    clear_image = serializers.BooleanField(write_only=True, required=False, default=False)
     vendor_code = serializers.CharField(source="vendor.code", read_only=True)
     vendor_name = serializers.CharField(source="vendor.name", read_only=True)
 
@@ -440,6 +466,7 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
             "updated_at",
             "comment",
             "image",
+            "clear_image",
             "items_total_amount",
             "order_total_amount",
             "paid_amount",
@@ -456,6 +483,16 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ("created_by", "created_at", "updated_at")
 
+    def update(self, instance, validated_data):
+        clear_image = validated_data.pop("clear_image", False)
+
+        if clear_image:
+            if instance.image:
+                instance.image.delete(save=False)
+            validated_data["image"] = None
+
+        return super().update(instance, validated_data)
+        
     def _get_annotated_value(self, obj, attr_name):
         value = getattr(obj, attr_name, None)
         if value is not None:
