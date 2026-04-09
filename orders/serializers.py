@@ -146,6 +146,7 @@ class ExternalPaymentDocumentShortSerializer(serializers.ModelSerializer):
             "status_name",
             "payment_amount",
             "payment_date",
+            "image",
         ]
 
 
@@ -177,6 +178,7 @@ class ExternalPaymentDocumentSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "comment",
+            "image",
         ]
         read_only_fields = ("created_by", "created_at", "updated_at")
 
@@ -437,6 +439,7 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "comment",
+            "image",
             "items_total_amount",
             "order_total_amount",
             "paid_amount",
