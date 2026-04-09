@@ -117,8 +117,15 @@ class ExternalOrderItemSerializer(serializers.ModelSerializer):
             return attrs
 
         if order.status != ExternalOrder.StatusChoices.DRAFT:
+            if (
+                self.instance is not None
+                and order.status == ExternalOrder.StatusChoices.IN_PROGRESS
+                and set(attrs.keys()) == {"expected_delivery_date"}
+            ):
+                return attrs
+
             raise serializers.ValidationError(
-                "Редагування рядків замовлення дозволене лише для замовлень у статусі 'Чернетка'."
+                "Після виходу замовлення з чернетки можна змінювати лише очікувану дату поставки."
             )
 
         if vendor_item is not None and vendor_item.vendor_id != order.vendor_id:
