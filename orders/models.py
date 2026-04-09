@@ -48,6 +48,14 @@ class ExternalOrder(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     comment = models.TextField(blank=True, verbose_name="Коментар")
 
+    image = models.ImageField(
+        upload_to="orders/",
+        db_column="image_path",
+        blank=True,
+        null=True,
+        verbose_name="Зображення",
+    )
+
     class Meta:
         db_table = "external_orders"
         ordering = ["-created_at", "-id"]
@@ -146,6 +154,14 @@ class ExternalPaymentDocument(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     comment = models.TextField(blank=True, verbose_name="Коментар")
 
+    image = models.ImageField(
+        upload_to="payment_documents/",
+        db_column="image_path",
+        blank=True,
+        null=True,
+        verbose_name="Зображення",
+    )
+
     class Meta:
         db_table = "external_payment_documents"
         ordering = ["-created_at", "-id"]
@@ -182,6 +198,14 @@ class ExternalReceiptDocument(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     comment = models.TextField(blank=True, verbose_name="Коментар")
+
+    image = models.ImageField(
+        upload_to="receipt_documents/",
+        db_column="image_path",
+        blank=True,
+        null=True,
+        verbose_name="Зображення",
+    )
 
     class Meta:
         db_table = "external_receipt_documents"
