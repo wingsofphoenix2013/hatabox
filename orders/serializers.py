@@ -184,6 +184,10 @@ class ExternalPaymentDocumentSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ("created_by", "created_at", "updated_at")
 
+    def create(self, validated_data):
+        validated_data.pop("clear_image", None)
+        return super().create(validated_data)
+
     def update(self, instance, validated_data):
         clear_image = validated_data.pop("clear_image", False)
 
@@ -388,6 +392,10 @@ class ExternalReceiptDocumentSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ("created_by", "created_at", "updated_at")
 
+    def create(self, validated_data):
+        validated_data.pop("clear_image", None)
+        return super().create(validated_data)
+
     def update(self, instance, validated_data):
         clear_image = validated_data.pop("clear_image", False)
 
@@ -482,6 +490,10 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
             "payment_documents",
         ]
         read_only_fields = ("created_by", "created_at", "updated_at")
+
+    def create(self, validated_data):
+        validated_data.pop("clear_image", None)
+        return super().create(validated_data)
 
     def update(self, instance, validated_data):
         clear_image = validated_data.pop("clear_image", False)
