@@ -48,12 +48,12 @@ class ExternalOrder(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     comment = models.TextField(blank=True, verbose_name="Коментар")
 
-    image = models.ImageField(
+    image = models.FileField(
         upload_to="orders/",
         db_column="image_path",
         blank=True,
         null=True,
-        verbose_name="Зображення",
+        verbose_name="Файл",
     )
 
     class Meta:
@@ -154,12 +154,12 @@ class ExternalPaymentDocument(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     comment = models.TextField(blank=True, verbose_name="Коментар")
 
-    image = models.ImageField(
+    image = models.FileField(
         upload_to="payment_documents/",
         db_column="image_path",
         blank=True,
         null=True,
-        verbose_name="Зображення",
+        verbose_name="Файл",
     )
 
     class Meta:
@@ -199,12 +199,12 @@ class ExternalReceiptDocument(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     comment = models.TextField(blank=True, verbose_name="Коментар")
 
-    image = models.ImageField(
+    image = models.FileField(
         upload_to="receipt_documents/",
         db_column="image_path",
         blank=True,
         null=True,
-        verbose_name="Зображення",
+        verbose_name="Файл",
     )
 
     class Meta:
