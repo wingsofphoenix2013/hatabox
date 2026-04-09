@@ -21,6 +21,7 @@ from django.db.models import (
 from django.db.models.functions import Cast, Coalesce, Least, Round
 
 from rest_framework.permissions import DjangoModelPermissions
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.exceptions import ValidationError
 
@@ -110,6 +111,7 @@ class ExternalOrderViewSet(ModelViewSet):
     ).order_by("-created_at", "-id")
     serializer_class = ExternalOrderSerializer
     permission_classes = [DjangoModelPermissions]
+    parser_classes = [MultiPartParser, FormParser]
 
     def _with_registry_annotations(self, queryset):
         today = date.today()
@@ -439,6 +441,7 @@ class ExternalPaymentDocumentViewSet(ModelViewSet):
     ).order_by("-created_at", "-id")
     serializer_class = ExternalPaymentDocumentSerializer
     permission_classes = [DjangoModelPermissions]
+    parser_classes = [MultiPartParser, FormParser]
 
     def get_queryset(self):
         queryset = self.queryset
@@ -543,6 +546,7 @@ class ExternalReceiptDocumentViewSet(ModelViewSet):
     ).order_by("-created_at", "-id")
     serializer_class = ExternalReceiptDocumentSerializer
     permission_classes = [DjangoModelPermissions]
+    parser_classes = [MultiPartParser, FormParser]
 
     def get_queryset(self):
         queryset = self.queryset
