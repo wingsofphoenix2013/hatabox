@@ -4,7 +4,7 @@ from .models import Vendor, VendorItem
 
 @admin.register(Vendor)
 class VendorAdmin(admin.ModelAdmin):
-    list_display = ("code", "name", "tax_type", "is_active", "logo")
+    list_display = ("code", "name", "website", "tax_type", "is_active", "logo")
     search_fields = ("code", "name")
     list_filter = ("tax_type", "is_active")
 

@@ -20,6 +20,7 @@ class Vendor(models.Model):
 
     phone = models.CharField(max_length=50, blank=True, verbose_name="Основний телефон")
     email = models.EmailField(blank=True, verbose_name="Основний e-mail")
+    website = models.URLField(blank=True, verbose_name="Сайт")
     logo = models.ImageField(
         upload_to="vendors/logos/",
         blank=True,
