@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Vendor, VendorItem
+from .models import Vendor, VendorItem, VendorPaymentDetails
 
 
 @admin.register(Vendor)
@@ -8,6 +8,11 @@ class VendorAdmin(admin.ModelAdmin):
     search_fields = ("code", "name")
     list_filter = ("tax_type", "is_active")
 
+@admin.register(VendorPaymentDetails)
+class VendorPaymentDetailsAdmin(admin.ModelAdmin):
+    list_display = ("vendor", "label", "iban", "is_default", "is_active")
+    search_fields = ("vendor__name", "vendor__code", "label", "iban")
+    list_filter = ("is_default", "is_active", "vendor")
 
 @admin.register(VendorItem)
 class VendorItemAdmin(admin.ModelAdmin):

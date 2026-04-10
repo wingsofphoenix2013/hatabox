@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Vendor, VendorItem
+from .models import Vendor, VendorItem, VendorPaymentDetails
 
 
 class VendorSerializer(serializers.ModelSerializer):
@@ -57,6 +57,24 @@ class VendorSerializer(serializers.ModelSerializer):
         categories = self._get_sorted_unique_categories(obj)
         return [category_name for _, category_name in categories]
 
+class VendorPaymentDetailsSerializer(serializers.ModelSerializer):
+    vendor_code = serializers.CharField(source="vendor.code", read_only=True)
+    vendor_name = serializers.CharField(source="vendor.name", read_only=True)
+
+    class Meta:
+        model = VendorPaymentDetails
+        fields = [
+            "id",
+            "vendor",
+            "vendor_code",
+            "vendor_name",
+            "label",
+            "iban",
+            "is_default",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
 
 class VendorItemSerializer(serializers.ModelSerializer):
     vendor_code = serializers.CharField(source="vendor.code", read_only=True)

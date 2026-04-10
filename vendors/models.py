@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 from reference.models import Brand, Country, TaxType
 
 
@@ -33,6 +34,73 @@ class Vendor(models.Model):
     def __str__(self):
         return self.name
 
+class VendorPaymentDetails(models.Model):
+    vendor = models.ForeignKey(
+        "vendors.Vendor",
+        on_delete=models.PROTECT,
+        related_name="payment_details",
+        verbose_name="Постачальник",
+    )
+
+    label = models.CharField(max_length=255, verbose_name="Назва реквізитів")
+    iban = models.CharField(max_length=29, verbose_name="IBAN")
+    is_default = models.BooleanField(default=False, verbose_name="За замовчуванням")
+    is_active = models.BooleanField(default=True, verbose_name="Діючі")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["vendor", "iban"],
+                name="uq_vendor_payment_details_vendor_iban",
+            ),
+            models.UniqueConstraint(
+                fields=["vendor"],
+                condition=models.Q(is_default=True),
+                name="uq_vendor_payment_details_single_default",
+            ),
+        ]
+        ordering = ["-is_default", "label", "id"]
+
+    def __str__(self):
+        return f"{self.vendor} — {self.label} — {self.iban}"
+
+    def clean(self):
+        super().clean()
+
+        if len(self.iban) != 29:
+            raise ValidationError({"iban": "IBAN must contain exactly 29 characters."})
+
+        if not self.iban.startswith("UA"):
+            raise ValidationError({"iban": "IBAN must start with 'UA'."})
+
+        if not self.iban[2:].isdigit():
+            raise ValidationError({"iban": "After 'UA', IBAN must contain only digits."})
+
+        if self.is_default and not self.is_active:
+            raise ValidationError({
+                "is_default": "Default payment details must be active."
+            })
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+
+        self.full_clean()
+
+        if is_new and not VendorPaymentDetails.objects.filter(vendor=self.vendor).exists():
+            self.is_default = True
+
+        super().save(*args, **kwargs)
+
+        if self.is_default:
+            VendorPaymentDetails.objects.filter(vendor=self.vendor).exclude(pk=self.pk).update(
+                is_default=False
+            )
+
+        if not self.is_active and self.is_default:
+            VendorPaymentDetails.objects.filter(pk=self.pk).update(is_default=False)
 
 class VendorItem(models.Model):
     item = models.ForeignKey(

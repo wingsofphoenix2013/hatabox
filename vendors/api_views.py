@@ -4,9 +4,12 @@ from django.db.models import Prefetch
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import DjangoModelPermissions
 
-from .models import Vendor, VendorItem
-from .serializers import VendorSerializer, VendorItemSerializer
-
+from .models import Vendor, VendorItem, VendorPaymentDetails
+from .serializers import (
+    VendorSerializer,
+    VendorItemSerializer,
+    VendorPaymentDetailsSerializer,
+)
 
 class VendorViewSet(ModelViewSet):
     queryset = Vendor.objects.filter(is_active=True).prefetch_related(
@@ -45,6 +48,34 @@ class VendorViewSet(ModelViewSet):
 
         return queryset
 
+class VendorPaymentDetailsViewSet(ModelViewSet):
+    queryset = VendorPaymentDetails.objects.select_related("vendor").order_by(
+        "-is_default", "label", "id"
+    )
+    serializer_class = VendorPaymentDetailsSerializer
+    permission_classes = [DjangoModelPermissions]
+
+    def get_queryset(self):
+        queryset = self.queryset
+
+        vendor = self.request.query_params.getlist("vendor")
+        if vendor:
+            queryset = queryset.filter(vendor_id__in=vendor)
+
+        is_active = self.request.query_params.get("is_active")
+        if is_active is not None:
+            queryset = queryset.filter(is_active=(is_active.lower() == "true"))
+
+        is_default = self.request.query_params.get("is_default")
+        if is_default is not None:
+            queryset = queryset.filter(is_default=(is_default.lower() == "true"))
+
+        return queryset
+
+    def perform_destroy(self, instance):
+        instance.is_active = False
+        instance.is_default = False
+        instance.save(update_fields=["is_active", "is_default"])
 
 class VendorItemViewSet(ModelViewSet):
     queryset = VendorItem.objects.filter(is_active=True).select_related(
