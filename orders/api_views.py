@@ -139,7 +139,7 @@ class ExternalOrderViewSet(ModelViewSet):
             ),
             ordered_line_amount=ExpressionWrapper(
                 F("quantity") * F("agreed_price"),
-                output_field=DecimalField(max_digits=18, decimal_places=2),
+                output_field=DecimalField(max_digits=18, decimal_places=4),
             ),
             received_quantity_capped=Case(
                 When(receipt_quantity_total__gt=F("quantity"), then=F("quantity")),
@@ -148,7 +148,7 @@ class ExternalOrderViewSet(ModelViewSet):
             ),
             received_line_amount=ExpressionWrapper(
                 F("received_quantity_capped") * F("agreed_price"),
-                output_field=DecimalField(max_digits=18, decimal_places=2),
+                output_field=DecimalField(max_digits=18, decimal_places=4),
             ),
         )
 
