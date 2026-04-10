@@ -177,17 +177,17 @@ class ExternalOrderViewSet(ModelViewSet):
             items_total_amount=Coalesce(
                 Subquery(items_total_amount_subquery),
                 Value(0),
-                output_field=DecimalField(max_digits=18, decimal_places=2),
+                output_field=DecimalField(max_digits=18, decimal_places=4),
             ),
             paid_amount=Coalesce(
                 Subquery(paid_amount_subquery),
                 Value(0),
-                output_field=DecimalField(max_digits=18, decimal_places=2),
+                output_field=DecimalField(max_digits=18, decimal_places=4),
             ),
             received_total_amount=Coalesce(
                 Subquery(received_total_amount_subquery),
                 Value(0),
-                output_field=DecimalField(max_digits=18, decimal_places=2),
+                output_field=DecimalField(max_digits=18, decimal_places=4),
             ),
             expected_delivery_date_min=Subquery(
                 expected_delivery_date_min_subquery,
@@ -196,7 +196,7 @@ class ExternalOrderViewSet(ModelViewSet):
         ).annotate(
             order_total_amount=ExpressionWrapper(
                 F("items_total_amount") - F("discount_amount"),
-                output_field=DecimalField(max_digits=18, decimal_places=2),
+                output_field=DecimalField(max_digits=18, decimal_places=4),
             ),
         ).annotate(
             payment_percent=Case(
