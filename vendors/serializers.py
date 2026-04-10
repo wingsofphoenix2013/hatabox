@@ -25,6 +25,7 @@ class VendorSerializer(serializers.ModelSerializer):
             "ipn",
             "phone",
             "email",
+            "vat",
             "website",
             "logo",
             "is_active",
