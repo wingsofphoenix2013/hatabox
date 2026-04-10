@@ -85,8 +85,8 @@ class ExternalOrderItem(models.Model):
     )
 
     agreed_price = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
+        max_digits=14,
+        decimal_places=4,
         verbose_name="Ціна",
     )
 
