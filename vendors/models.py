@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 from django.core.exceptions import ValidationError
 from reference.models import Brand, Country, TaxType
 
@@ -70,14 +70,18 @@ class VendorPaymentDetails(models.Model):
     def clean(self):
         super().clean()
 
-        if len(self.iban) != 29:
+        iban = self.iban.strip().upper()
+
+        if len(iban) != 29:
             raise ValidationError({"iban": "IBAN must contain exactly 29 characters."})
 
-        if not self.iban.startswith("UA"):
+        if not iban.startswith("UA"):
             raise ValidationError({"iban": "IBAN must start with 'UA'."})
 
-        if not self.iban[2:].isdigit():
+        if not iban[2:].isdigit():
             raise ValidationError({"iban": "After 'UA', IBAN must contain only digits."})
+
+        self.iban = iban
 
         if self.is_default and not self.is_active:
             raise ValidationError({
@@ -87,20 +91,24 @@ class VendorPaymentDetails(models.Model):
     def save(self, *args, **kwargs):
         is_new = self.pk is None
 
-        self.full_clean()
+        if not self.is_active:
+            self.is_default = False
 
-        if is_new and not VendorPaymentDetails.objects.filter(vendor=self.vendor).exists():
-            self.is_default = True
+        with transaction.atomic():
+            if is_new and not VendorPaymentDetails.objects.filter(vendor=self.vendor).exists():
+                self.is_default = True
 
-        super().save(*args, **kwargs)
+            if self.is_default:
+                (
+                    VendorPaymentDetails.objects
+                    .select_for_update()
+                    .filter(vendor=self.vendor)
+                    .exclude(pk=self.pk)
+                    .update(is_default=False)
+                )
 
-        if self.is_default:
-            VendorPaymentDetails.objects.filter(vendor=self.vendor).exclude(pk=self.pk).update(
-                is_default=False
-            )
-
-        if not self.is_active and self.is_default:
-            VendorPaymentDetails.objects.filter(pk=self.pk).update(is_default=False)
+            self.full_clean()
+            super().save(*args, **kwargs)
 
 class VendorItem(models.Model):
     item = models.ForeignKey(
