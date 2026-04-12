@@ -474,6 +474,7 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
             "vendor_name",
             "status",
             "status_name",
+            "prices_include_vat",
             "discount_amount",
             "created_by",
             "created_by_username",
@@ -511,6 +512,29 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
             validated_data["image"] = None
 
         return super().update(instance, validated_data)
+
+    def validate(self, attrs):
+        vendor = attrs.get("vendor")
+        prices_include_vat = attrs.get("prices_include_vat")
+
+        if self.instance is not None:
+            if vendor is None:
+                vendor = self.instance.vendor
+            if prices_include_vat is None:
+                prices_include_vat = self.instance.prices_include_vat
+
+        if vendor is None:
+            return attrs
+
+        if not vendor.vat and prices_include_vat:
+            raise serializers.ValidationError({
+                "prices_include_vat": (
+                    "Для постачальника, який не є платником ПДВ, "
+                    "поле 'prices_include_vat' повинно бути False."
+                )
+            })
+
+        return attrs
         
     def _get_annotated_value(self, obj, attr_name):
         value = getattr(obj, attr_name, None)

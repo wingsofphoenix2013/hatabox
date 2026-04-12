@@ -21,6 +21,7 @@ class ExternalOrderAdmin(admin.ModelAdmin):
         "order_no",
         "vendor",
         "status",
+        "prices_include_vat",
         "discount_amount",
         "created_by",
         "created_at",
@@ -33,6 +34,7 @@ class ExternalOrderAdmin(admin.ModelAdmin):
     )
     list_filter = (
         "status",
+        "prices_include_vat",
         "vendor",
         "created_by",
     )
