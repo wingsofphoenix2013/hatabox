@@ -22,6 +22,7 @@ class ExternalOrderAdmin(admin.ModelAdmin):
         "vendor",
         "status",
         "prices_include_vat",
+        "vat_amount",
         "discount_amount",
         "created_by",
         "created_at",

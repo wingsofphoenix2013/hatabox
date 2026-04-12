@@ -40,6 +40,27 @@ from .serializers import (
     ExternalReceiptItemSerializer,
 )
 
+VAT_RATE = Decimal("0.20")
+VAT_DIVISOR = Decimal("1.20")
+
+
+def recalculate_order_vat_amount(order):
+    vat_amount = Decimal("0.0000")
+
+    if not order.vendor.vat:
+        order.vat_amount = vat_amount
+        order.save(update_fields=["vat_amount"])
+        return
+
+    for item in order.items.all():
+        line_total = item.quantity * item.agreed_price
+        line_vat = line_total * VAT_RATE / VAT_DIVISOR
+        vat_amount += line_vat
+
+    order.vat_amount = vat_amount.quantize(Decimal("0.0001"))
+    order.save(update_fields=["vat_amount"])
+
+
 def try_complete_order(order):
     items_total_amount = Decimal("0.00")
     for item in order.items.all():
@@ -425,13 +446,27 @@ class ExternalOrderItemViewSet(ModelViewSet):
 
         return queryset
 
+    def perform_create(self, serializer):
+        with transaction.atomic():
+            order_item = serializer.save()
+            recalculate_order_vat_amount(order_item.order)
+
+    def perform_update(self, serializer):
+        with transaction.atomic():
+            order_item = serializer.save()
+            recalculate_order_vat_amount(order_item.order)
+
     def perform_destroy(self, instance):
         if instance.order.status != ExternalOrder.StatusChoices.DRAFT:
             raise ValidationError(
                 "Видалення рядків замовлення дозволене лише для замовлень у статусі 'Чернетка'."
             )
-        instance.delete()
 
+        order = instance.order
+
+        with transaction.atomic():
+            instance.delete()
+            recalculate_order_vat_amount(order)
 
 class ExternalPaymentDocumentViewSet(ModelViewSet):
     queryset = ExternalPaymentDocument.objects.select_related(

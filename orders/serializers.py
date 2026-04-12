@@ -475,6 +475,7 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
             "status",
             "status_name",
             "prices_include_vat",
+            "vat_amount",
             "discount_amount",
             "created_by",
             "created_by_username",
@@ -497,7 +498,7 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
             "items",
             "payment_documents",
         ]
-        read_only_fields = ("created_by", "created_at", "updated_at")
+        read_only_fields = ("created_by", "created_at", "updated_at", "vat_amount")
 
     def create(self, validated_data):
         validated_data.pop("clear_image", None)

@@ -36,6 +36,13 @@ class ExternalOrder(models.Model):
         verbose_name="Ціни включають ПДВ",
     )
 
+    vat_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        default=0,
+        verbose_name="Сума ПДВ",
+    )
+
     discount_amount = models.DecimalField(
         max_digits=12,
         decimal_places=2,
