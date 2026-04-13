@@ -60,11 +60,14 @@ class VendorSerializer(serializers.ModelSerializer):
         categories = self._get_sorted_unique_categories(obj)
         return [category_name for _, category_name in categories]
 
+    def create(self, validated_data):
+        validated_data.pop("clear_logo", False)
+        return super().create(validated_data)
+
     def update(self, instance, validated_data):
         clear_logo = validated_data.pop("clear_logo", False)
 
-        if clear_logo and instance.logo:
-            instance.logo.delete(save=False)
+        if clear_logo:
             instance.logo = None
 
         return super().update(instance, validated_data)
