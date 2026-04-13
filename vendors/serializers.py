@@ -9,6 +9,7 @@ class VendorSerializer(serializers.ModelSerializer):
 
     item_category_ids = serializers.SerializerMethodField()
     item_category_names = serializers.SerializerMethodField()
+    clear_logo = serializers.BooleanField(write_only=True, required=False, default=False)
 
     class Meta:
         model = Vendor
@@ -28,6 +29,7 @@ class VendorSerializer(serializers.ModelSerializer):
             "vat",
             "website",
             "logo",
+            "clear_logo",
             "is_active",
             "item_category_ids",
             "item_category_names",
@@ -57,6 +59,15 @@ class VendorSerializer(serializers.ModelSerializer):
     def get_item_category_names(self, obj):
         categories = self._get_sorted_unique_categories(obj)
         return [category_name for _, category_name in categories]
+
+    def update(self, instance, validated_data):
+        clear_logo = validated_data.pop("clear_logo", False)
+
+        if clear_logo and instance.logo:
+            instance.logo.delete(save=False)
+            instance.logo = None
+
+        return super().update(instance, validated_data)
 
 class VendorPaymentDetailsSerializer(serializers.ModelSerializer):
     vendor_code = serializers.CharField(source="vendor.code", read_only=True)

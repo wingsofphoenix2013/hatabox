@@ -1,6 +1,15 @@
+import os
+import uuid
+
 from django.db import models, transaction
 from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError
 from reference.models import Brand, Country, TaxType
+
+
+def vendor_logo_upload_to(instance, filename):
+    ext = os.path.splitext(filename)[1].lower() or ".bin"
+    return f"vendors/logos/{uuid.uuid4().hex}{ext}"
 
 
 class Vendor(models.Model):
@@ -24,7 +33,7 @@ class Vendor(models.Model):
     vat = models.BooleanField(default=False, verbose_name="Платник ПДВ")
     website = models.URLField(blank=True, verbose_name="Сайт")
     logo = models.ImageField(
-        upload_to="vendors/logos/",
+        upload_to=vendor_logo_upload_to,
         blank=True,
         null=True,
         verbose_name="Логотип"
@@ -34,6 +43,32 @@ class Vendor(models.Model):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        old_logo_name = None
+
+        if self.pk:
+            old_instance = Vendor.objects.filter(pk=self.pk).only("logo").first()
+            new_logo_name = getattr(self.logo, "name", None)
+
+            if old_instance and old_instance.logo and old_instance.logo.name != new_logo_name:
+                old_logo_name = old_instance.logo.name
+
+        super().save(*args, **kwargs)
+
+        if old_logo_name:
+            storage = self._meta.get_field("logo").storage
+            if storage.exists(old_logo_name):
+                storage.delete(old_logo_name)
+
+    def delete(self, *args, **kwargs):
+        logo_name = self.logo.name if self.logo else None
+        storage = self._meta.get_field("logo").storage
+
+        super().delete(*args, **kwargs)
+
+        if logo_name and storage.exists(logo_name):
+            storage.delete(logo_name)
 
 class VendorPaymentDetails(models.Model):
     vendor = models.ForeignKey(
