@@ -86,11 +86,17 @@ def try_complete_order(order):
     receipt_percent = 0
 
     if order_total_amount > 0:
-        payment_percent = round((paid_amount / order_total_amount) * 100)
-        receipt_percent = round((received_total_amount / order_total_amount) * 100)
+        if paid_amount >= order_total_amount:
+            payment_percent = 100
+        else:
+            payment_percent = round((paid_amount / order_total_amount) * 100)
+            payment_percent = max(0, min(99, payment_percent))
 
-    payment_percent = max(0, min(100, payment_percent))
-    receipt_percent = max(0, min(100, receipt_percent))
+        if received_total_amount >= order_total_amount:
+            receipt_percent = 100
+        else:
+            receipt_percent = round((received_total_amount / order_total_amount) * 100)
+            receipt_percent = max(0, min(99, receipt_percent))
 
     if (
         payment_percent == 100
@@ -222,9 +228,10 @@ class ExternalOrderViewSet(ModelViewSet):
         ).annotate(
             payment_percent=Case(
                 When(order_total_amount__lte=0, then=Value(0)),
+                When(paid_amount__gte=F("order_total_amount"), then=Value(100)),
                 default=Cast(
                     Least(
-                        Value(100),
+                        Value(99),
                         Round(
                             ExpressionWrapper(
                                 F("paid_amount") * Value(100.0) / F("order_total_amount"),
@@ -238,9 +245,10 @@ class ExternalOrderViewSet(ModelViewSet):
             ),
             receipt_percent=Case(
                 When(order_total_amount__lte=0, then=Value(0)),
+                When(received_total_amount__gte=F("order_total_amount"), then=Value(100)),
                 default=Cast(
                     Least(
-                        Value(100),
+                        Value(99),
                         Round(
                             ExpressionWrapper(
                                 F("received_total_amount") * Value(100.0) / F("order_total_amount"),

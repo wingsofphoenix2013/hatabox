@@ -593,8 +593,11 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
         if order_total_amount <= 0:
             return 0
 
+        if paid_amount >= order_total_amount:
+            return 100
+
         percent = round((paid_amount / order_total_amount) * 100)
-        return max(0, min(100, percent))
+        return max(0, min(99, percent))
 
     def _get_receipt_progress_data(self, obj):
         items = getattr(obj, "prefetched_items", None)
@@ -645,8 +648,11 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
         if order_total_amount <= 0:
             return 0
 
+        if received_total_amount >= order_total_amount:
+            return 100
+
         percent = round((received_total_amount / order_total_amount) * 100)
-        return max(0, min(100, percent))
+        return max(0, min(99, percent))
 
     def get_receipt_state(self, obj):
         receipt_percent = self.get_receipt_percent(obj)
