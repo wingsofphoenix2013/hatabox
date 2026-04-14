@@ -75,7 +75,6 @@ class ExternalOrder(models.Model):
     def __str__(self):
         return self.order_no
 
-
 class ExternalOrderItem(models.Model):
     order = models.ForeignKey(
         ExternalOrder,
@@ -102,6 +101,11 @@ class ExternalOrderItem(models.Model):
         verbose_name="Ціна",
     )
 
+    requires_unit_conversion = models.BooleanField(
+        default=False,
+        verbose_name="Потребує конвертації одиниць",
+    )
+
     expected_delivery_date = models.DateField(
         null=True,
         blank=True,
@@ -114,7 +118,6 @@ class ExternalOrderItem(models.Model):
 
     def __str__(self):
         return f"{self.order} → {self.vendor_item}"
-
 
 class ExternalPaymentDocument(models.Model):
     class StatusChoices(models.TextChoices):

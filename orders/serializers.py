@@ -11,7 +11,6 @@ from .models import (
     ExternalReceiptItem,
 )
 
-
 class ExternalOrderItemSerializer(serializers.ModelSerializer):
     order_no = serializers.CharField(source="order.order_no", read_only=True)
 
@@ -80,6 +79,7 @@ class ExternalOrderItemSerializer(serializers.ModelSerializer):
             "vendor_item_country_of_origin_code",
             "quantity",
             "agreed_price",
+            "requires_unit_conversion",
             "expected_delivery_date",
             "line_total_amount",
             "received_quantity",
@@ -134,7 +134,6 @@ class ExternalOrderItemSerializer(serializers.ModelSerializer):
             )
 
         return attrs
-
 
 class ExternalOrderItemNestedSerializer(ExternalOrderItemSerializer):
     class Meta(ExternalOrderItemSerializer.Meta):

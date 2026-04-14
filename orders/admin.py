@@ -43,7 +43,6 @@ class ExternalOrderAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at")
     inlines = [ExternalOrderItemInline]
 
-
 @admin.register(ExternalOrderItem)
 class ExternalOrderItemAdmin(admin.ModelAdmin):
     list_display = (
@@ -51,6 +50,7 @@ class ExternalOrderItemAdmin(admin.ModelAdmin):
         "vendor_item",
         "quantity",
         "agreed_price",
+        "requires_unit_conversion",
         "expected_delivery_date",
     )
     search_fields = (
@@ -62,9 +62,9 @@ class ExternalOrderItemAdmin(admin.ModelAdmin):
     )
     list_filter = (
         "order__vendor",
+        "requires_unit_conversion",
     )
     autocomplete_fields = ("order", "vendor_item")
-
 
 @admin.register(ExternalPaymentDocument)
 class ExternalPaymentDocumentAdmin(admin.ModelAdmin):
