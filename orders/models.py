@@ -203,6 +203,16 @@ class ExternalReceiptDocument(models.Model):
         verbose_name="Дата приходу",
     )
 
+    completed = models.BooleanField(
+        default=False,
+        verbose_name="Документ завершено",
+    )
+
+    sent_to_warehouse = models.BooleanField(
+        default=False,
+        verbose_name="Передано на склад",
+    )
+
     created_by = models.ForeignKey(
         User,
         on_delete=models.PROTECT,

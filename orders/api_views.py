@@ -618,6 +618,29 @@ class ExternalReceiptDocumentViewSet(ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
+    def perform_update(self, serializer):
+        instance = serializer.instance
+
+        if instance.sent_to_warehouse:
+            allowed_fields = {"comment", "image", "clear_image"}
+            changed_fields = set(serializer.validated_data.keys())
+
+            if not changed_fields.issubset(allowed_fields):
+                raise ValidationError(
+                    "Після передачі документа приходу на склад можна змінювати лише коментар або файл."
+                )
+
+        elif instance.completed:
+            allowed_fields = {"sent_to_warehouse", "comment", "image", "clear_image"}
+            changed_fields = set(serializer.validated_data.keys())
+
+            if not changed_fields.issubset(allowed_fields):
+                raise ValidationError(
+                    "Після завершення документа приходу можна змінювати лише прапорець передачі на склад, коментар або файл."
+                )
+
+        serializer.save()
+
 
 class ExternalReceiptItemViewSet(ModelViewSet):
     queryset = ExternalReceiptItem.objects.select_related(
@@ -673,3 +696,15 @@ class ExternalReceiptItemViewSet(ModelViewSet):
         with transaction.atomic():
             receipt_item = serializer.save()
             try_complete_order(receipt_item.order_item.order)
+
+    def perform_destroy(self, instance):
+        if instance.receipt_document.completed:
+            raise ValidationError(
+                "Неможливо видаляти рядки приходу після завершення документа приходу."
+            )
+
+        order = instance.order_item.order
+
+        with transaction.atomic():
+            instance.delete()
+            try_complete_order(order)

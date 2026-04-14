@@ -106,6 +106,8 @@ class ExternalReceiptDocumentAdmin(admin.ModelAdmin):
         "receipt_no",
         "order",
         "receipt_date",
+        "completed",
+        "sent_to_warehouse",
         "created_by",
         "created_at",
     )
@@ -118,6 +120,8 @@ class ExternalReceiptDocumentAdmin(admin.ModelAdmin):
     )
     list_filter = (
         "receipt_date",
+        "completed",
+        "sent_to_warehouse",
         "order__vendor",
         "created_by",
     )

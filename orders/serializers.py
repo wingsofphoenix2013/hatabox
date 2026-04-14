@@ -340,6 +340,11 @@ class ExternalReceiptItemSerializer(serializers.ModelSerializer):
                 "Неможливо змінювати рядки приходу для завершеного замовлення."
             )
 
+        if receipt_document.completed:
+            raise serializers.ValidationError(
+                "Неможливо змінювати рядки приходу після завершення документа приходу."
+            )
+
         if receipt_document.order_id != order_item.order_id:
             raise serializers.ValidationError(
                 "Рядок приходу повинен належати тому ж замовленню, що і документ приходу."
@@ -387,6 +392,8 @@ class ExternalReceiptDocumentSerializer(serializers.ModelSerializer):
             "order_vendor_code",
             "order_vendor_name",
             "receipt_date",
+            "completed",
+            "sent_to_warehouse",
             "created_by",
             "created_by_username",
             "created_at",
@@ -414,9 +421,16 @@ class ExternalReceiptDocumentSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         order = attrs.get("order")
+        completed = attrs.get("completed")
+        sent_to_warehouse = attrs.get("sent_to_warehouse")
 
-        if self.instance is not None and order is None:
-            order = self.instance.order
+        if self.instance is not None:
+            if order is None:
+                order = self.instance.order
+            if completed is None:
+                completed = self.instance.completed
+            if sent_to_warehouse is None:
+                sent_to_warehouse = self.instance.sent_to_warehouse
 
         if order is None:
             return attrs
@@ -430,6 +444,27 @@ class ExternalReceiptDocumentSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Документ приходу не можна створити або редагувати, поки замовлення перебуває у статусі 'Чернетка'."
             )
+
+        if sent_to_warehouse and not completed:
+            raise serializers.ValidationError({
+                "sent_to_warehouse": (
+                    "Документ приходу можна передати на склад лише після його завершення."
+                )
+            })
+
+        if self.instance is not None and self.instance.completed and completed is False:
+            raise serializers.ValidationError({
+                "completed": "Прапорець завершення документа приходу не можна скасувати."
+            })
+
+        if (
+            self.instance is not None
+            and self.instance.sent_to_warehouse
+            and sent_to_warehouse is False
+        ):
+            raise serializers.ValidationError({
+                "sent_to_warehouse": "Прапорець передачі документа на склад не можна скасувати."
+            })
 
         return attrs
 
