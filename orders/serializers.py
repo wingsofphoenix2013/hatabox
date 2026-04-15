@@ -96,7 +96,8 @@ class ExternalOrderItemSerializer(serializers.ModelSerializer):
             receipt_items = obj.receipt_items.all()
 
         for receipt_item in receipt_items:
-            total += receipt_item.received_quantity
+            if receipt_item.receipt_document.completed:
+                total += receipt_item.received_quantity
         return total
 
     def get_remaining_quantity(self, obj):
@@ -652,7 +653,8 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
 
             received_quantity = Decimal("0.000")
             for receipt_item in receipt_items:
-                received_quantity += receipt_item.received_quantity
+                if receipt_item.receipt_document.completed:
+                    received_quantity += receipt_item.received_quantity
 
             capped_received_quantity = min(received_quantity, item.quantity)
             received_total_amount += capped_received_quantity * item.agreed_price

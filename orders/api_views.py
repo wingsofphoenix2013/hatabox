@@ -77,7 +77,8 @@ def try_complete_order(order):
     for item in order.items.all():
         received_quantity = Decimal("0.000")
         for receipt_item in item.receipt_items.all():
-            received_quantity += receipt_item.received_quantity
+            if receipt_item.receipt_document.completed:
+                received_quantity += receipt_item.received_quantity
 
         capped_received_quantity = min(received_quantity, item.quantity)
         received_total_amount += capped_received_quantity * item.agreed_price
@@ -156,7 +157,10 @@ class ExternalOrderViewSet(ModelViewSet):
         order_items_base = ExternalOrderItem.objects.filter(order_id=OuterRef("pk")).annotate(
             receipt_quantity_total=Coalesce(
                 Subquery(
-                    ExternalReceiptItem.objects.filter(order_item_id=OuterRef("pk"))
+                    ExternalReceiptItem.objects.filter(
+                        order_item_id=OuterRef("pk"),
+                        receipt_document__completed=True,
+                    )
                     .values("order_item_id")
                     .annotate(total=Sum("received_quantity"))
                     .values("total")[:1]
