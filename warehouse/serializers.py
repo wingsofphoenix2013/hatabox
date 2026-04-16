@@ -195,9 +195,9 @@ class WarehousePendingIntakeItemSerializer(serializers.ModelSerializer):
     received_quantity = serializers.DecimalField(
         max_digits=12,
         decimal_places=3,
-        source="received_quantity",
         read_only=True,
     )
+    
     requires_unit_conversion = serializers.BooleanField(
         source="order_item.requires_unit_conversion",
         read_only=True,
