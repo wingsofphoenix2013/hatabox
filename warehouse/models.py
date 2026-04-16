@@ -142,15 +142,19 @@ class WarehouseStoragePlace(models.Model):
         return self.get_display_name()
 
     def get_display_name(self):
-        parts = [self.location.code]
-
         ancestors = []
         current = self.parent
         while current is not None:
             ancestors.append(current.code)
             current = current.parent
 
-        parts.extend(reversed(ancestors))
+        ancestors = list(reversed(ancestors))
+
+        if self.place_type == self.PlaceType.CONTAINER and not ancestors:
+            return f"{self.location.code}{self.code}"
+
+        parts = [self.location.code]
+        parts.extend(ancestors)
         parts.append(self.code)
 
         return "-".join(parts)
