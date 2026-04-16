@@ -573,7 +573,6 @@ class ExternalPaymentDocumentViewSet(ModelViewSet):
 
             try_complete_order(order)
 
-
 class ExternalReceiptDocumentViewSet(ModelViewSet):
     queryset = ExternalReceiptDocument.objects.select_related(
         "order",
@@ -643,8 +642,9 @@ class ExternalReceiptDocumentViewSet(ModelViewSet):
                     "Після завершення документа приходу можна змінювати лише прапорець передачі на склад, коментар або файл."
                 )
 
-        serializer.save()
-
+        with transaction.atomic():
+            receipt_document = serializer.save()
+            try_complete_order(receipt_document.order)
 
 class ExternalReceiptItemViewSet(ModelViewSet):
     queryset = ExternalReceiptItem.objects.select_related(
