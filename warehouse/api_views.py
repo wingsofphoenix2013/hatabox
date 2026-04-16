@@ -147,6 +147,8 @@ class WarehousePendingIntakeItemViewSet(ReadOnlyModelViewSet):
     ).filter(
         receipt_document__completed=True,
         receipt_document__sent_to_warehouse=False,
+    ).exclude(
+        warehouse_units__is_active=True,
     ).order_by("receipt_document__receipt_date", "receipt_document__id", "id")
 
     serializer_class = WarehousePendingIntakeItemSerializer
