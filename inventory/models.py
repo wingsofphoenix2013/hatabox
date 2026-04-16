@@ -1,4 +1,11 @@
+import uuid
+
 from django.db import models
+
+def inv_item_image_upload_to(instance, filename):
+    extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    new_filename = f"{uuid.uuid4()}.{extension}" if extension else str(uuid.uuid4())
+    return f"items/{new_filename}"
 
 
 class InvUnit(models.Model):
@@ -54,7 +61,7 @@ class InvItem(models.Model):
     )
 
     image = models.ImageField(
-        upload_to="items/",
+        upload_to=inv_item_image_upload_to,
         db_column="image_path",
         blank=True,
         null=True,
