@@ -41,10 +41,17 @@ class InvItemAdmin(admin.ModelAdmin):
         "category",
         "unit",
         "qr_item",
+        "requires_storage_place",
         "is_active",
         "image",
     )
-    list_filter = ("is_active", "qr_item", "category", "unit")
+    list_filter = (
+        "is_active",
+        "qr_item",
+        "requires_storage_place",
+        "category",
+        "unit",
+    )
     search_fields = ("internal_code", "name", "description")
     autocomplete_fields = ("category", "unit")
     ordering = ("name",)

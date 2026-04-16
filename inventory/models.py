@@ -67,6 +67,7 @@ class InvItem(models.Model):
         null=True,
     )
     qr_item = models.BooleanField(default=False)
+    requires_storage_place = models.BooleanField(default=True)
     is_active = models.BooleanField(default=True)
 
     created_at = models.DateTimeField(auto_now_add=True)

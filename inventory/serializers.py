@@ -45,6 +45,7 @@ class InvItemSerializer(serializers.ModelSerializer):
             "unit_symbol",
             "image",
             "qr_item",
+            "requires_storage_place",
             "is_active",
             "created_at",
             "updated_at",
