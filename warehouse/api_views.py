@@ -1,9 +1,14 @@
-from django.db import models
+from decimal import Decimal
+
+from django.db import models, transaction
+
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import DjangoModelPermissions
+from rest_framework.response import Response
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from orders.models import ExternalReceiptItem
-
-from rest_framework.permissions import DjangoModelPermissions
-from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from .models import WarehouseLocation, WarehouseStoragePlace, WarehouseUnit
 from .serializers import (
@@ -11,6 +16,7 @@ from .serializers import (
     WarehouseStoragePlaceSerializer,
     WarehouseUnitSerializer,
     WarehousePendingIntakeItemSerializer,
+    WarehouseAcceptPendingIntakeSerializer,
 )
 
 
@@ -78,7 +84,8 @@ class WarehouseStoragePlaceViewSet(ModelViewSet):
             )
 
         return queryset
-        
+
+
 class WarehouseUnitViewSet(ModelViewSet):
     queryset = WarehouseUnit.objects.select_related(
         "inventory_item",
@@ -124,7 +131,8 @@ class WarehouseUnitViewSet(ModelViewSet):
             )
 
         return queryset
-        
+
+
 class WarehousePendingIntakeItemViewSet(ReadOnlyModelViewSet):
     queryset = ExternalReceiptItem.objects.select_related(
         "receipt_document",
@@ -183,3 +191,72 @@ class WarehousePendingIntakeItemViewSet(ReadOnlyModelViewSet):
             )
 
         return queryset
+
+    @action(detail=True, methods=["post"], url_path="accept-to-location")
+    def accept_to_location(self, request, pk=None):
+        receipt_item = self.get_object()
+        serializer = WarehouseAcceptPendingIntakeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        location = serializer.validated_data["location"]
+        receipt_document = receipt_item.receipt_document
+        order_item = receipt_item.order_item
+
+        if not receipt_document.completed:
+            raise ValidationError("Документ приходу повинен бути завершеним.")
+
+        if receipt_document.sent_to_warehouse:
+            raise ValidationError("Документ приходу вже передано на склад.")
+
+        if order_item.requires_unit_conversion:
+            raise ValidationError(
+                "Для цього рядка приходу потрібна окрема операція конвертації одиниць."
+            )
+
+        existing_units = WarehouseUnit.objects.filter(
+            source_receipt_item=receipt_item,
+            is_active=True,
+        )
+        if existing_units.exists():
+            raise ValidationError("Цей рядок приходу вже оброблено складом.")
+
+        if receipt_item.received_quantity != int(receipt_item.received_quantity):
+            raise ValidationError(
+                "Неможливо прийняти без конвертації рядок з нецілою кількістю."
+            )
+
+        units_count = int(receipt_item.received_quantity)
+
+        with transaction.atomic():
+            units_to_create = []
+            for _ in range(units_count):
+                units_to_create.append(
+                    WarehouseUnit(
+                        inventory_item=order_item.vendor_item.item,
+                        location=location,
+                        quantity=Decimal("1.000"),
+                        source_receipt_item=receipt_item,
+                        source_order_item=order_item,
+                    )
+                )
+
+            WarehouseUnit.objects.bulk_create(units_to_create)
+
+            remaining_items = ExternalReceiptItem.objects.filter(
+                receipt_document=receipt_document,
+            ).exclude(
+                warehouse_units__is_active=True,
+            ).distinct()
+
+            if not remaining_items.exists():
+                receipt_document.sent_to_warehouse = True
+                receipt_document.save(update_fields=["sent_to_warehouse"])
+
+        return Response({
+            "status": "ok",
+            "created_units": units_count,
+            "location_id": location.id,
+            "receipt_item_id": receipt_item.id,
+            "receipt_document_id": receipt_document.id,
+            "sent_to_warehouse": receipt_document.sent_to_warehouse,
+        })

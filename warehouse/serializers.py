@@ -234,3 +234,8 @@ class WarehousePendingIntakeItemSerializer(serializers.ModelSerializer):
 
     def get_can_be_directly_accepted(self, obj):
         return not obj.order_item.requires_unit_conversion
+
+class WarehouseAcceptPendingIntakeSerializer(serializers.Serializer):
+    location = serializers.PrimaryKeyRelatedField(
+        queryset=WarehouseLocation.objects.filter(is_active=True)
+    )
