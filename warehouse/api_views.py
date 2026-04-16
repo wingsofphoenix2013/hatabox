@@ -1,13 +1,16 @@
 from django.db import models
 
+from orders.models import ExternalReceiptItem
+
 from rest_framework.permissions import DjangoModelPermissions
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from .models import WarehouseLocation, WarehouseStoragePlace, WarehouseUnit
 from .serializers import (
     WarehouseLocationSerializer,
     WarehouseStoragePlaceSerializer,
     WarehouseUnitSerializer,
+    WarehousePendingIntakeItemSerializer,
 )
 
 
@@ -118,6 +121,65 @@ class WarehouseUnitViewSet(ModelViewSet):
                 | models.Q(inventory_item__name__icontains=search)
                 | models.Q(source_order_item__order__order_no__icontains=search)
                 | models.Q(source_order_item__vendor_item__name__icontains=search)
+            )
+
+        return queryset
+        
+class WarehousePendingIntakeItemViewSet(ReadOnlyModelViewSet):
+    queryset = ExternalReceiptItem.objects.select_related(
+        "receipt_document",
+        "receipt_document__order",
+        "receipt_document__order__vendor",
+        "order_item",
+        "order_item__order",
+        "order_item__order__vendor",
+        "order_item__vendor_item",
+        "order_item__vendor_item__item",
+        "order_item__vendor_item__item__unit",
+    ).filter(
+        receipt_document__completed=True,
+        receipt_document__sent_to_warehouse=False,
+    ).order_by("receipt_document__receipt_date", "receipt_document__id", "id")
+
+    serializer_class = WarehousePendingIntakeItemSerializer
+    permission_classes = [DjangoModelPermissions]
+
+    def get_queryset(self):
+        queryset = self.queryset
+
+        receipt_document = self.request.query_params.getlist("receipt_document")
+        if receipt_document:
+            queryset = queryset.filter(receipt_document_id__in=receipt_document)
+
+        order = self.request.query_params.getlist("order")
+        if order:
+            queryset = queryset.filter(order_item__order_id__in=order)
+
+        vendor = self.request.query_params.getlist("vendor")
+        if vendor:
+            queryset = queryset.filter(order_item__order__vendor_id__in=vendor)
+
+        inventory_item = self.request.query_params.getlist("inventory_item")
+        if inventory_item:
+            queryset = queryset.filter(order_item__vendor_item__item_id__in=inventory_item)
+
+        requires_unit_conversion = self.request.query_params.get("requires_unit_conversion")
+        if requires_unit_conversion is not None:
+            queryset = queryset.filter(
+                order_item__requires_unit_conversion=requires_unit_conversion.lower() == "true"
+            )
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(receipt_document__receipt_no__icontains=search)
+                | models.Q(order_item__order__order_no__icontains=search)
+                | models.Q(order_item__order__vendor__code__icontains=search)
+                | models.Q(order_item__order__vendor__name__icontains=search)
+                | models.Q(order_item__vendor_item__name__icontains=search)
+                | models.Q(order_item__vendor_item__vendor_sku__icontains=search)
+                | models.Q(order_item__vendor_item__item__internal_code__icontains=search)
+                | models.Q(order_item__vendor_item__item__name__icontains=search)
             )
 
         return queryset

@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from orders.models import ExternalReceiptItem
+
 from .models import WarehouseLocation, WarehouseStoragePlace, WarehouseUnit
 
 class WarehouseLocationSerializer(serializers.ModelSerializer):
@@ -107,3 +109,128 @@ class WarehouseUnitSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+class WarehousePendingIntakeItemSerializer(serializers.ModelSerializer):
+    receipt_document_id = serializers.IntegerField(
+        source="receipt_document.id",
+        read_only=True,
+    )
+    receipt_no = serializers.CharField(
+        source="receipt_document.receipt_no",
+        read_only=True,
+    )
+    receipt_date = serializers.DateField(
+        source="receipt_document.receipt_date",
+        read_only=True,
+    )
+
+    order_id = serializers.IntegerField(
+        source="order_item.order.id",
+        read_only=True,
+    )
+    order_no = serializers.CharField(
+        source="order_item.order.order_no",
+        read_only=True,
+    )
+
+    vendor_id = serializers.IntegerField(
+        source="order_item.order.vendor.id",
+        read_only=True,
+    )
+    vendor_code = serializers.CharField(
+        source="order_item.order.vendor.code",
+        read_only=True,
+    )
+    vendor_name = serializers.CharField(
+        source="order_item.order.vendor.name",
+        read_only=True,
+    )
+
+    source_order_item_id = serializers.IntegerField(
+        source="order_item.id",
+        read_only=True,
+    )
+    vendor_item_id = serializers.IntegerField(
+        source="order_item.vendor_item.id",
+        read_only=True,
+    )
+    vendor_item_name = serializers.CharField(
+        source="order_item.vendor_item.name",
+        read_only=True,
+    )
+    vendor_item_sku = serializers.CharField(
+        source="order_item.vendor_item.vendor_sku",
+        read_only=True,
+    )
+
+    inventory_item_id = serializers.IntegerField(
+        source="order_item.vendor_item.item.id",
+        read_only=True,
+    )
+    inventory_item_code = serializers.CharField(
+        source="order_item.vendor_item.item.internal_code",
+        read_only=True,
+    )
+    inventory_item_name = serializers.CharField(
+        source="order_item.vendor_item.item.name",
+        read_only=True,
+    )
+    inventory_item_unit_id = serializers.IntegerField(
+        source="order_item.vendor_item.item.unit.id",
+        read_only=True,
+    )
+    inventory_item_unit_name = serializers.CharField(
+        source="order_item.vendor_item.item.unit.name",
+        read_only=True,
+    )
+    inventory_item_unit_symbol = serializers.CharField(
+        source="order_item.vendor_item.item.unit.symbol",
+        read_only=True,
+    )
+    inventory_item_requires_storage_place = serializers.BooleanField(
+        source="order_item.vendor_item.item.requires_storage_place",
+        read_only=True,
+    )
+
+    received_quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        source="received_quantity",
+        read_only=True,
+    )
+    requires_unit_conversion = serializers.BooleanField(
+        source="order_item.requires_unit_conversion",
+        read_only=True,
+    )
+    can_be_directly_accepted = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ExternalReceiptItem
+        fields = [
+            "id",
+            "receipt_document_id",
+            "receipt_no",
+            "receipt_date",
+            "order_id",
+            "order_no",
+            "vendor_id",
+            "vendor_code",
+            "vendor_name",
+            "source_order_item_id",
+            "vendor_item_id",
+            "vendor_item_name",
+            "vendor_item_sku",
+            "inventory_item_id",
+            "inventory_item_code",
+            "inventory_item_name",
+            "inventory_item_unit_id",
+            "inventory_item_unit_name",
+            "inventory_item_unit_symbol",
+            "inventory_item_requires_storage_place",
+            "received_quantity",
+            "requires_unit_conversion",
+            "can_be_directly_accepted",
+        ]
+
+    def get_can_be_directly_accepted(self, obj):
+        return not obj.order_item.requires_unit_conversion

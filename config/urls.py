@@ -36,6 +36,7 @@ from warehouse.api_views import (
     WarehouseLocationViewSet,
     WarehouseStoragePlaceViewSet,
     WarehouseUnitViewSet,
+    WarehousePendingIntakeItemViewSet,
 )
 
 from reference.api_views import (
@@ -78,6 +79,11 @@ router.register("receipt-items", ExternalReceiptItemViewSet)
 router.register("warehouse-locations", WarehouseLocationViewSet)
 router.register("warehouse-storage-places", WarehouseStoragePlaceViewSet)
 router.register("warehouse-units", WarehouseUnitViewSet)
+router.register(
+    "warehouse-pending-intake-items",
+    WarehousePendingIntakeItemViewSet,
+    basename="warehouse-pending-intake-item",
+)
 router.register("order-statuses", ExternalOrderStatusViewSet)
 router.register("payment-statuses", ExternalOrderPaymentStatusViewSet)
 router.register("brands", BrandViewSet)
