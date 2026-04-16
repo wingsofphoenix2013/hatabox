@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "vendors.apps.VendorsConfig",
     "reference.apps.ReferenceConfig",
     "orders.apps.OrdersConfig",
+    "warehouse.apps.WarehouseConfig",
     "rest_framework",
     "corsheaders",
     "accounts",

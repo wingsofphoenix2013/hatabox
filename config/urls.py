@@ -31,6 +31,10 @@ from orders.api_views import (
     ExternalReceiptDocumentViewSet,
     ExternalReceiptItemViewSet,
 )
+from warehouse.api_views import (
+    WarehouseLocationViewSet,
+    WarehouseStoragePlaceViewSet,
+)
 
 from reference.api_views import (
     BrandViewSet,
@@ -69,6 +73,8 @@ router.register("tax-types", TaxTypeViewSet)
 router.register("payment-documents", ExternalPaymentDocumentViewSet)
 router.register("receipt-documents", ExternalReceiptDocumentViewSet)
 router.register("receipt-items", ExternalReceiptItemViewSet)
+router.register("warehouse-locations", WarehouseLocationViewSet)
+router.register("warehouse-storage-places", WarehouseStoragePlaceViewSet)
 router.register("order-statuses", ExternalOrderStatusViewSet)
 router.register("payment-statuses", ExternalOrderPaymentStatusViewSet)
 router.register("brands", BrandViewSet)
