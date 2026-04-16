@@ -4,6 +4,9 @@ import uuid
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 
+from inventory.models import InvItem
+from orders.models import ExternalOrderItem, ExternalReceiptItem
+
 def storage_place_image_upload_to(instance, filename):
     ext = os.path.splitext(filename)[1].lower() or ".bin"
     return f"warehouse/storage_places/{uuid.uuid4().hex}{ext}"
@@ -217,3 +220,109 @@ class WarehouseStoragePlace(models.Model):
 
             self.full_clean()
             super().save(*args, **kwargs)
+
+class WarehouseUnit(models.Model):
+    inventory_item = models.ForeignKey(
+        InvItem,
+        on_delete=models.PROTECT,
+        related_name="warehouse_units",
+        verbose_name="Номенклатурна позиція",
+    )
+
+    location = models.ForeignKey(
+        WarehouseLocation,
+        on_delete=models.PROTECT,
+        related_name="warehouse_units",
+        null=True,
+        blank=True,
+        verbose_name="Локація",
+    )
+
+    storage_place = models.ForeignKey(
+        WarehouseStoragePlace,
+        on_delete=models.PROTECT,
+        related_name="warehouse_units",
+        null=True,
+        blank=True,
+        verbose_name="Місце зберігання",
+    )
+
+    quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        verbose_name="Кількість",
+    )
+
+    source_receipt_item = models.ForeignKey(
+        ExternalReceiptItem,
+        on_delete=models.PROTECT,
+        related_name="warehouse_units",
+        verbose_name="Джерело приходу",
+    )
+
+    source_order_item = models.ForeignKey(
+        ExternalOrderItem,
+        on_delete=models.PROTECT,
+        related_name="warehouse_units",
+        verbose_name="Джерело рядка замовлення",
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="Активна",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "warehouse_units"
+        ordering = ["inventory_item__name", "id"]
+        verbose_name = "Складська одиниця"
+        verbose_name_plural = "Складські одиниці"
+
+    def __str__(self):
+        return f"{self.inventory_item} ({self.quantity})"
+
+    def clean(self):
+        super().clean()
+
+        if (self.location is None and self.storage_place is None) or (
+            self.location is not None and self.storage_place is not None
+        ):
+            raise ValidationError(
+                "Потрібно вказати або локацію, або місце зберігання, але не обидва одночасно."
+            )
+
+        if self.storage_place is not None and self.location is not None:
+            raise ValidationError(
+                "Складська одиниця не може одночасно мати і локацію, і місце зберігання."
+            )
+
+        if self.quantity <= 0:
+            raise ValidationError({
+                "quantity": "Кількість повинна бути більше 0."
+            })
+
+        if self.storage_place is not None:
+            if self.storage_place.location_id != self.location_id and self.location_id is not None:
+                raise ValidationError(
+                    "Локація місця зберігання повинна збігатися з локацією складської одиниці."
+                )
+
+        if self.source_receipt_item.order_item_id != self.source_order_item_id:
+            raise ValidationError(
+                "Джерело приходу та джерело рядка замовлення повинні посилатися на один і той самий рядок замовлення."
+            )
+
+        if self.inventory_item_id != self.source_order_item.vendor_item.item_id:
+            raise ValidationError(
+                "Номенклатурна позиція складської одиниці повинна збігатися з номенклатурою рядка замовлення."
+            )
+
+    def save(self, *args, **kwargs):
+        if self.storage_place is not None and self.location_id is None:
+            self.location = self.storage_place.location
+
+        self.full_clean()
+        super().save(*args, **kwargs)
