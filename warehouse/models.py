@@ -1,6 +1,13 @@
-from django.db import models, transaction
-from django.core.exceptions import ValidationError
+import os
+import uuid
 
+from django.core.exceptions import ValidationError
+from django.db import models, transaction
+
+def storage_place_image_upload_to(instance, filename):
+    ext = os.path.splitext(filename)[1].lower() or ".bin"
+    return f"warehouse/storage_places/{uuid.uuid4().hex}{ext}"
+    
 class WarehouseLocation(models.Model):
     code = models.CharField(
         max_length=1,
@@ -114,7 +121,7 @@ class WarehouseStoragePlace(models.Model):
     )
 
     image = models.ImageField(
-        upload_to="warehouse/storage_places/",
+        upload_to=storage_place_image_upload_to,
         blank=True,
         null=True,
         verbose_name="Фото",
