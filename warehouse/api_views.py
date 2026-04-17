@@ -1,6 +1,8 @@
 from decimal import Decimal
 
 from django.db import models, transaction
+from django.db.models import Case, CharField, F, Value, When
+from django.db.models.functions import Concat
 
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -58,7 +60,7 @@ class WarehouseStoragePlaceViewSet(ModelViewSet):
     permission_classes = [DjangoModelPermissions]
 
     def get_queryset(self):
-        queryset = self.queryset
+        queryset = self._with_display_name_search_annotation(self.queryset)
 
         location = self.request.query_params.getlist("location")
         if location:
@@ -85,9 +87,112 @@ class WarehouseStoragePlaceViewSet(ModelViewSet):
                 | models.Q(qr_code__icontains=search)
                 | models.Q(location__code__icontains=search)
                 | models.Q(parent__code__icontains=search)
+                | models.Q(display_name_search__icontains=search)
             )
 
         return queryset
+        
+    def _with_display_name_search_annotation(self, queryset):
+        return queryset.annotate(
+            display_name_search=Case(
+                When(
+                    parent__isnull=True,
+                    place_type=WarehouseStoragePlace.PlaceType.CONTAINER,
+                    then=Concat(
+                        F("location__code"),
+                        F("code"),
+                        output_field=CharField(),
+                    ),
+                ),
+                When(
+                    parent__isnull=True,
+                    then=Concat(
+                        F("location__code"),
+                        Value("-"),
+                        F("code"),
+                        output_field=CharField(),
+                    ),
+                ),
+                When(
+                    parent__parent__isnull=True,
+                    parent__place_type=WarehouseStoragePlace.PlaceType.CONTAINER,
+                    then=Concat(
+                        F("location__code"),
+                        F("parent__code"),
+                        Value("-"),
+                        F("code"),
+                        output_field=CharField(),
+                    ),
+                ),
+                When(
+                    parent__parent__isnull=True,
+                    then=Concat(
+                        F("location__code"),
+                        Value("-"),
+                        F("parent__code"),
+                        Value("-"),
+                        F("code"),
+                        output_field=CharField(),
+                    ),
+                ),
+                When(
+                    parent__parent__parent__isnull=True,
+                    parent__parent__place_type=WarehouseStoragePlace.PlaceType.CONTAINER,
+                    then=Concat(
+                        F("location__code"),
+                        F("parent__parent__code"),
+                        Value("-"),
+                        F("parent__code"),
+                        Value("-"),
+                        F("code"),
+                        output_field=CharField(),
+                    ),
+                ),
+                When(
+                    parent__parent__parent__isnull=True,
+                    then=Concat(
+                        F("location__code"),
+                        Value("-"),
+                        F("parent__parent__code"),
+                        Value("-"),
+                        F("parent__code"),
+                        Value("-"),
+                        F("code"),
+                        output_field=CharField(),
+                    ),
+                ),
+                default=Case(
+                    When(
+                        parent__parent__parent__place_type=WarehouseStoragePlace.PlaceType.CONTAINER,
+                        then=Concat(
+                            F("location__code"),
+                            F("parent__parent__parent__code"),
+                            Value("-"),
+                            F("parent__parent__code"),
+                            Value("-"),
+                            F("parent__code"),
+                            Value("-"),
+                            F("code"),
+                            output_field=CharField(),
+                        ),
+                    ),
+                    default=Concat(
+                        F("location__code"),
+                        Value("-"),
+                        F("parent__parent__parent__code"),
+                        Value("-"),
+                        F("parent__parent__code"),
+                        Value("-"),
+                        F("parent__code"),
+                        Value("-"),
+                        F("code"),
+                        output_field=CharField(),
+                    ),
+                    output_field=CharField(),
+                ),
+                output_field=CharField(),
+            )
+        )
 
 
 class WarehouseUnitViewSet(ModelViewSet):
