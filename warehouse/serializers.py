@@ -25,6 +25,7 @@ class WarehouseStoragePlaceSerializer(serializers.ModelSerializer):
     place_type_name = serializers.CharField(source="get_place_type_display", read_only=True)
     display_name = serializers.CharField(source="get_display_name", read_only=True)
     placement_display = serializers.SerializerMethodField()
+    display_name_verbose = serializers.SerializerMethodField()
 
     class Meta:
         model = WarehouseStoragePlace
@@ -39,6 +40,7 @@ class WarehouseStoragePlaceSerializer(serializers.ModelSerializer):
             "place_type_name",
             "code",
             "placement_display",
+            "display_name_verbose",
             "name",
             "comment",
             "qr_code",
@@ -61,6 +63,22 @@ class WarehouseStoragePlaceSerializer(serializers.ModelSerializer):
 
         ancestors.reverse()
         return ", ".join(ancestors)
+        
+    def get_display_name_verbose(self, obj):
+        chain = []
+        current = obj
+
+        while current is not None:
+            chain.append(f"{current.get_place_type_display()} {current.code}")
+            current = current.parent
+
+        chain.reverse()
+        result = ", ".join(chain)
+
+        if obj.parent is None:
+            result = f"{result} на локації"
+
+        return result
 
 class WarehouseUnitSerializer(serializers.ModelSerializer):
     inventory_item_code = serializers.CharField(
