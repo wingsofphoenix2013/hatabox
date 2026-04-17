@@ -13,8 +13,7 @@ def storage_place_image_upload_to(instance, filename):
     
 class WarehouseLocation(models.Model):
     code = models.CharField(
-        max_length=1,
-        unique=True,
+        max_length=3,
         editable=False,
         verbose_name="Код",
     )
@@ -140,6 +139,12 @@ class WarehouseStoragePlace(models.Model):
         ordering = ["place_type", "code", "id"]
         verbose_name = "Місце зберігання"
         verbose_name_plural = "Місця зберігання"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["place_type", "code"],
+                name="uq_warehouse_storage_place_type_code",
+            ),
+        ]
 
     def __str__(self):
         return self.get_display_name()
