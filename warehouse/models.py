@@ -150,20 +150,30 @@ class WarehouseStoragePlace(models.Model):
         return self.get_display_name()
 
     def get_display_name(self):
+        if not self.location_id or not self.code:
+            return self.name or "Нове місце зберігання"
+
         ancestors = []
         current = self.parent
         while current is not None:
-            ancestors.append(current.code)
+            if current.code and current.place_type:
+                ancestors.append((current.place_type, current.code))
             current = current.parent
 
         ancestors = list(reversed(ancestors))
 
-        if self.place_type == self.PlaceType.CONTAINER and not ancestors:
-            return f"{self.location.code}{self.code}"
-
         parts = [self.location.code]
-        parts.extend(ancestors)
-        parts.append(self.code)
+
+        for place_type, code in ancestors:
+            if place_type == self.PlaceType.CONTAINER:
+                parts[-1] = f"{parts[-1]}{code}"
+            else:
+                parts.append(code)
+
+        if self.place_type == self.PlaceType.CONTAINER:
+            parts[-1] = f"{parts[-1]}{self.code}"
+        else:
+            parts.append(self.code)
 
         return "-".join(parts)
         
@@ -188,7 +198,9 @@ class WarehouseStoragePlace(models.Model):
             pass
             
     def _get_code_width(self):
-        if self.place_type in [self.PlaceType.CONTAINER, self.PlaceType.RACK]:
+        if self.place_type == self.PlaceType.CONTAINER:
+            return 2
+        if self.place_type == self.PlaceType.RACK:
             return 2
         if self.place_type == self.PlaceType.BOX:
             return 3
@@ -208,7 +220,13 @@ class WarehouseStoragePlace(models.Model):
         if last is None:
             next_number = 1
         else:
-            next_number = int(last.code) + 1
+            if self.place_type == self.PlaceType.RACK:
+                next_number = int(last.code[1:]) + 1
+            else:
+                next_number = int(last.code) + 1
+
+        if self.place_type == self.PlaceType.RACK:
+            return f"R{str(next_number).zfill(width)}"
 
         return str(next_number).zfill(width)
 
