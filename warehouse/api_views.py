@@ -49,6 +49,10 @@ class WarehouseStoragePlaceViewSet(ModelViewSet):
         "location",
         "parent",
         "parent__location",
+        "parent__parent",
+        "parent__parent__location",
+        "parent__parent__parent",
+        "parent__parent__parent__location",
     ).order_by("place_type", "code", "id")
     serializer_class = WarehouseStoragePlaceSerializer
     permission_classes = [DjangoModelPermissions]
