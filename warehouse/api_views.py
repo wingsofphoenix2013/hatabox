@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from decimal import Decimal
 
 from django.db import models, transaction
@@ -55,7 +56,7 @@ class WarehouseStoragePlaceViewSet(ModelViewSet):
         "parent__parent__location",
         "parent__parent__parent",
         "parent__parent__parent__location",
-    ).order_by("place_type", "code", "id")
+    )
     serializer_class = WarehouseStoragePlaceSerializer
     permission_classes = [DjangoModelPermissions]
 
@@ -194,6 +195,78 @@ class WarehouseStoragePlaceViewSet(ModelViewSet):
             )
         )
 
+    def _place_type_priority(self, place_type):
+        priority_map = {
+            WarehouseStoragePlace.PlaceType.CONTAINER: 0,
+            WarehouseStoragePlace.PlaceType.RACK: 1,
+            WarehouseStoragePlace.PlaceType.BOX: 2,
+        }
+        return priority_map.get(place_type, 99)
+
+    def _sort_storage_places_hierarchically(self, queryset):
+        places = list(queryset)
+
+        locations = OrderedDict()
+        children_map = {}
+
+        for place in places:
+            locations[place.location_id] = place.location
+            children_map.setdefault(place.parent_id, []).append(place)
+
+        for parent_id in children_map:
+            children_map[parent_id].sort(
+                key=lambda x: (
+                    self._place_type_priority(x.place_type),
+                    x.code,
+                    x.id,
+                )
+            )
+
+        ordered = []
+
+        def walk(parent_id):
+            for child in children_map.get(parent_id, []):
+                ordered.append(child)
+                walk(child.id)
+
+        for location_id in sorted(
+            locations.keys(),
+            key=lambda loc_id: (
+                locations[loc_id].code,
+                locations[loc_id].id,
+            ),
+        ):
+            root_places = [
+                place
+                for place in children_map.get(None, [])
+                if place.location_id == location_id
+            ]
+
+            root_places.sort(
+                key=lambda x: (
+                    self._place_type_priority(x.place_type),
+                    x.code,
+                    x.id,
+                )
+            )
+
+            for root in root_places:
+                ordered.append(root)
+                walk(root.id)
+
+        return ordered
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        ordered_places = self._sort_storage_places_hierarchically(queryset)
+
+        page = self.paginate_queryset(ordered_places)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(ordered_places, many=True)
+        return Response(serializer.data)
 
 class WarehouseUnitViewSet(ModelViewSet):
     queryset = WarehouseUnit.objects.select_related(
