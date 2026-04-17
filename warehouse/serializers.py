@@ -166,6 +166,10 @@ class WarehousePendingIntakeItemSerializer(serializers.ModelSerializer):
         source="order_item.order.order_no",
         read_only=True,
     )
+    order_created_at = serializers.DateTimeField(
+        source="order_item.order.created_at",
+        read_only=True,
+    )
 
     vendor_id = serializers.IntegerField(
         source="order_item.order.vendor.id",
@@ -247,6 +251,7 @@ class WarehousePendingIntakeItemSerializer(serializers.ModelSerializer):
             "receipt_date",
             "order_id",
             "order_no",
+            "order_created_at",
             "vendor_id",
             "vendor_code",
             "vendor_name",
