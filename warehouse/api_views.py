@@ -229,6 +229,8 @@ class WarehouseStoragePlaceViewSet(ModelViewSet):
                 ordered.append(child)
                 walk(child.id)
 
+        place_ids = {place.id for place in places}
+
         for location_id in sorted(
             locations.keys(),
             key=lambda loc_id: (
@@ -238,8 +240,9 @@ class WarehouseStoragePlaceViewSet(ModelViewSet):
         ):
             root_places = [
                 place
-                for place in children_map.get(None, [])
+                for place in places
                 if place.location_id == location_id
+                and (place.parent_id is None or place.parent_id not in place_ids)
             ]
 
             root_places.sort(
