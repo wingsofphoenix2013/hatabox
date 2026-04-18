@@ -20,6 +20,7 @@ from .serializers import (
     WarehouseUnitSerializer,
     WarehousePendingIntakeItemSerializer,
     WarehouseAcceptPendingIntakeSerializer,
+    WarehouseBulkAcceptPendingIntakeSerializer,
 )
 
 
@@ -407,21 +408,29 @@ class WarehousePendingIntakeItemViewSet(ReadOnlyModelViewSet):
         if existing_units.exists():
             raise ValidationError("Цей рядок приходу вже оброблено складом.")
 
-        if receipt_item.received_quantity != int(receipt_item.received_quantity):
-            raise ValidationError(
-                "Неможливо прийняти без конвертації рядок з нецілою кількістю."
-            )
-
-        units_count = int(receipt_item.received_quantity)
+        whole_units = int(receipt_item.received_quantity)
+        fractional_part = receipt_item.received_quantity - Decimal(whole_units)
 
         with transaction.atomic():
             units_to_create = []
-            for _ in range(units_count):
+
+            for _ in range(whole_units):
                 units_to_create.append(
                     WarehouseUnit(
                         inventory_item=order_item.vendor_item.item,
                         location=location,
                         quantity=Decimal("1.000"),
+                        source_receipt_item=receipt_item,
+                        source_order_item=order_item,
+                    )
+                )
+
+            if fractional_part > 0:
+                units_to_create.append(
+                    WarehouseUnit(
+                        inventory_item=order_item.vendor_item.item,
+                        location=location,
+                        quantity=fractional_part,
                         source_receipt_item=receipt_item,
                         source_order_item=order_item,
                     )
@@ -441,9 +450,122 @@ class WarehousePendingIntakeItemViewSet(ReadOnlyModelViewSet):
 
         return Response({
             "status": "ok",
-            "created_units": units_count,
+            "created_units": len(units_to_create),
             "location_id": location.id,
             "receipt_item_id": receipt_item.id,
             "receipt_document_id": receipt_document.id,
             "sent_to_warehouse": receipt_document.sent_to_warehouse,
+        })
+        
+    @action(detail=False, methods=["post"], url_path="bulk-accept-to-location")
+    def bulk_accept_to_location(self, request):
+        serializer = WarehouseBulkAcceptPendingIntakeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        location = serializer.validated_data["location"]
+        receipt_item_ids = serializer.validated_data["receipt_item_ids"]
+
+        receipt_items = list(
+            ExternalReceiptItem.objects.select_related(
+                "receipt_document",
+                "order_item",
+                "order_item__vendor_item",
+                "order_item__vendor_item__item",
+            ).filter(
+                id__in=receipt_item_ids,
+            )
+        )
+
+        found_ids = {item.id for item in receipt_items}
+        missing_ids = [item_id for item_id in receipt_item_ids if item_id not in found_ids]
+        if missing_ids:
+            raise ValidationError({
+                "receipt_item_ids": (
+                    f"Не знайдено рядки приходу з id: {missing_ids}"
+                )
+            })
+
+        existing_units = set(
+            WarehouseUnit.objects.filter(
+                source_receipt_item_id__in=receipt_item_ids,
+                is_active=True,
+            ).values_list("source_receipt_item_id", flat=True)
+        )
+        if existing_units:
+            raise ValidationError({
+                "receipt_item_ids": (
+                    f"Деякі рядки приходу вже оброблено складом: {sorted(existing_units)}"
+                )
+            })
+
+        units_to_create = []
+        affected_receipt_document_ids = set()
+
+        for receipt_item in receipt_items:
+            receipt_document = receipt_item.receipt_document
+            order_item = receipt_item.order_item
+
+            if not receipt_document.completed:
+                raise ValidationError(
+                    f"Документ приходу для рядка {receipt_item.id} повинен бути завершеним."
+                )
+
+            if receipt_document.sent_to_warehouse:
+                raise ValidationError(
+                    f"Документ приходу для рядка {receipt_item.id} вже передано на склад."
+                )
+
+            if order_item.requires_unit_conversion:
+                raise ValidationError(
+                    f"Рядок приходу {receipt_item.id} потребує окремої операції конвертації одиниць."
+                )
+
+            whole_units = int(receipt_item.received_quantity)
+            fractional_part = receipt_item.received_quantity - Decimal(whole_units)
+            affected_receipt_document_ids.add(receipt_document.id)
+
+            for _ in range(whole_units):
+                units_to_create.append(
+                    WarehouseUnit(
+                        inventory_item=order_item.vendor_item.item,
+                        location=location,
+                        quantity=Decimal("1.000"),
+                        source_receipt_item=receipt_item,
+                        source_order_item=order_item,
+                    )
+                )
+
+            if fractional_part > 0:
+                units_to_create.append(
+                    WarehouseUnit(
+                        inventory_item=order_item.vendor_item.item,
+                        location=location,
+                        quantity=fractional_part,
+                        source_receipt_item=receipt_item,
+                        source_order_item=order_item,
+                    )
+                )
+                
+        with transaction.atomic():
+            WarehouseUnit.objects.bulk_create(units_to_create)
+
+            for receipt_document_id in affected_receipt_document_ids:
+                remaining_items = ExternalReceiptItem.objects.filter(
+                    receipt_document_id=receipt_document_id,
+                ).exclude(
+                    warehouse_units__is_active=True,
+                ).distinct()
+
+                if not remaining_items.exists():
+                    ExternalReceiptItem.objects.filter(
+                        receipt_document_id=receipt_document_id
+                    ).first().receipt_document.__class__.objects.filter(
+                        id=receipt_document_id
+                    ).update(sent_to_warehouse=True)
+
+        return Response({
+            "status": "ok",
+            "processed_receipt_item_ids": receipt_item_ids,
+            "created_units": len(units_to_create),
+            "location_id": location.id,
         })

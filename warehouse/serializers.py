@@ -278,3 +278,12 @@ class WarehouseAcceptPendingIntakeSerializer(serializers.Serializer):
     location = serializers.PrimaryKeyRelatedField(
         queryset=WarehouseLocation.objects.filter(is_active=True)
     )
+    
+class WarehouseBulkAcceptPendingIntakeSerializer(serializers.Serializer):
+    location = serializers.PrimaryKeyRelatedField(
+        queryset=WarehouseLocation.objects.filter(is_active=True)
+    )
+    receipt_item_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        allow_empty=False,
+    )
