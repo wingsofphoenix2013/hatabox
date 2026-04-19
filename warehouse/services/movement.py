@@ -19,15 +19,7 @@ class MovePlan:
     split_source_unit: Optional[WarehouseUnit]
     split_move_quantity: Optional[Decimal]
     split_remainder_quantity: Optional[Decimal]
-
-
-@dataclass(frozen=True)
-class MoveExecutionResult:
-    move_plan: MovePlan
-    moved_units: List[WarehouseUnit]
-    created_unit: Optional[WarehouseUnit]
-    split_source_unit: Optional[WarehouseUnit]
-
+    
     @property
     def requires_split(self) -> bool:
         return self.split_source_unit is not None
@@ -35,6 +27,13 @@ class MoveExecutionResult:
     @property
     def total_full_units_quantity(self) -> Decimal:
         return sum((unit.quantity for unit in self.full_units), Decimal("0.000"))
+
+@dataclass(frozen=True)
+class MoveExecutionResult:
+    move_plan: MovePlan
+    moved_units: List[WarehouseUnit]
+    created_unit: Optional[WarehouseUnit]
+    split_source_unit: Optional[WarehouseUnit]
 
 
 def _normalize_quantity(
