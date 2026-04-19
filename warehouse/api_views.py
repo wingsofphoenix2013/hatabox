@@ -373,9 +373,11 @@ class WarehouseUnitViewSet(ModelViewSet):
 
         return queryset
 
-    @action(detail=False, methods=["post"], url_path="debug-plan-move")
+    @action(detail=False, methods=["get", "post"], url_path="debug-plan-move")
     def debug_plan_move(self, request):
-        serializer = WarehouseDebugPlanMoveSerializer(data=request.data)
+        input_data = request.query_params if request.method == "GET" else request.data
+
+        serializer = WarehouseDebugPlanMoveSerializer(data=input_data)
         serializer.is_valid(raise_exception=True)
 
         inventory_item = serializer.validated_data["inventory_item"]
