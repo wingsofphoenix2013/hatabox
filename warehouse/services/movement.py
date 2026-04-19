@@ -36,6 +36,11 @@ class MoveExecutionResult:
     split_source_unit: Optional[WarehouseUnit]
 
 
+@dataclass(frozen=True)
+class BulkMoveExecutionResult:
+    moved_units: List[WarehouseUnit]
+
+
 def _normalize_quantity(
     quantity: Union[Decimal, int, float, str]
 ) -> Decimal:
@@ -135,6 +140,31 @@ def _apply_destination(
     else:
         unit.location = None
         unit.storage_place = target_storage_place
+
+
+def _validate_destination(
+    target_location=None,
+    target_storage_place=None,
+) -> None:
+    if (target_location is None) == (target_storage_place is None):
+        raise ValidationError({
+            "destination": (
+                "Потрібно вказати або target_location, або target_storage_place, "
+                "але не обидва одночасно."
+            )
+        })
+
+    if target_location is not None and not target_location.is_active:
+        raise ValidationError({
+            "target_location": "Неможливо перемістити в неактивну локацію."
+        })
+
+    if target_storage_place is not None and not target_storage_place.is_active:
+        raise ValidationError({
+            "target_storage_place": (
+                "Неможливо перемістити в неактивне місце зберігання."
+            )
+        })
 
 
 def plan_move(
@@ -242,25 +272,10 @@ def execute_move(
     target_location=None,
     target_storage_place=None,
 ) -> MoveExecutionResult:
-    if (target_location is None) == (target_storage_place is None):
-        raise ValidationError({
-            "destination": (
-                "Потрібно вказати або target_location, або target_storage_place, "
-                "але не обидва одночасно."
-            )
-        })
-
-    if target_location is not None and not target_location.is_active:
-        raise ValidationError({
-            "target_location": "Неможливо перемістити в неактивну локацію."
-        })
-
-    if target_storage_place is not None and not target_storage_place.is_active:
-        raise ValidationError({
-            "target_storage_place": (
-                "Неможливо перемістити в неактивне місце зберігання."
-            )
-        })
+    _validate_destination(
+        target_location=target_location,
+        target_storage_place=target_storage_place,
+    )
 
     move_plan = plan_move(
         inventory_item=inventory_item,
@@ -308,4 +323,52 @@ def execute_move(
         moved_units=moved_units,
         created_unit=created_unit,
         split_source_unit=split_source_unit,
+    )
+
+
+def execute_bulk_move(
+    unit_ids: List[int],
+    target_location=None,
+    target_storage_place=None,
+) -> BulkMoveExecutionResult:
+    _validate_destination(
+        target_location=target_location,
+        target_storage_place=target_storage_place,
+    )
+
+    if not unit_ids:
+        raise ValidationError({
+            "unit_ids": "Потрібно передати хоча б одну складську одиницю."
+        })
+
+    units = list(
+        WarehouseUnit.objects.filter(id__in=unit_ids).order_by("id")
+    )
+
+    found_ids = {unit.id for unit in units}
+    missing_ids = [unit_id for unit_id in unit_ids if unit_id not in found_ids]
+    if missing_ids:
+        raise ValidationError({
+            "unit_ids": f"Не знайдено складські одиниці з id: {missing_ids}"
+        })
+
+    inactive_ids = [unit.id for unit in units if not unit.is_active]
+    if inactive_ids:
+        raise ValidationError({
+            "unit_ids": (
+                f"Неможливо перемістити неактивні складські одиниці: {inactive_ids}"
+            )
+        })
+
+    with transaction.atomic():
+        for unit in units:
+            _apply_destination(
+                unit,
+                target_location=target_location,
+                target_storage_place=target_storage_place,
+            )
+            unit.save()
+
+    return BulkMoveExecutionResult(
+        moved_units=units,
     )

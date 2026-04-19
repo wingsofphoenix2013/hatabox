@@ -15,7 +15,7 @@ from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from orders.models import ExternalReceiptItem
 
 from .models import WarehouseLocation, WarehouseStoragePlace, WarehouseUnit
-from .services.movement import plan_move, execute_move
+from .services.movement import plan_move, execute_move, execute_bulk_move
 from .serializers import (
     WarehouseLocationSerializer,
     WarehouseStoragePlaceSerializer,
@@ -25,6 +25,7 @@ from .serializers import (
     WarehouseBulkAcceptPendingIntakeSerializer,
     WarehouseDebugPlanMoveSerializer,
     WarehouseDebugExecuteMoveSerializer,
+    WarehouseDebugExecuteBulkMoveSerializer,
 )
 
 
@@ -486,6 +487,53 @@ class WarehouseUnitViewSet(ModelViewSet):
                     if execution_result.split_source_unit is not None
                     else None
                 ),
+            })
+        except Exception as exc:
+            return Response(
+                {
+                    "error_type": exc.__class__.__name__,
+                    "error": str(exc),
+                    "traceback": traceback.format_exc(),
+                },
+                status=500,
+            )
+
+    @action(detail=False, methods=["get", "post"], url_path="debug-execute-bulk-move")
+    def debug_execute_bulk_move(self, request):
+        try:
+            input_data = request.query_params if request.method == "GET" else request.data
+
+            serializer = WarehouseDebugExecuteBulkMoveSerializer(data=input_data)
+            serializer.is_valid(raise_exception=True)
+
+            unit_ids = serializer.validated_data["unit_ids"]
+            target_location = serializer.validated_data.get("target_location")
+            target_storage_place = serializer.validated_data.get("target_storage_place")
+
+            execution_result = execute_bulk_move(
+                unit_ids=unit_ids,
+                target_location=target_location,
+                target_storage_place=target_storage_place,
+            )
+
+            return Response({
+                "destination": {
+                    "location_id": target_location.id if target_location is not None else None,
+                    "storage_place_id": (
+                        target_storage_place.id
+                        if target_storage_place is not None
+                        else None
+                    ),
+                },
+                "moved_units": [
+                    {
+                        "id": unit.id,
+                        "quantity": str(unit.quantity),
+                        "location_id": unit.location_id,
+                        "storage_place_id": unit.storage_place_id,
+                    }
+                    for unit in execution_result.moved_units
+                ],
             })
         except Exception as exc:
             return Response(
