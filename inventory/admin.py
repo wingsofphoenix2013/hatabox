@@ -42,6 +42,7 @@ class InvItemAdmin(admin.ModelAdmin):
         "unit",
         "qr_item",
         "requires_storage_place",
+        "is_splittable",
         "is_active",
         "image",
     )
@@ -49,6 +50,7 @@ class InvItemAdmin(admin.ModelAdmin):
         "is_active",
         "qr_item",
         "requires_storage_place",
+        "is_splittable",
         "category",
         "unit",
     )
