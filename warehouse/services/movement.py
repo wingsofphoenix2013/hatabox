@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict, List
 
-from django.core.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError
 
 from warehouse.models import WarehouseUnit
 
@@ -34,7 +34,7 @@ def _normalize_quantity(quantity: Decimal | int | float | str) -> Decimal:
             THREE_DECIMAL_PLACES,
             rounding=ROUND_HALF_UP,
         )
-    except Exception as exc:
+    except (ArithmeticError, ValueError, TypeError) as exc:
         raise ValidationError({
             "quantity": "Некоректне значення кількості."
         }) from exc
