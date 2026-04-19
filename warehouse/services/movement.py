@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
-from typing import Dict, List
+from typing import Dict, List, Optional, Union
 
 from rest_framework.exceptions import ValidationError
+from django.db import transaction
 
 from warehouse.models import WarehouseUnit
 
@@ -15,9 +16,17 @@ class MovePlan:
     inventory_item_id: int
     requested_quantity: Decimal
     full_units: List[WarehouseUnit]
-    split_source_unit: WarehouseUnit | None
-    split_move_quantity: Decimal | None
-    split_remainder_quantity: Decimal | None
+    split_source_unit: Optional[WarehouseUnit]
+    split_move_quantity: Optional[Decimal]
+    split_remainder_quantity: Optional[Decimal]
+
+
+@dataclass(frozen=True)
+class MoveExecutionResult:
+    move_plan: MovePlan
+    moved_units: List[WarehouseUnit]
+    created_unit: Optional[WarehouseUnit]
+    split_source_unit: Optional[WarehouseUnit]
 
     @property
     def requires_split(self) -> bool:
@@ -28,7 +37,9 @@ class MovePlan:
         return sum((unit.quantity for unit in self.full_units), Decimal("0.000"))
 
 
-def _normalize_quantity(quantity: Decimal | int | float | str) -> Decimal:
+def _normalize_quantity(
+    quantity: Union[Decimal, int, float, str]
+) -> Decimal:
     try:
         normalized = Decimal(str(quantity)).quantize(
             THREE_DECIMAL_PLACES,
@@ -106,7 +117,7 @@ def _build_reachable_sums(
 def _find_exact_units(
     units: List[WarehouseUnit],
     target_millis: int,
-) -> List[WarehouseUnit] | None:
+) -> Optional[List[WarehouseUnit]]:
     reachable = _build_reachable_sums(
         units=units,
         limit_millis=target_millis,
@@ -114,7 +125,23 @@ def _find_exact_units(
     return reachable.get(target_millis)
 
 
-def plan_move(inventory_item, quantity: Decimal | int | float | str) -> MovePlan:
+def _apply_destination(
+    unit: WarehouseUnit,
+    target_location=None,
+    target_storage_place=None,
+) -> None:
+    if target_location is not None:
+        unit.location = target_location
+        unit.storage_place = None
+    else:
+        unit.location = None
+        unit.storage_place = target_storage_place
+
+
+def plan_move(
+    inventory_item,
+    quantity: Union[Decimal, int, float, str],
+) -> MovePlan:
     requested_quantity = _normalize_quantity(quantity)
     target_millis = _to_millis(requested_quantity)
 
@@ -208,3 +235,78 @@ def plan_move(inventory_item, quantity: Decimal | int | float | str) -> MovePlan
             "Потрібне розділення, але жодна доступна одиниця не підходить."
         )
     })
+
+
+def execute_move(
+    inventory_item,
+    quantity: Union[Decimal, int, float, str],
+    target_location=None,
+    target_storage_place=None,
+) -> MoveExecutionResult:
+    if (target_location is None) == (target_storage_place is None):
+        raise ValidationError({
+            "destination": (
+                "Потрібно вказати або target_location, або target_storage_place, "
+                "але не обидва одночасно."
+            )
+        })
+
+    if target_location is not None and not target_location.is_active:
+        raise ValidationError({
+            "target_location": "Неможливо перемістити в неактивну локацію."
+        })
+
+    if target_storage_place is not None and not target_storage_place.is_active:
+        raise ValidationError({
+            "target_storage_place": (
+                "Неможливо перемістити в неактивне місце зберігання."
+            )
+        })
+
+    move_plan = plan_move(
+        inventory_item=inventory_item,
+        quantity=quantity,
+    )
+
+    moved_units: List[WarehouseUnit] = []
+    created_unit: Optional[WarehouseUnit] = None
+    split_source_unit: Optional[WarehouseUnit] = None
+
+    with transaction.atomic():
+        for unit in move_plan.full_units:
+            _apply_destination(
+                unit,
+                target_location=target_location,
+                target_storage_place=target_storage_place,
+            )
+            unit.save()
+            moved_units.append(unit)
+
+        if move_plan.requires_split:
+            split_source_unit = move_plan.split_source_unit
+            split_source_unit.quantity = move_plan.split_remainder_quantity
+            split_source_unit.save()
+
+            created_unit = WarehouseUnit(
+                inventory_item=split_source_unit.inventory_item,
+                location=None,
+                storage_place=None,
+                quantity=move_plan.split_move_quantity,
+                source_receipt_item=split_source_unit.source_receipt_item,
+                source_order_item=split_source_unit.source_order_item,
+                is_active=split_source_unit.is_active,
+            )
+            _apply_destination(
+                created_unit,
+                target_location=target_location,
+                target_storage_place=target_storage_place,
+            )
+            created_unit.save()
+            moved_units.append(created_unit)
+
+    return MoveExecutionResult(
+        move_plan=move_plan,
+        moved_units=moved_units,
+        created_unit=created_unit,
+        split_source_unit=split_source_unit,
+    )

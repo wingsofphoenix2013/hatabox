@@ -14,7 +14,7 @@ from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from orders.models import ExternalReceiptItem
 
 from .models import WarehouseLocation, WarehouseStoragePlace, WarehouseUnit
-from .services.movement import plan_move
+from .services.movement import plan_move, execute_move
 from .serializers import (
     WarehouseLocationSerializer,
     WarehouseStoragePlaceSerializer,
@@ -23,6 +23,7 @@ from .serializers import (
     WarehouseAcceptPendingIntakeSerializer,
     WarehouseBulkAcceptPendingIntakeSerializer,
     WarehouseDebugPlanMoveSerializer,
+    WarehouseDebugExecuteMoveSerializer,
 )
 
 
@@ -419,6 +420,68 @@ class WarehouseUnitViewSet(ModelViewSet):
             "split_remainder_quantity": (
                 str(move_plan.split_remainder_quantity)
                 if move_plan.split_remainder_quantity is not None
+                else None
+            ),
+        })
+
+    @action(detail=False, methods=["get", "post"], url_path="debug-execute-move")
+    def debug_execute_move(self, request):
+        input_data = request.query_params if request.method == "GET" else request.data
+
+        serializer = WarehouseDebugExecuteMoveSerializer(data=input_data)
+        serializer.is_valid(raise_exception=True)
+
+        inventory_item = serializer.validated_data["inventory_item"]
+        quantity = serializer.validated_data["quantity"]
+        target_location = serializer.validated_data.get("target_location")
+        target_storage_place = serializer.validated_data.get("target_storage_place")
+
+        execution_result = execute_move(
+            inventory_item=inventory_item,
+            quantity=quantity,
+            target_location=target_location,
+            target_storage_place=target_storage_place,
+        )
+
+        return Response({
+            "inventory_item_id": execution_result.move_plan.inventory_item_id,
+            "requested_quantity": str(execution_result.move_plan.requested_quantity),
+            "requires_split": execution_result.move_plan.requires_split,
+            "destination": {
+                "location_id": target_location.id if target_location is not None else None,
+                "storage_place_id": (
+                    target_storage_place.id
+                    if target_storage_place is not None
+                    else None
+                ),
+            },
+            "moved_units": [
+                {
+                    "id": unit.id,
+                    "quantity": str(unit.quantity),
+                    "location_id": unit.location_id,
+                    "storage_place_id": unit.storage_place_id,
+                }
+                for unit in execution_result.moved_units
+            ],
+            "created_unit": (
+                {
+                    "id": execution_result.created_unit.id,
+                    "quantity": str(execution_result.created_unit.quantity),
+                    "location_id": execution_result.created_unit.location_id,
+                    "storage_place_id": execution_result.created_unit.storage_place_id,
+                }
+                if execution_result.created_unit is not None
+                else None
+            ),
+            "split_source_unit": (
+                {
+                    "id": execution_result.split_source_unit.id,
+                    "quantity": str(execution_result.split_source_unit.quantity),
+                    "location_id": execution_result.split_source_unit.location_id,
+                    "storage_place_id": execution_result.split_source_unit.storage_place_id,
+                }
+                if execution_result.split_source_unit is not None
                 else None
             ),
         })

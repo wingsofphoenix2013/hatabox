@@ -296,3 +296,34 @@ class WarehouseDebugPlanMoveSerializer(serializers.Serializer):
         max_digits=12,
         decimal_places=3,
     )
+
+
+class WarehouseDebugExecuteMoveSerializer(serializers.Serializer):
+    inventory_item = serializers.PrimaryKeyRelatedField(
+        queryset=InvItem.objects.all()
+    )
+    quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+    )
+    target_location = serializers.PrimaryKeyRelatedField(
+        queryset=WarehouseLocation.objects.filter(is_active=True),
+        required=False,
+        allow_null=True,
+    )
+    target_storage_place = serializers.PrimaryKeyRelatedField(
+        queryset=WarehouseStoragePlace.objects.filter(is_active=True),
+        required=False,
+        allow_null=True,
+    )
+
+    def validate(self, attrs):
+        target_location = attrs.get("target_location")
+        target_storage_place = attrs.get("target_storage_place")
+
+        if (target_location is None) == (target_storage_place is None):
+            raise serializers.ValidationError(
+                "Потрібно вказати або target_location, або target_storage_place, але не обидва одночасно."
+            )
+
+        return attrs
