@@ -14,6 +14,7 @@ from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from orders.models import ExternalReceiptItem
 
 from .models import WarehouseLocation, WarehouseStoragePlace, WarehouseUnit
+from .services.movement import plan_move
 from .serializers import (
     WarehouseLocationSerializer,
     WarehouseStoragePlaceSerializer,
@@ -21,6 +22,7 @@ from .serializers import (
     WarehousePendingIntakeItemSerializer,
     WarehouseAcceptPendingIntakeSerializer,
     WarehouseBulkAcceptPendingIntakeSerializer,
+    WarehouseDebugPlanMoveSerializer,
 )
 
 
@@ -320,6 +322,104 @@ class WarehouseUnitViewSet(ModelViewSet):
             )
 
         return queryset
+
+
+class WarehouseUnitViewSet(ModelViewSet):
+    queryset = WarehouseUnit.objects.select_related(
+        "inventory_item",
+        "inventory_item__unit",
+        "location",
+        "storage_place",
+        "storage_place__location",
+        "source_receipt_item",
+        "source_order_item",
+        "source_order_item__order",
+        "source_order_item__vendor_item",
+    ).order_by("inventory_item__name", "id")
+
+    serializer_class = WarehouseUnitSerializer
+    permission_classes = [DjangoModelPermissions]
+
+    def get_queryset(self):
+        queryset = self.queryset
+
+        inventory_item = self.request.query_params.getlist("inventory_item")
+        if inventory_item:
+            queryset = queryset.filter(inventory_item_id__in=inventory_item)
+
+        location = self.request.query_params.getlist("location")
+        if location:
+            queryset = queryset.filter(
+                models.Q(location_id__in=location)
+                | models.Q(storage_place__location_id__in=location)
+            )
+
+        storage_place = self.request.query_params.getlist("storage_place")
+        if storage_place:
+            queryset = queryset.filter(storage_place_id__in=storage_place)
+
+        is_active = self.request.query_params.get("is_active")
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == "true")
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(inventory_item__internal_code__icontains=search)
+                | models.Q(inventory_item__name__icontains=search)
+                | models.Q(source_order_item__order__order_no__icontains=search)
+                | models.Q(source_order_item__vendor_item__name__icontains=search)
+            )
+
+        return queryset
+
+    @action(detail=False, methods=["post"], url_path="debug-plan-move")
+    def debug_plan_move(self, request):
+        serializer = WarehouseDebugPlanMoveSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        inventory_item = serializer.validated_data["inventory_item"]
+        quantity = serializer.validated_data["quantity"]
+
+        move_plan = plan_move(
+            inventory_item=inventory_item,
+            quantity=quantity,
+        )
+
+        return Response({
+            "inventory_item_id": move_plan.inventory_item_id,
+            "requested_quantity": str(move_plan.requested_quantity),
+            "requires_split": move_plan.requires_split,
+            "full_units": [
+                {
+                    "id": unit.id,
+                    "quantity": str(unit.quantity),
+                    "location_id": unit.location_id,
+                    "storage_place_id": unit.storage_place_id,
+                }
+                for unit in move_plan.full_units
+            ],
+            "split_source_unit": (
+                {
+                    "id": move_plan.split_source_unit.id,
+                    "quantity": str(move_plan.split_source_unit.quantity),
+                    "location_id": move_plan.split_source_unit.location_id,
+                    "storage_place_id": move_plan.split_source_unit.storage_place_id,
+                }
+                if move_plan.split_source_unit is not None
+                else None
+            ),
+            "split_move_quantity": (
+                str(move_plan.split_move_quantity)
+                if move_plan.split_move_quantity is not None
+                else None
+            ),
+            "split_remainder_quantity": (
+                str(move_plan.split_remainder_quantity)
+                if move_plan.split_remainder_quantity is not None
+                else None
+            ),
+        })
 
 
 class WarehousePendingIntakeItemViewSet(ReadOnlyModelViewSet):

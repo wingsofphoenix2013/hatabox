@@ -1,8 +1,7 @@
 from rest_framework import serializers
-
 from orders.models import ExternalReceiptItem
-
 from .models import WarehouseLocation, WarehouseStoragePlace, WarehouseUnit
+from inventory.models import InvItem
 
 class WarehouseLocationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -278,7 +277,7 @@ class WarehouseAcceptPendingIntakeSerializer(serializers.Serializer):
     location = serializers.PrimaryKeyRelatedField(
         queryset=WarehouseLocation.objects.filter(is_active=True)
     )
-    
+
 class WarehouseBulkAcceptPendingIntakeSerializer(serializers.Serializer):
     location = serializers.PrimaryKeyRelatedField(
         queryset=WarehouseLocation.objects.filter(is_active=True)
@@ -286,4 +285,14 @@ class WarehouseBulkAcceptPendingIntakeSerializer(serializers.Serializer):
     receipt_item_ids = serializers.ListField(
         child=serializers.IntegerField(min_value=1),
         allow_empty=False,
+    )
+
+
+class WarehouseDebugPlanMoveSerializer(serializers.Serializer):
+    inventory_item = serializers.PrimaryKeyRelatedField(
+        queryset=InvItem.objects.all()
+    )
+    quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
     )
