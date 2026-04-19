@@ -297,7 +297,10 @@ class WarehouseUnitViewSet(ModelViewSet):
 
         location = self.request.query_params.getlist("location")
         if location:
-            queryset = queryset.filter(location_id__in=location)
+            queryset = queryset.filter(
+                models.Q(location_id__in=location)
+                | models.Q(storage_place__location_id__in=location)
+            )
 
         storage_place = self.request.query_params.getlist("storage_place")
         if storage_place:

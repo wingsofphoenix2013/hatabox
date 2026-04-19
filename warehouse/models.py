@@ -310,28 +310,15 @@ class WarehouseUnit(models.Model):
     def clean(self):
         super().clean()
 
-        if (self.location is None and self.storage_place is None) or (
-            self.location is not None and self.storage_place is not None
-        ):
+        if (self.location is None) == (self.storage_place is None):
             raise ValidationError(
                 "Потрібно вказати або локацію, або місце зберігання, але не обидва одночасно."
-            )
-
-        if self.storage_place is not None and self.location is not None:
-            raise ValidationError(
-                "Складська одиниця не може одночасно мати і локацію, і місце зберігання."
             )
 
         if self.quantity <= 0:
             raise ValidationError({
                 "quantity": "Кількість повинна бути більше 0."
             })
-
-        if self.storage_place is not None:
-            if self.storage_place.location_id != self.location_id and self.location_id is not None:
-                raise ValidationError(
-                    "Локація місця зберігання повинна збігатися з локацією складської одиниці."
-                )
 
         if self.source_receipt_item.order_item_id != self.source_order_item_id:
             raise ValidationError(
@@ -344,8 +331,5 @@ class WarehouseUnit(models.Model):
             )
 
     def save(self, *args, **kwargs):
-        if self.storage_place is not None and self.location_id is None:
-            self.location = self.storage_place.location
-
         self.full_clean()
         super().save(*args, **kwargs)
