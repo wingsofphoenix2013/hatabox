@@ -22,6 +22,7 @@ from .models import (
 )
 from .services.movement import plan_move, execute_move, execute_bulk_move
 from .services.stock_overview import build_stock_overview
+from .services.stock_detail import build_stock_detail
 from .serializers import (
     WarehouseLocationSerializer,
     WarehouseStoragePlaceSerializer,
@@ -35,6 +36,7 @@ from .serializers import (
     WarehouseMoveSerializer,
     WarehouseBulkMoveSerializer,
     WarehouseStockOverviewRowSerializer,
+    WarehouseStockDetailSerializer,
 )
 
 
@@ -931,4 +933,15 @@ class WarehouseStockOverviewViewSet(ReadOnlyModelViewSet):
             return self.get_paginated_response(serializer.data)
 
         serializer = self.get_serializer(rows, many=True)
+        return Response(serializer.data)
+        
+class WarehouseStockDetailViewSet(ReadOnlyModelViewSet):
+    queryset = InvItem.objects.all()
+    serializer_class = WarehouseStockDetailSerializer
+    permission_classes = [DjangoModelPermissions]
+
+    def retrieve(self, request, *args, **kwargs):
+        inventory_item_id = kwargs["pk"]
+        data = build_stock_detail(inventory_item_id=inventory_item_id)
+        serializer = self.get_serializer(data)
         return Response(serializer.data)
