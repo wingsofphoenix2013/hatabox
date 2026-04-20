@@ -645,6 +645,10 @@ class WarehousePendingIntakeItemViewSet(ReadOnlyModelViewSet):
         if inventory_item:
             queryset = queryset.filter(order_item__vendor_item__item_id__in=inventory_item)
 
+        inventory_item_id = self.request.query_params.get("inventory_item_id")
+        if inventory_item_id:
+            queryset = queryset.filter(order_item__vendor_item__item_id=inventory_item_id)
+
         requires_unit_conversion = self.request.query_params.get("requires_unit_conversion")
         if requires_unit_conversion is not None:
             queryset = queryset.filter(
