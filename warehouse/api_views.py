@@ -14,7 +14,12 @@ from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from orders.models import ExternalReceiptItem
 
-from .models import WarehouseLocation, WarehouseStoragePlace, WarehouseUnit
+from .models import (
+    WarehouseLocation,
+    WarehouseStoragePlace,
+    WarehouseUnit,
+    WarehouseUnitEvent,
+)
 from .services.movement import plan_move, execute_move, execute_bulk_move
 from .serializers import (
     WarehouseLocationSerializer,
@@ -444,6 +449,7 @@ class WarehouseUnitViewSet(ModelViewSet):
                 quantity=quantity,
                 target_location=target_location,
                 target_storage_place=target_storage_place,
+                created_by=request.user if request.user.is_authenticated else None,
             )
 
             return Response({
@@ -514,6 +520,7 @@ class WarehouseUnitViewSet(ModelViewSet):
                 unit_ids=unit_ids,
                 target_location=target_location,
                 target_storage_place=target_storage_place,
+                created_by=request.user if request.user.is_authenticated else None,
             )
 
             return Response({
@@ -663,7 +670,22 @@ class WarehousePendingIntakeItemViewSet(ReadOnlyModelViewSet):
                     )
                 )
 
-            WarehouseUnit.objects.bulk_create(units_to_create)
+            created_units = WarehouseUnit.objects.bulk_create(units_to_create)
+
+            WarehouseUnitEvent.objects.bulk_create([
+                WarehouseUnitEvent(
+                    operation_type=WarehouseUnitEvent.OperationType.INTAKE,
+                    source_unit=None,
+                    result_unit=unit,
+                    quantity=unit.quantity,
+                    from_location=None,
+                    from_storage_place=None,
+                    to_location=unit.location,
+                    to_storage_place=unit.storage_place,
+                    created_by=request.user if request.user.is_authenticated else None,
+                )
+                for unit in created_units
+            ])
 
             remaining_items = ExternalReceiptItem.objects.filter(
                 receipt_document=receipt_document,
@@ -774,7 +796,22 @@ class WarehousePendingIntakeItemViewSet(ReadOnlyModelViewSet):
                 )
                 
         with transaction.atomic():
-            WarehouseUnit.objects.bulk_create(units_to_create)
+            created_units = WarehouseUnit.objects.bulk_create(units_to_create)
+
+            WarehouseUnitEvent.objects.bulk_create([
+                WarehouseUnitEvent(
+                    operation_type=WarehouseUnitEvent.OperationType.INTAKE,
+                    source_unit=None,
+                    result_unit=unit,
+                    quantity=unit.quantity,
+                    from_location=None,
+                    from_storage_place=None,
+                    to_location=unit.location,
+                    to_storage_place=unit.storage_place,
+                    created_by=request.user if request.user.is_authenticated else None,
+                )
+                for unit in created_units
+            ])
 
             for receipt_document_id in affected_receipt_document_ids:
                 remaining_items = ExternalReceiptItem.objects.filter(
