@@ -167,6 +167,17 @@ def _validate_destination(
         })
 
 
+def _is_same_destination(
+    unit: WarehouseUnit,
+    target_location=None,
+    target_storage_place=None,
+) -> bool:
+    if target_location is not None:
+        return unit.location_id == target_location.id and unit.storage_place_id is None
+
+    return unit.storage_place_id == target_storage_place.id and unit.location_id is None
+
+
 def plan_move(
     inventory_item,
     quantity: Union[Decimal, int, float, str],
@@ -283,6 +294,34 @@ def execute_move(
         quantity=quantity,
     )
 
+    same_destination_unit_ids = [
+        unit.id
+        for unit in move_plan.full_units
+        if _is_same_destination(
+            unit,
+            target_location=target_location,
+            target_storage_place=target_storage_place,
+        )
+    ]
+    if same_destination_unit_ids:
+        raise ValidationError({
+            "destination": (
+                "Неможливо перемістити складські одиниці в те саме місце. "
+                f"Unit id: {same_destination_unit_ids}"
+            )
+        })
+
+    if move_plan.split_source_unit is not None and _is_same_destination(
+        move_plan.split_source_unit,
+        target_location=target_location,
+        target_storage_place=target_storage_place,
+    ):
+        raise ValidationError({
+            "destination": (
+                "Неможливо перемістити складську одиницю в те саме місце."
+            )
+        })
+
     moved_units: List[WarehouseUnit] = []
     created_unit: Optional[WarehouseUnit] = None
     split_source_unit: Optional[WarehouseUnit] = None
@@ -388,6 +427,23 @@ def execute_bulk_move(
         raise ValidationError({
             "unit_ids": (
                 f"Неможливо перемістити неактивні складські одиниці: {inactive_ids}"
+            )
+        })
+
+    same_destination_ids = [
+        unit.id
+        for unit in units
+        if _is_same_destination(
+            unit,
+            target_location=target_location,
+            target_storage_place=target_storage_place,
+        )
+    ]
+    if same_destination_ids:
+        raise ValidationError({
+            "unit_ids": (
+                "Неможливо перемістити складські одиниці в те саме місце. "
+                f"Unit id: {same_destination_ids}"
             )
         })
 
