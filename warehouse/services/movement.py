@@ -356,11 +356,11 @@ def execute_move(
         split_source_unit=split_source_unit,
     )
 
-
 def execute_bulk_move(
     unit_ids: List[int],
     target_location=None,
     target_storage_place=None,
+    created_by=None,
 ) -> BulkMoveExecutionResult:
     _validate_destination(
         target_location=target_location,
@@ -393,12 +393,27 @@ def execute_bulk_move(
 
     with transaction.atomic():
         for unit in units:
+            from_location = unit.location
+            from_storage_place = unit.storage_place
+
             _apply_destination(
                 unit,
                 target_location=target_location,
                 target_storage_place=target_storage_place,
             )
             unit.save()
+
+            WarehouseUnitEvent.objects.create(
+                operation_type=WarehouseUnitEvent.OperationType.MOVE,
+                source_unit=unit,
+                result_unit=unit,
+                quantity=unit.quantity,
+                from_location=from_location,
+                from_storage_place=from_storage_place,
+                to_location=unit.location,
+                to_storage_place=unit.storage_place,
+                created_by=created_by,
+            )
 
     return BulkMoveExecutionResult(
         moved_units=units,
