@@ -448,7 +448,8 @@ class WarehouseStockOverviewRowSerializer(serializers.Serializer):
         read_only=True,
     )
 
-    has_unconverted_expectation = serializers.BooleanField(read_only=True)
+    has_unconverted_pending_intake = serializers.BooleanField(read_only=True)
+    has_unconverted_incoming = serializers.BooleanField(read_only=True)
 
     locations = WarehouseStockOverviewLocationSerializer(
         many=True,
@@ -475,4 +476,5 @@ class WarehouseStockOverviewQuerySerializer(serializers.Serializer):
     has_stock = serializers.BooleanField(required=False)
     has_pending_intake = serializers.BooleanField(required=False)
     has_incoming = serializers.BooleanField(required=False)
-    has_unconverted_expectation = serializers.BooleanField(required=False)
+    has_unconverted_pending_intake = serializers.BooleanField(required=False)
+    has_unconverted_incoming = serializers.BooleanField(required=False)
