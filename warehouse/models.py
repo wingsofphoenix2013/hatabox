@@ -3,6 +3,7 @@ import uuid
 
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
+from django.conf import settings
 
 from inventory.models import InvItem
 from orders.models import ExternalOrderItem, ExternalReceiptItem
@@ -243,6 +244,139 @@ class WarehouseStoragePlace(models.Model):
 
             self.full_clean()
             super().save(*args, **kwargs)
+
+class WarehouseUnitEvent(models.Model):
+    class OperationType(models.TextChoices):
+        INTAKE = "intake", "Первинна прийомка"
+        MOVE = "move", "Переміщення"
+        SPLIT_MOVE = "split_move", "Переміщення з розділенням"
+
+    operation_type = models.CharField(
+        max_length=20,
+        choices=OperationType.choices,
+        verbose_name="Тип операції",
+    )
+
+    source_unit = models.ForeignKey(
+        "WarehouseUnit",
+        on_delete=models.PROTECT,
+        related_name="outgoing_events",
+        null=True,
+        blank=True,
+        verbose_name="Вихідна складська одиниця",
+    )
+
+    result_unit = models.ForeignKey(
+        "WarehouseUnit",
+        on_delete=models.PROTECT,
+        related_name="incoming_events",
+        verbose_name="Результуюча складська одиниця",
+    )
+
+    quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        verbose_name="Кількість",
+    )
+
+    from_location = models.ForeignKey(
+        WarehouseLocation,
+        on_delete=models.PROTECT,
+        related_name="unit_events_from_location",
+        null=True,
+        blank=True,
+        verbose_name="Звідки: локація",
+    )
+
+    from_storage_place = models.ForeignKey(
+        WarehouseStoragePlace,
+        on_delete=models.PROTECT,
+        related_name="unit_events_from_storage_place",
+        null=True,
+        blank=True,
+        verbose_name="Звідки: місце зберігання",
+    )
+
+    to_location = models.ForeignKey(
+        WarehouseLocation,
+        on_delete=models.PROTECT,
+        related_name="unit_events_to_location",
+        null=True,
+        blank=True,
+        verbose_name="Куди: локація",
+    )
+
+    to_storage_place = models.ForeignKey(
+        WarehouseStoragePlace,
+        on_delete=models.PROTECT,
+        related_name="unit_events_to_storage_place",
+        null=True,
+        blank=True,
+        verbose_name="Куди: місце зберігання",
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="warehouse_unit_events",
+        null=True,
+        blank=True,
+        verbose_name="Хто створив",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Створено",
+    )
+
+    class Meta:
+        db_table = "warehouse_unit_events"
+        ordering = ["-created_at", "-id"]
+        verbose_name = "Подія складської одиниці"
+        verbose_name_plural = "Події складських одиниць"
+
+    def __str__(self):
+        return f"{self.get_operation_type_display()} #{self.id}"
+
+    def clean(self):
+        super().clean()
+
+        if self.quantity <= 0:
+            raise ValidationError({
+                "quantity": "Кількість повинна бути більше 0."
+            })
+
+        if (self.to_location is None) == (self.to_storage_place is None):
+            raise ValidationError(
+                "Потрібно вказати або to_location, або to_storage_place, але не обидва одночасно."
+            )
+
+        if self.operation_type == self.OperationType.INTAKE:
+            if self.source_unit is not None:
+                raise ValidationError({
+                    "source_unit": "Для первинної прийомки source_unit повинен бути порожнім."
+                })
+
+            if self.from_location is not None or self.from_storage_place is not None:
+                raise ValidationError(
+                    "Для первинної прийомки не потрібно вказувати from_location або from_storage_place."
+                )
+
+        else:
+            if self.source_unit is None:
+                raise ValidationError({
+                    "source_unit": "Для цієї операції потрібно вказати source_unit."
+                })
+
+            if (self.from_location is None) == (self.from_storage_place is None):
+                raise ValidationError(
+                    "Потрібно вказати або from_location, або from_storage_place, але не обидва одночасно."
+                )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
 
 class WarehouseUnit(models.Model):
     inventory_item = models.ForeignKey(

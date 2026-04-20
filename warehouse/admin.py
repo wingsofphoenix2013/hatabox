@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib import admin
 
-from .models import WarehouseLocation, WarehouseStoragePlace, WarehouseUnit
+from .models import WarehouseLocation, WarehouseStoragePlace, WarehouseUnit, WarehouseUnitEvent
 
 class WarehouseStoragePlaceAdminForm(forms.ModelForm):
     class Meta:
@@ -136,3 +136,21 @@ class WarehouseUnitAdmin(admin.ModelAdmin):
         "source_receipt_item",
         "source_order_item",
     )
+    
+@admin.register(WarehouseUnitEvent)
+class WarehouseUnitEventAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "operation_type",
+        "source_unit",
+        "result_unit",
+        "quantity",
+        "from_location",
+        "from_storage_place",
+        "to_location",
+        "to_storage_place",
+        "created_by",
+        "created_at",
+    )
+    list_filter = ("operation_type", "created_at")
+    search_fields = ("id",)
