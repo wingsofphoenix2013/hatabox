@@ -13,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from orders.models import ExternalReceiptItem
+from inventory.models import InvItem
 
 from .models import (
     WarehouseLocation,
@@ -887,6 +888,7 @@ class WarehousePendingIntakeItemViewSet(ReadOnlyModelViewSet):
         })
         
 class WarehouseStockOverviewViewSet(ReadOnlyModelViewSet):
+    queryset = InvItem.objects.all()
     serializer_class = WarehouseStockOverviewRowSerializer
     permission_classes = [DjangoModelPermissions]
 
