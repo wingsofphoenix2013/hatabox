@@ -906,20 +906,40 @@ class WarehouseStockOverviewViewSet(ReadOnlyModelViewSet):
                 return None
             return value.lower() == "true"
 
-        rows = build_stock_overview(
-            search=search,
-            category_ids=category_ids,
-            location_ids=location_ids,
-            has_stock=parse_bool(has_stock),
-            has_pending_intake=parse_bool(has_pending_intake),
-            has_incoming=parse_bool(has_incoming),
-            has_unconverted_expectation=parse_bool(has_unconverted_expectation),
-        )
+        try:
+            rows = build_stock_overview(
+                search=search,
+                category_ids=category_ids,
+                location_ids=location_ids,
+                has_stock=parse_bool(has_stock),
+                has_pending_intake=parse_bool(has_pending_intake),
+                has_incoming=parse_bool(has_incoming),
+                has_unconverted_expectation=parse_bool(has_unconverted_expectation),
+            )
 
-        page = self.paginate_queryset(rows)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+            page = self.paginate_queryset(rows)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
 
-        serializer = self.get_serializer(rows, many=True)
-        return Response(serializer.data)
+            serializer = self.get_serializer(rows, many=True)
+            return Response(serializer.data)
+
+        except Exception as exc:
+            return Response(
+                {
+                    "stage": "build_stock_overview",
+                    "error_type": exc.__class__.__name__,
+                    "error": str(exc),
+                    "query_params": {
+                        "search": search,
+                        "category": category_ids,
+                        "location": location_ids,
+                        "has_stock": has_stock,
+                        "has_pending_intake": has_pending_intake,
+                        "has_incoming": has_incoming,
+                        "has_unconverted_expectation": has_unconverted_expectation,
+                    },
+                },
+                status=500,
+            )
