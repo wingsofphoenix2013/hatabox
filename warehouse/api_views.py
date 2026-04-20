@@ -931,6 +931,7 @@ class WarehouseStockOverviewViewSet(ReadOnlyModelViewSet):
                     "stage": "build_stock_overview",
                     "error_type": exc.__class__.__name__,
                     "error": str(exc),
+                    "traceback": traceback.format_exc(),
                     "query_params": {
                         "search": search,
                         "category": category_ids,
