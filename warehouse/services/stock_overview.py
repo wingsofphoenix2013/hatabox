@@ -186,12 +186,20 @@ def build_stock_overview(
 
         row_has_unconverted_pending_intake = item.id in unconverted_pending_intake_item_ids
         row_has_unconverted_incoming = item.id in unconverted_incoming_item_ids
+
+        row_matches_pending_intake = (
+            pending_intake_quantity > ZERO
+            or row_has_unconverted_pending_intake
+        )
+        row_matches_incoming = (
+            incoming_quantity > ZERO
+            or row_has_unconverted_incoming
+        )
+
         row_has_any_activity = (
             available_quantity > ZERO
-            or pending_intake_quantity > ZERO
-            or incoming_quantity > ZERO
-            or row_has_unconverted_pending_intake
-            or row_has_unconverted_incoming
+            or row_matches_pending_intake
+            or row_matches_incoming
         )
 
         row = {
@@ -213,10 +221,10 @@ def build_stock_overview(
         if has_stock is not None and (available_quantity > ZERO) != has_stock:
             continue
 
-        if has_pending_intake is not None and (pending_intake_quantity > ZERO) != has_pending_intake:
+        if has_pending_intake is not None and row_matches_pending_intake != has_pending_intake:
             continue
 
-        if has_incoming is not None and (incoming_quantity > ZERO) != has_incoming:
+        if has_incoming is not None and row_matches_incoming != has_incoming:
             continue
 
         if (
