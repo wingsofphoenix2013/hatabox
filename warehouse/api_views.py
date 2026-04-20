@@ -940,6 +940,11 @@ class WarehouseStockDetailViewSet(ReadOnlyModelViewSet):
     serializer_class = WarehouseStockDetailSerializer
     permission_classes = [DjangoModelPermissions]
 
+    def list(self, request, *args, **kwargs):
+        raise ValidationError(
+            "Цей endpoint підтримує лише detail-запит: /api/warehouse-stock-detail/{inventory_item_id}/"
+        )
+
     def retrieve(self, request, *args, **kwargs):
         inventory_item_id = kwargs["pk"]
         data = build_stock_detail(inventory_item_id=inventory_item_id)
