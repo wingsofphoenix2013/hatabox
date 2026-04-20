@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Union
 from rest_framework.exceptions import ValidationError
 from django.db import transaction
 
-from warehouse.models import WarehouseUnit
+from warehouse.models import WarehouseUnit, WarehouseUnitEvent
 
 
 THREE_DECIMAL_PLACES = Decimal("0.001")
@@ -271,6 +271,7 @@ def execute_move(
     quantity: Union[Decimal, int, float, str],
     target_location=None,
     target_storage_place=None,
+    created_by=None,
 ) -> MoveExecutionResult:
     _validate_destination(
         target_location=target_location,
@@ -288,6 +289,9 @@ def execute_move(
 
     with transaction.atomic():
         for unit in move_plan.full_units:
+            from_location = unit.location
+            from_storage_place = unit.storage_place
+
             _apply_destination(
                 unit,
                 target_location=target_location,
@@ -296,8 +300,23 @@ def execute_move(
             unit.save()
             moved_units.append(unit)
 
+            WarehouseUnitEvent.objects.create(
+                operation_type=WarehouseUnitEvent.OperationType.MOVE,
+                source_unit=unit,
+                result_unit=unit,
+                quantity=unit.quantity,
+                from_location=from_location,
+                from_storage_place=from_storage_place,
+                to_location=unit.location,
+                to_storage_place=unit.storage_place,
+                created_by=created_by,
+            )
+
         if move_plan.requires_split:
             split_source_unit = move_plan.split_source_unit
+            from_location = split_source_unit.location
+            from_storage_place = split_source_unit.storage_place
+
             split_source_unit.quantity = move_plan.split_remainder_quantity
             split_source_unit.save()
 
@@ -317,6 +336,18 @@ def execute_move(
             )
             created_unit.save()
             moved_units.append(created_unit)
+
+            WarehouseUnitEvent.objects.create(
+                operation_type=WarehouseUnitEvent.OperationType.SPLIT_MOVE,
+                source_unit=split_source_unit,
+                result_unit=created_unit,
+                quantity=created_unit.quantity,
+                from_location=from_location,
+                from_storage_place=from_storage_place,
+                to_location=created_unit.location,
+                to_storage_place=created_unit.storage_place,
+                created_by=created_by,
+            )
 
     return MoveExecutionResult(
         move_plan=move_plan,
