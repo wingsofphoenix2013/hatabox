@@ -39,6 +39,7 @@ def build_stock_overview(
     has_incoming: Optional[bool] = None,
     has_unconverted_pending_intake: Optional[bool] = None,
     has_unconverted_incoming: Optional[bool] = None,
+    has_any_activity: Optional[bool] = None,
 ) -> List[dict]:
     category_ids = [int(x) for x in (category_ids or [])]
     location_ids = [int(x) for x in (location_ids or [])]
@@ -185,6 +186,13 @@ def build_stock_overview(
 
         row_has_unconverted_pending_intake = item.id in unconverted_pending_intake_item_ids
         row_has_unconverted_incoming = item.id in unconverted_incoming_item_ids
+        row_has_any_activity = (
+            available_quantity > ZERO
+            or pending_intake_quantity > ZERO
+            or incoming_quantity > ZERO
+            or row_has_unconverted_pending_intake
+            or row_has_unconverted_incoming
+        )
 
         row = {
             "inventory_item_id": item.id,
@@ -224,6 +232,9 @@ def build_stock_overview(
             continue
 
         if location_ids and not item_locations:
+            continue
+
+        if has_any_activity is not None and row_has_any_activity != has_any_activity:
             continue
 
         results.append(row)

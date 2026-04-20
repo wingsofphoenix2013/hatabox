@@ -902,6 +902,7 @@ class WarehouseStockOverviewViewSet(ReadOnlyModelViewSet):
         has_incoming = request.query_params.get("has_incoming")
         has_unconverted_pending_intake = request.query_params.get("has_unconverted_pending_intake")
         has_unconverted_incoming = request.query_params.get("has_unconverted_incoming")
+        has_any_activity = request.query_params.get("has_any_activity")
 
         def parse_bool(value):
             if value is None:
@@ -917,8 +918,9 @@ class WarehouseStockOverviewViewSet(ReadOnlyModelViewSet):
             has_incoming=parse_bool(has_incoming),
             has_unconverted_pending_intake=parse_bool(has_unconverted_pending_intake),
             has_unconverted_incoming=parse_bool(has_unconverted_incoming),
+            has_any_activity=parse_bool(has_any_activity),
         )
-
+        
         page = self.paginate_queryset(rows)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
