@@ -414,3 +414,65 @@ class WarehouseBulkMoveSerializer(serializers.Serializer):
             )
 
         return attrs
+
+class WarehouseStockOverviewLocationSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    code = serializers.CharField(read_only=True)
+    name = serializers.CharField(read_only=True)
+
+
+class WarehouseStockOverviewRowSerializer(serializers.Serializer):
+    inventory_item_id = serializers.IntegerField(read_only=True)
+    inventory_item_code = serializers.CharField(read_only=True)
+    inventory_item_name = serializers.CharField(read_only=True)
+
+    inventory_item_category_id = serializers.IntegerField(read_only=True)
+    inventory_item_category_name = serializers.CharField(read_only=True)
+
+    inventory_item_unit_name = serializers.CharField(read_only=True)
+    inventory_item_unit_symbol = serializers.CharField(read_only=True)
+
+    available_quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
+    pending_intake_quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
+    incoming_quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
+
+    has_unconverted_expectation = serializers.BooleanField(read_only=True)
+
+    locations = WarehouseStockOverviewLocationSerializer(
+        many=True,
+        read_only=True,
+    )
+
+
+class WarehouseStockOverviewQuerySerializer(serializers.Serializer):
+    category = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        required=False,
+        allow_empty=False,
+    )
+    location = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        required=False,
+        allow_empty=False,
+    )
+    search = serializers.CharField(
+        required=False,
+        allow_blank=False,
+    )
+
+    has_stock = serializers.BooleanField(required=False)
+    has_pending_intake = serializers.BooleanField(required=False)
+    has_incoming = serializers.BooleanField(required=False)
+    has_unconverted_expectation = serializers.BooleanField(required=False)
