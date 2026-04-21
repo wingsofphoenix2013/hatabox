@@ -3,7 +3,6 @@ import uuid
 
 from django.db import models, transaction
 from django.core.exceptions import ValidationError
-from django.core.exceptions import ValidationError
 from reference.models import Brand, Country, TaxType
 
 

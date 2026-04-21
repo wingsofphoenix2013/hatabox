@@ -48,6 +48,14 @@ from reference.api_views import (
     ExternalOrderPaymentStatusViewSet,
     TaxTypeViewSet,
 )
+
+from organizations.api_views import (
+    OrganizationViewSet,
+    CommercialOrganizationViewSet,
+    MilitaryOrganizationViewSet,
+    CharityOrganizationViewSet,
+)
+
 from accounts.views import login_view, me_view
 
 
@@ -78,6 +86,10 @@ router.register("tax-types", TaxTypeViewSet)
 router.register("payment-documents", ExternalPaymentDocumentViewSet)
 router.register("receipt-documents", ExternalReceiptDocumentViewSet)
 router.register("receipt-items", ExternalReceiptItemViewSet)
+router.register("organizations", OrganizationViewSet)
+router.register("commercial-organizations", CommercialOrganizationViewSet)
+router.register("military-organizations", MilitaryOrganizationViewSet)
+router.register("charity-organizations", CharityOrganizationViewSet)
 router.register("warehouse-locations", WarehouseLocationViewSet)
 router.register("warehouse-storage-places", WarehouseStoragePlaceViewSet)
 router.register("warehouse-units", WarehouseUnitViewSet)
