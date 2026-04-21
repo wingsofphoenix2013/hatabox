@@ -18,7 +18,11 @@ class Organization(models.Model):
         choices=Type.choices,
         verbose_name="Тип організації",
     )
-    edrpou = models.CharField(max_length=20, verbose_name="ЄДРПОУ")
+    edrpou = models.CharField(
+        max_length=20,
+        unique=True,
+        verbose_name="ЄДРПОУ",
+    )
     is_active = models.BooleanField(default=True, verbose_name="Діюча")
 
     class Meta:
@@ -137,6 +141,13 @@ class MilitaryOrganization(models.Model):
     class Meta:
         verbose_name = "Military organization profile"
         verbose_name_plural = "Military organization profiles"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["a_code"],
+                condition=~models.Q(a_code=""),
+                name="uq_military_organization_a_code",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.organization} — military"
