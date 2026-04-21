@@ -37,6 +37,7 @@ from .serializers import (
     WarehouseBulkMoveSerializer,
     WarehouseStockOverviewRowSerializer,
     WarehouseStockDetailSerializer,
+    WarehousePendingIntakeStatusSerializer,
 )
 
 
@@ -672,6 +673,17 @@ class WarehousePendingIntakeItemViewSet(ReadOnlyModelViewSet):
 
         return queryset
 
+    @action(detail=False, methods=["get"], url_path="status")
+    def status(self, request):
+        count = self.get_queryset().count()
+        serializer = WarehousePendingIntakeStatusSerializer(
+            {
+                "count": count,
+                "hasPendingIntake": count > 0,
+            }
+        )
+        return Response(serializer.data)
+        
     @action(detail=True, methods=["post"], url_path="accept-to-location")
     def accept_to_location(self, request, pk=None):
         receipt_item = self.get_object()

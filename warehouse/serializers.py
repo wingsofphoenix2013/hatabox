@@ -601,3 +601,7 @@ class WarehouseStockDetailSerializer(serializers.Serializer):
         many=True,
         read_only=True,
     )
+
+class WarehousePendingIntakeStatusSerializer(serializers.Serializer):
+    count = serializers.IntegerField(read_only=True)
+    hasPendingIntake = serializers.BooleanField(read_only=True)
