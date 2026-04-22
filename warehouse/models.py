@@ -6,7 +6,12 @@ from django.db import models, transaction
 from django.conf import settings
 
 from inventory.models import InvItem
-from orders.models import ExternalOrderItem, ExternalReceiptItem
+from orders.models import (
+    ExternalOrderItem,
+    ExternalReceiptItem,
+    TollingOrderItem,
+    TollingReceiptItem,
+)
 
 def storage_place_image_upload_to(instance, filename):
     ext = os.path.splitext(filename)[1].lower() or ".bin"
@@ -377,7 +382,6 @@ class WarehouseUnitEvent(models.Model):
         self.full_clean()
         super().save(*args, **kwargs)
 
-
 class WarehouseUnit(models.Model):
     inventory_item = models.ForeignKey(
         InvItem,
@@ -414,6 +418,8 @@ class WarehouseUnit(models.Model):
         ExternalReceiptItem,
         on_delete=models.PROTECT,
         related_name="warehouse_units",
+        null=True,
+        blank=True,
         verbose_name="Джерело приходу",
     )
 
@@ -421,7 +427,27 @@ class WarehouseUnit(models.Model):
         ExternalOrderItem,
         on_delete=models.PROTECT,
         related_name="warehouse_units",
+        null=True,
+        blank=True,
         verbose_name="Джерело рядка замовлення",
+    )
+
+    tolling_source_receipt_item = models.ForeignKey(
+        TollingReceiptItem,
+        on_delete=models.PROTECT,
+        related_name="warehouse_units",
+        null=True,
+        blank=True,
+        verbose_name="Джерело приходу (давальницька схема)",
+    )
+
+    tolling_source_order_item = models.ForeignKey(
+        TollingOrderItem,
+        on_delete=models.PROTECT,
+        related_name="warehouse_units",
+        null=True,
+        blank=True,
+        verbose_name="Джерело рядка замовлення (давальницька схема)",
     )
 
     is_active = models.BooleanField(
@@ -454,15 +480,58 @@ class WarehouseUnit(models.Model):
                 "quantity": "Кількість повинна бути більше 0."
             })
 
-        if self.source_receipt_item.order_item_id != self.source_order_item_id:
+        procurement_used = bool(self.source_receipt_item_id or self.source_order_item_id)
+        tolling_used = bool(
+            self.tolling_source_receipt_item_id or self.tolling_source_order_item_id
+        )
+
+        if procurement_used and tolling_used:
             raise ValidationError(
-                "Джерело приходу та джерело рядка замовлення повинні посилатися на один і той самий рядок замовлення."
+                "Не можна одночасно використовувати procurement та давальницьке джерело."
             )
 
-        if self.inventory_item_id != self.source_order_item.vendor_item.item_id:
+        if not procurement_used and not tolling_used:
             raise ValidationError(
-                "Номенклатурна позиція складської одиниці повинна збігатися з номенклатурою рядка замовлення."
+                "Потрібно вказати джерело складської одиниці."
             )
+
+        if procurement_used:
+            if not self.source_receipt_item_id or not self.source_order_item_id:
+                raise ValidationError(
+                    "Для закупівлі потрібно вказати і джерело приходу, і рядок замовлення."
+                )
+
+            if self.source_receipt_item.order_item_id != self.source_order_item_id:
+                raise ValidationError(
+                    "Джерело приходу та рядок замовлення повинні збігатися."
+                )
+
+            if self.inventory_item_id != self.source_order_item.vendor_item.item_id:
+                raise ValidationError(
+                    "Номенклатура повинна збігатися з рядком замовлення."
+                )
+
+        if tolling_used:
+            if (
+                not self.tolling_source_receipt_item_id
+                or not self.tolling_source_order_item_id
+            ):
+                raise ValidationError(
+                    "Для давальницької схеми потрібно вказати і прихід, і рядок замовлення."
+                )
+
+            if (
+                self.tolling_source_receipt_item.order_item_id
+                != self.tolling_source_order_item_id
+            ):
+                raise ValidationError(
+                    "Джерело приходу та рядок замовлення повинні збігатися."
+                )
+
+            if self.inventory_item_id != self.tolling_source_order_item.inv_item_id:
+                raise ValidationError(
+                    "Номенклатура повинна збігатися з рядком замовлення."
+                )
 
     def save(self, *args, **kwargs):
         self.full_clean()

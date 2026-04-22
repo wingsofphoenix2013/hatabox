@@ -6,7 +6,12 @@ from django.db.models import Q, Sum
 from django.db.models.functions import Coalesce
 
 from inventory.models import InvItem
-from orders.models import ExternalOrderItem, ExternalReceiptItem
+from orders.models import (
+    ExternalOrderItem,
+    ExternalReceiptItem,
+    TollingOrderItem,
+    TollingReceiptItem,
+)
 from warehouse.models import WarehouseUnit
 
 
@@ -95,7 +100,7 @@ def build_stock_overview(
         if location is not None:
             locations_by_item[unit.inventory_item_id][location.id] = _serialize_location(location)
 
-    pending_receipts_queryset = ExternalReceiptItem.objects.select_related(
+    procurement_pending_receipts_queryset = ExternalReceiptItem.objects.select_related(
         "receipt_document",
         "order_item",
         "order_item__vendor_item",
@@ -109,14 +114,32 @@ def build_stock_overview(
         warehouse_units__is_active=True,
     )
 
-    pending_receipts = list(pending_receipts_queryset)
+    tolling_pending_receipts_queryset = TollingReceiptItem.objects.select_related(
+        "receipt_document",
+        "order_item",
+        "order_item__inv_item",
+    ).filter(
+        order_item__inv_item_id__in=item_ids,
+        receipt_document__completed=True,
+        receipt_document__sent_to_warehouse=False,
+    ).exclude(
+        warehouse_units__is_active=True,
+    )
+
+    procurement_pending_receipts = list(procurement_pending_receipts_queryset)
+    tolling_pending_receipts = list(tolling_pending_receipts_queryset)
 
     pending_intake_by_item: Dict[int, Decimal] = defaultdict(lambda: ZERO)
-    for receipt_item in pending_receipts:
+
+    for receipt_item in procurement_pending_receipts:
         item_id = receipt_item.order_item.vendor_item.item_id
         pending_intake_by_item[item_id] += _to_decimal(receipt_item.received_quantity)
 
-    completed_receipt_sums = ExternalReceiptItem.objects.filter(
+    for receipt_item in tolling_pending_receipts:
+        item_id = receipt_item.order_item.inv_item_id
+        pending_intake_by_item[item_id] += _to_decimal(receipt_item.received_quantity)
+
+    procurement_completed_receipt_sums = ExternalReceiptItem.objects.filter(
         order_item__vendor_item__item_id__in=item_ids,
         receipt_document__completed=True,
         order_item__requires_unit_conversion=False,
@@ -129,12 +152,12 @@ def build_stock_overview(
         )
     )
 
-    completed_received_by_order_item = {
+    procurement_completed_received_by_order_item = {
         row["order_item_id"]: _to_decimal(row["completed_received_quantity"])
-        for row in completed_receipt_sums
+        for row in procurement_completed_receipt_sums
     }
 
-    incoming_order_items_queryset = ExternalOrderItem.objects.select_related(
+    procurement_incoming_order_items_queryset = ExternalOrderItem.objects.select_related(
         "order",
         "vendor_item",
         "vendor_item__item",
@@ -144,16 +167,51 @@ def build_stock_overview(
         requires_unit_conversion=False,
     )
 
-    incoming_order_items = list(incoming_order_items_queryset)
+    tolling_completed_receipt_sums = TollingReceiptItem.objects.filter(
+        order_item__inv_item_id__in=item_ids,
+        receipt_document__completed=True,
+    ).values(
+        "order_item_id",
+    ).annotate(
+        completed_received_quantity=Coalesce(
+            Sum("received_quantity"),
+            ZERO,
+        )
+    )
+
+    tolling_completed_received_by_order_item = {
+        row["order_item_id"]: _to_decimal(row["completed_received_quantity"])
+        for row in tolling_completed_receipt_sums
+    }
+
+    tolling_incoming_order_items_queryset = TollingOrderItem.objects.select_related(
+        "order",
+        "inv_item",
+    ).filter(
+        inv_item_id__in=item_ids,
+        order__status="active",
+    )
+
+    procurement_incoming_order_items = list(procurement_incoming_order_items_queryset)
+    tolling_incoming_order_items = list(tolling_incoming_order_items_queryset)
 
     incoming_by_item: Dict[int, Decimal] = defaultdict(lambda: ZERO)
-    for order_item in incoming_order_items:
-        completed_received = completed_received_by_order_item.get(order_item.id, ZERO)
+
+    for order_item in procurement_incoming_order_items:
+        completed_received = procurement_completed_received_by_order_item.get(order_item.id, ZERO)
         remaining = _to_decimal(order_item.quantity) - completed_received
         if remaining < ZERO:
             remaining = ZERO
 
         incoming_by_item[order_item.vendor_item.item_id] += remaining
+
+    for order_item in tolling_incoming_order_items:
+        completed_received = tolling_completed_received_by_order_item.get(order_item.id, ZERO)
+        remaining = _to_decimal(order_item.quantity) - completed_received
+        if remaining < ZERO:
+            remaining = ZERO
+
+        incoming_by_item[order_item.inv_item_id] += remaining
 
     unconverted_pending_intake_item_ids = set(
         ExternalReceiptItem.objects.filter(

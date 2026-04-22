@@ -6,7 +6,12 @@ from django.db.models import Q, Sum
 from django.db.models.functions import Coalesce
 
 from inventory.models import InvItem
-from orders.models import ExternalOrderItem, ExternalReceiptItem
+from orders.models import (
+    ExternalOrderItem,
+    ExternalReceiptItem,
+    TollingOrderItem,
+    TollingReceiptItem,
+)
 from warehouse.models import WarehouseUnit
 
 
@@ -110,7 +115,7 @@ def _build_stock_rows(item_id: int) -> List[dict]:
 
 
 def _build_pending_intake_rows(item_id: int) -> List[dict]:
-    receipt_items = list(
+    procurement_receipt_items = list(
         ExternalReceiptItem.objects.select_related(
             "receipt_document",
             "receipt_document__order",
@@ -127,11 +132,30 @@ def _build_pending_intake_rows(item_id: int) -> List[dict]:
         )
     )
 
+    tolling_receipt_items = list(
+        TollingReceiptItem.objects.select_related(
+            "receipt_document",
+            "receipt_document__order",
+            "receipt_document__order__organization",
+            "order_item",
+            "order_item__order",
+            "order_item__order__organization",
+        ).filter(
+            order_item__inv_item_id=item_id,
+            receipt_document__completed=True,
+            receipt_document__sent_to_warehouse=False,
+        ).exclude(
+            warehouse_units__is_active=True,
+        )
+    )
+
     rows = []
-    for receipt_item in receipt_items:
+
+    for receipt_item in procurement_receipt_items:
         is_unconverted = receipt_item.order_item.requires_unit_conversion
 
         rows.append({
+            "source_type": "procurement",
             "receipt_item_id": receipt_item.id,
             "receipt_document_id": receipt_item.receipt_document.id,
             "receipt_no": receipt_item.receipt_document.receipt_no,
@@ -140,10 +164,27 @@ def _build_pending_intake_rows(item_id: int) -> List[dict]:
             "order_id": receipt_item.order_item.order.id,
             "order_no": receipt_item.order_item.order.order_no,
             "order_created_at": receipt_item.order_item.order.created_at,
-            "vendor_id": receipt_item.order_item.order.vendor.id,
-            "vendor_name": receipt_item.order_item.order.vendor.name,
+            "counterparty_id": receipt_item.order_item.order.vendor.id,
+            "counterparty_name": receipt_item.order_item.order.vendor.name,
             "quantity": ZERO if is_unconverted else _to_decimal(receipt_item.received_quantity),
             "has_unconverted_quantity": is_unconverted,
+        })
+
+    for receipt_item in tolling_receipt_items:
+        rows.append({
+            "source_type": "tolling",
+            "receipt_item_id": receipt_item.id,
+            "receipt_document_id": receipt_item.receipt_document.id,
+            "receipt_no": receipt_item.receipt_document.receipt_no,
+            "receipt_date": receipt_item.receipt_document.receipt_date,
+            "order_item_id": receipt_item.order_item.id,
+            "order_id": receipt_item.order_item.order.id,
+            "order_no": receipt_item.order_item.order.order_no,
+            "order_created_at": receipt_item.order_item.order.created_at,
+            "counterparty_id": receipt_item.order_item.order.organization.id,
+            "counterparty_name": receipt_item.order_item.order.organization.name,
+            "quantity": _to_decimal(receipt_item.received_quantity),
+            "has_unconverted_quantity": False,
         })
 
     rows.sort(
@@ -155,9 +196,8 @@ def _build_pending_intake_rows(item_id: int) -> List[dict]:
     )
     return rows
 
-
 def _build_incoming_rows(item_id: int) -> List[dict]:
-    completed_receipt_sums = ExternalReceiptItem.objects.filter(
+    procurement_completed_receipt_sums = ExternalReceiptItem.objects.filter(
         order_item__vendor_item__item_id=item_id,
         receipt_document__completed=True,
     ).values(
@@ -169,12 +209,12 @@ def _build_incoming_rows(item_id: int) -> List[dict]:
         )
     )
 
-    completed_received_by_order_item = {
+    procurement_completed_received_by_order_item = {
         row["order_item_id"]: _to_decimal(row["completed_received_quantity"])
-        for row in completed_receipt_sums
+        for row in procurement_completed_receipt_sums
     }
 
-    order_items = list(
+    procurement_order_items = list(
         ExternalOrderItem.objects.select_related(
             "order",
             "order__vendor",
@@ -184,10 +224,38 @@ def _build_incoming_rows(item_id: int) -> List[dict]:
         )
     )
 
+    tolling_completed_receipt_sums = TollingReceiptItem.objects.filter(
+        order_item__inv_item_id=item_id,
+        receipt_document__completed=True,
+    ).values(
+        "order_item_id",
+    ).annotate(
+        completed_received_quantity=Coalesce(
+            Sum("received_quantity"),
+            ZERO,
+        )
+    )
+
+    tolling_completed_received_by_order_item = {
+        row["order_item_id"]: _to_decimal(row["completed_received_quantity"])
+        for row in tolling_completed_receipt_sums
+    }
+
+    tolling_order_items = list(
+        TollingOrderItem.objects.select_related(
+            "order",
+            "order__organization",
+        ).filter(
+            inv_item_id=item_id,
+            order__status="active",
+        )
+    )
+
     rows = []
-    for order_item in order_items:
+
+    for order_item in procurement_order_items:
         is_unconverted = order_item.requires_unit_conversion
-        completed_received = completed_received_by_order_item.get(order_item.id, ZERO)
+        completed_received = procurement_completed_received_by_order_item.get(order_item.id, ZERO)
 
         if is_unconverted:
             remaining = ZERO
@@ -200,14 +268,36 @@ def _build_incoming_rows(item_id: int) -> List[dict]:
             continue
 
         rows.append({
+            "source_type": "procurement",
             "order_item_id": order_item.id,
             "order_id": order_item.order.id,
             "order_no": order_item.order.order_no,
             "order_created_at": order_item.order.created_at,
-            "vendor_id": order_item.order.vendor.id,
-            "vendor_name": order_item.order.vendor.name,
+            "counterparty_id": order_item.order.vendor.id,
+            "counterparty_name": order_item.order.vendor.name,
             "quantity": remaining,
             "has_unconverted_quantity": is_unconverted,
+        })
+
+    for order_item in tolling_order_items:
+        completed_received = tolling_completed_received_by_order_item.get(order_item.id, ZERO)
+        remaining = _to_decimal(order_item.quantity) - completed_received
+        if remaining < ZERO:
+            remaining = ZERO
+
+        if remaining == ZERO:
+            continue
+
+        rows.append({
+            "source_type": "tolling",
+            "order_item_id": order_item.id,
+            "order_id": order_item.order.id,
+            "order_no": order_item.order.order_no,
+            "order_created_at": order_item.order.created_at,
+            "counterparty_id": order_item.order.organization.id,
+            "counterparty_name": order_item.order.organization.name,
+            "quantity": remaining,
+            "has_unconverted_quantity": False,
         })
 
     rows.sort(
@@ -218,7 +308,6 @@ def _build_incoming_rows(item_id: int) -> List[dict]:
         )
     )
     return rows
-
 
 def build_stock_detail(inventory_item_id: int) -> dict:
     item = InvItem.objects.select_related(

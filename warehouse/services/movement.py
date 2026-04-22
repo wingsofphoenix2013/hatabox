@@ -366,6 +366,8 @@ def execute_move(
                 quantity=move_plan.split_move_quantity,
                 source_receipt_item=split_source_unit.source_receipt_item,
                 source_order_item=split_source_unit.source_order_item,
+                tolling_source_receipt_item=split_source_unit.tolling_source_receipt_item,
+                tolling_source_order_item=split_source_unit.tolling_source_order_item,
                 is_active=split_source_unit.is_active,
             )
             _apply_destination(
