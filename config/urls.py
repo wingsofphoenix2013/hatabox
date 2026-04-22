@@ -30,6 +30,10 @@ from orders.api_views import (
     ExternalPaymentDocumentViewSet,
     ExternalReceiptDocumentViewSet,
     ExternalReceiptItemViewSet,
+    TollingOrderViewSet,
+    TollingOrderItemViewSet,
+    TollingReceiptDocumentViewSet,
+    TollingReceiptItemViewSet,
 )
 
 from warehouse.api_views import (
@@ -82,10 +86,16 @@ router.register("vendor-payment-details", VendorPaymentDetailsViewSet)
 router.register("vendor-items", VendorItemViewSet)
 router.register("orders", ExternalOrderViewSet)
 router.register("order-items", ExternalOrderItemViewSet)
-router.register("tax-types", TaxTypeViewSet)
 router.register("payment-documents", ExternalPaymentDocumentViewSet)
 router.register("receipt-documents", ExternalReceiptDocumentViewSet)
 router.register("receipt-items", ExternalReceiptItemViewSet)
+
+router.register("tolling-orders", TollingOrderViewSet)
+router.register("tolling-order-items", TollingOrderItemViewSet)
+router.register("tolling-receipt-documents", TollingReceiptDocumentViewSet)
+router.register("tolling-receipt-items", TollingReceiptItemViewSet)
+
+router.register("tax-types", TaxTypeViewSet)
 router.register("organizations", OrganizationViewSet)
 router.register("commercial-organizations", CommercialOrganizationViewSet)
 router.register("military-organizations", MilitaryOrganizationViewSet)

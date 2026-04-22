@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import User
 
 from vendors.models import Vendor, VendorItem
+from organizations.models import Organization
+from inventory.models import InvItem
 
 
 class ExternalOrder(models.Model):
@@ -263,6 +265,189 @@ class ExternalReceiptItem(models.Model):
 
     class Meta:
         db_table = "external_receipt_items"
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.receipt_document} → {self.order_item}"
+
+
+class TollingOrder(models.Model):
+    class StatusChoices(models.TextChoices):
+        DRAFT = "draft", "Чернетка"
+        ACTIVE = "active", "Активне"
+        COMPLETED = "completed", "Виконано"
+
+    order_no = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name="Номер замовлення",
+    )
+
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.PROTECT,
+        related_name="tolling_orders",
+        verbose_name="Організація",
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=StatusChoices.choices,
+        default=StatusChoices.DRAFT,
+        verbose_name="Статус",
+    )
+
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="created_tolling_orders",
+        verbose_name="Створено користувачем",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    comment = models.TextField(blank=True, verbose_name="Коментар")
+
+    image = models.FileField(
+        upload_to="tolling_orders/",
+        db_column="image_path",
+        blank=True,
+        null=True,
+        verbose_name="Файл",
+    )
+
+    class Meta:
+        db_table = "tolling_orders"
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return self.order_no
+
+
+class TollingOrderItem(models.Model):
+    order = models.ForeignKey(
+        TollingOrder,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name="Замовлення",
+    )
+
+    inv_item = models.ForeignKey(
+        InvItem,
+        on_delete=models.PROTECT,
+        related_name="tolling_order_items",
+        verbose_name="Номенклатурна позиція",
+    )
+
+    quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        verbose_name="Кількість",
+    )
+
+    requires_unit_conversion = models.BooleanField(
+        default=False,
+        verbose_name="Потребує конвертації одиниць",
+    )
+
+    expected_delivery_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Очікувана дата поставки",
+    )
+
+    class Meta:
+        db_table = "tolling_order_items"
+        ordering = ["id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["order", "inv_item"],
+                name="uq_tolling_order_item_order_inv_item",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.order} → {self.inv_item}"
+
+
+class TollingReceiptDocument(models.Model):
+    receipt_no = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name="Номер документа приходу",
+    )
+
+    order = models.ForeignKey(
+        TollingOrder,
+        on_delete=models.CASCADE,
+        related_name="receipt_documents",
+        verbose_name="Замовлення",
+    )
+
+    receipt_date = models.DateField(
+        verbose_name="Дата приходу",
+    )
+
+    completed = models.BooleanField(
+        default=False,
+        verbose_name="Документ завершено",
+    )
+
+    sent_to_warehouse = models.BooleanField(
+        default=False,
+        verbose_name="Передано на склад",
+    )
+
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="created_tolling_receipt_documents",
+        verbose_name="Створено користувачем",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    comment = models.TextField(blank=True, verbose_name="Коментар")
+
+    image = models.FileField(
+        upload_to="tolling_receipt_documents/",
+        db_column="image_path",
+        blank=True,
+        null=True,
+        verbose_name="Файл",
+    )
+
+    class Meta:
+        db_table = "tolling_receipt_documents"
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return self.receipt_no
+
+
+class TollingReceiptItem(models.Model):
+    receipt_document = models.ForeignKey(
+        TollingReceiptDocument,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name="Документ приходу",
+    )
+
+    order_item = models.ForeignKey(
+        TollingOrderItem,
+        on_delete=models.PROTECT,
+        related_name="receipt_items",
+        verbose_name="Рядок замовлення",
+    )
+
+    received_quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        verbose_name="Отримана кількість",
+    )
+
+    class Meta:
+        db_table = "tolling_receipt_items"
         ordering = ["id"]
 
     def __str__(self):

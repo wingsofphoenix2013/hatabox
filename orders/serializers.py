@@ -9,6 +9,10 @@ from .models import (
     ExternalPaymentDocument,
     ExternalReceiptDocument,
     ExternalReceiptItem,
+    TollingOrder,
+    TollingOrderItem,
+    TollingReceiptDocument,
+    TollingReceiptItem,
 )
 
 class ExternalOrderItemSerializer(serializers.ModelSerializer):
@@ -753,3 +757,305 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
             return 0
 
         return (expected_delivery_date_min - date.today()).days
+        
+class TollingOrderItemSerializer(serializers.ModelSerializer):
+    inv_item_name = serializers.CharField(source="inv_item.name", read_only=True)
+
+    received_quantity = serializers.SerializerMethodField()
+    remaining_quantity = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TollingOrderItem
+        fields = [
+            "id",
+            "order",
+            "inv_item",
+            "inv_item_name",
+            "quantity",
+            "requires_unit_conversion",
+            "expected_delivery_date",
+            "received_quantity",
+            "remaining_quantity",
+        ]
+
+    def get_received_quantity(self, obj):
+        total = Decimal("0.000")
+        for receipt_item in obj.receipt_items.all():
+            if receipt_item.receipt_document.completed:
+                total += receipt_item.received_quantity
+        return total
+
+    def get_remaining_quantity(self, obj):
+        return obj.quantity - self.get_received_quantity(obj)
+
+    def validate(self, attrs):
+        order = attrs.get("order")
+        requires_unit_conversion = attrs.get("requires_unit_conversion")
+
+        if self.instance is not None:
+            order = self.instance.order
+
+            if requires_unit_conversion is None:
+                requires_unit_conversion = self.instance.requires_unit_conversion
+
+        if order is None:
+            return attrs
+
+        if order.status != TollingOrder.StatusChoices.DRAFT:
+            raise serializers.ValidationError(
+                "Після активації замовлення змінювати рядки заборонено."
+            )
+
+        if requires_unit_conversion:
+            raise serializers.ValidationError({
+                "requires_unit_conversion": (
+                    "Для давальницьких замовлень конвертація одиниць не використовується."
+                )
+            })
+
+        return attrs
+
+
+class TollingReceiptItemSerializer(serializers.ModelSerializer):
+    order_no = serializers.CharField(source="order_item.order.order_no", read_only=True)
+    inv_item_name = serializers.CharField(source="order_item.inv_item.name", read_only=True)
+
+    class Meta:
+        model = TollingReceiptItem
+        fields = [
+            "id",
+            "receipt_document",
+            "order_item",
+            "order_no",
+            "inv_item_name",
+            "received_quantity",
+        ]
+
+    def validate(self, attrs):
+        receipt_document = attrs.get("receipt_document")
+        order_item = attrs.get("order_item")
+        received_quantity = attrs.get("received_quantity")
+
+        if self.instance is not None:
+            if receipt_document is None:
+                receipt_document = self.instance.receipt_document
+            if order_item is None:
+                order_item = self.instance.order_item
+            if received_quantity is None:
+                received_quantity = self.instance.received_quantity
+
+        if receipt_document is None or order_item is None or received_quantity is None:
+            return attrs
+
+        order = order_item.order
+
+        if order.status == TollingOrder.StatusChoices.DRAFT:
+            raise serializers.ValidationError(
+                "Неможливо створювати прихід для замовлення у статусі 'Чернетка'."
+            )
+
+        if order.status == TollingOrder.StatusChoices.COMPLETED:
+            raise serializers.ValidationError(
+                "Неможливо змінювати рядки приходу для завершеного замовлення."
+            )
+
+        if receipt_document.completed:
+            raise serializers.ValidationError(
+                "Неможливо змінювати рядки після завершення документа приходу."
+            )
+
+        if receipt_document.order_id != order.id:
+            raise serializers.ValidationError(
+                "Рядок приходу повинен належати тому ж замовленню."
+            )
+
+        already_received = Decimal("0.000")
+        for item in order_item.receipt_items.all():
+            if self.instance and item.id == self.instance.id:
+                continue
+            already_received += item.received_quantity
+
+        if already_received + received_quantity > order_item.quantity:
+            raise serializers.ValidationError(
+                "Отримана кількість перевищує замовлену."
+            )
+
+        return attrs
+
+
+class TollingReceiptDocumentSerializer(serializers.ModelSerializer):
+    clear_image = serializers.BooleanField(write_only=True, required=False, default=False)
+    items = TollingReceiptItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = TollingReceiptDocument
+        fields = [
+            "id",
+            "receipt_no",
+            "order",
+            "receipt_date",
+            "completed",
+            "sent_to_warehouse",
+            "created_by",
+            "created_at",
+            "updated_at",
+            "comment",
+            "image",
+            "clear_image",
+            "items",
+        ]
+        read_only_fields = ("created_by", "created_at", "updated_at")
+
+    def create(self, validated_data):
+        validated_data.pop("clear_image", None)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        clear_image = validated_data.pop("clear_image", False)
+
+        if clear_image:
+            if instance.image:
+                instance.image.delete(save=False)
+            validated_data["image"] = None
+
+        return super().update(instance, validated_data)
+
+    def validate(self, attrs):
+        order = attrs.get("order")
+        completed = attrs.get("completed")
+        sent_to_warehouse = attrs.get("sent_to_warehouse")
+
+        if self.instance is not None:
+            if order is None:
+                order = self.instance.order
+            if completed is None:
+                completed = self.instance.completed
+            if sent_to_warehouse is None:
+                sent_to_warehouse = self.instance.sent_to_warehouse
+
+        if order is None:
+            return attrs
+
+        if order.status == TollingOrder.StatusChoices.DRAFT:
+            raise serializers.ValidationError(
+                "Неможливо створювати документ приходу для чернетки."
+            )
+
+        if order.status == TollingOrder.StatusChoices.COMPLETED:
+            raise serializers.ValidationError(
+                "Неможливо змінювати документи для завершеного замовлення."
+            )
+
+        if sent_to_warehouse and not completed:
+            raise serializers.ValidationError({
+                "sent_to_warehouse": (
+                    "Документ приходу можна передати на склад лише після його завершення."
+                )
+            })
+
+        if self.instance is not None and self.instance.completed and completed is False:
+            raise serializers.ValidationError({
+                "completed": "Прапорець завершення документа приходу не можна скасувати."
+            })
+
+        if (
+            self.instance is not None
+            and self.instance.sent_to_warehouse
+            and sent_to_warehouse is False
+        ):
+            raise serializers.ValidationError({
+                "sent_to_warehouse": "Прапорець передачі документа на склад не можна скасувати."
+            })
+
+        return attrs
+
+
+class TollingOrderSerializer(serializers.ModelSerializer):
+    clear_image = serializers.BooleanField(write_only=True, required=False, default=False)
+    items = TollingOrderItemSerializer(many=True, read_only=True)
+
+    received_total_quantity = serializers.SerializerMethodField()
+    is_completed = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TollingOrder
+        fields = [
+            "id",
+            "order_no",
+            "organization",
+            "status",
+            "created_by",
+            "created_at",
+            "updated_at",
+            "comment",
+            "image",
+            "clear_image",
+            "items",
+            "received_total_quantity",
+            "is_completed",
+        ]
+        read_only_fields = ("created_by", "created_at", "updated_at")
+
+    def create(self, validated_data):
+        validated_data.pop("clear_image", None)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        clear_image = validated_data.pop("clear_image", False)
+
+        if clear_image:
+            if instance.image:
+                instance.image.delete(save=False)
+            validated_data["image"] = None
+
+        return super().update(instance, validated_data)
+
+    def get_received_total_quantity(self, obj):
+        total = Decimal("0.000")
+        for item in obj.items.all():
+            for receipt_item in item.receipt_items.all():
+                if receipt_item.receipt_document.completed:
+                    total += receipt_item.received_quantity
+        return total
+
+    def get_is_completed(self, obj):
+        if obj.status == TollingOrder.StatusChoices.COMPLETED:
+            return True
+        return False
+
+    def validate(self, attrs):
+        status = attrs.get("status")
+
+        if self.instance is None:
+            if status is not None and status != TollingOrder.StatusChoices.DRAFT:
+                raise serializers.ValidationError({
+                    "status": "Нове давальницьке замовлення можна створити лише у статусі 'Чернетка'."
+                })
+            return attrs
+
+        if self.instance.status == TollingOrder.StatusChoices.COMPLETED:
+            raise serializers.ValidationError(
+                "Завершене замовлення не можна змінювати."
+            )
+
+        if status is None:
+            return attrs
+
+        if (
+            self.instance.status == TollingOrder.StatusChoices.DRAFT
+            and status in [
+                TollingOrder.StatusChoices.DRAFT,
+                TollingOrder.StatusChoices.ACTIVE,
+            ]
+        ):
+            return attrs
+
+        if (
+            self.instance.status == TollingOrder.StatusChoices.ACTIVE
+            and status == TollingOrder.StatusChoices.ACTIVE
+        ):
+            return attrs
+
+        raise serializers.ValidationError({
+            "status": "Дозволено лише перехід 'Чернетка' → 'Активне'. Статус 'Виконано' встановлюється автоматично."
+        })
