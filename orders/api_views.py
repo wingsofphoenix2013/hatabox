@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 
-from django.db import models, transaction
+from django.db import IntegrityError, models, transaction
 from django.db.models import (
     BooleanField,
     Case,
@@ -21,7 +21,7 @@ from django.db.models import (
 from django.db.models.functions import Cast, Coalesce, Least, Round
 
 from rest_framework.permissions import DjangoModelPermissions
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.exceptions import ValidationError
 
@@ -801,7 +801,7 @@ class TollingOrderViewSet(ModelViewSet):
     ).order_by("-created_at", "-id")
     serializer_class = TollingOrderSerializer
     permission_classes = [DjangoModelPermissions]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_queryset(self):
         queryset = self.queryset
@@ -838,16 +838,21 @@ class TollingOrderViewSet(ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        with transaction.atomic():
-            order_no = generate_tolling_order_no()
+        for _ in range(5):
+            try:
+                with transaction.atomic():
+                    order_no = generate_tolling_order_no()
 
-            while TollingOrder.objects.filter(order_no=order_no).exists():
-                order_no = generate_tolling_order_no()
+                    return serializer.save(
+                        order_no=order_no,
+                        created_by=self.request.user,
+                    )
+            except IntegrityError:
+                continue
 
-            serializer.save(
-                order_no=order_no,
-                created_by=self.request.user,
-            )
+        raise ValidationError(
+            "Не вдалося згенерувати унікальний номер замовлення. Спробуйте ще раз."
+        )
 
     def perform_update(self, serializer):
         if serializer.instance.status == TollingOrder.StatusChoices.COMPLETED:
@@ -929,7 +934,7 @@ class TollingReceiptDocumentViewSet(ModelViewSet):
     ).order_by("-created_at", "-id")
     serializer_class = TollingReceiptDocumentSerializer
     permission_classes = [DjangoModelPermissions]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_queryset(self):
         queryset = self.queryset
@@ -955,17 +960,23 @@ class TollingReceiptDocumentViewSet(ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        with transaction.atomic():
-            order = serializer.validated_data["order"]
-            receipt_no = generate_tolling_receipt_no(order)
+        order = serializer.validated_data["order"]
 
-            while TollingReceiptDocument.objects.filter(receipt_no=receipt_no).exists():
-                receipt_no = generate_tolling_receipt_no(order)
+        for _ in range(5):
+            try:
+                with transaction.atomic():
+                    receipt_no = generate_tolling_receipt_no(order)
 
-            serializer.save(
-                receipt_no=receipt_no,
-                created_by=self.request.user,
-            )
+                    return serializer.save(
+                        receipt_no=receipt_no,
+                        created_by=self.request.user,
+                    )
+            except IntegrityError:
+                continue
+
+        raise ValidationError(
+            "Не вдалося згенерувати унікальний номер документа приходу. Спробуйте ще раз."
+        )
 
     def perform_update(self, serializer):
         instance = serializer.instance
