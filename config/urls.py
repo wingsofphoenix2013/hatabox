@@ -10,6 +10,7 @@ from inventory.api_views import (
     InvUnitViewSet,
     InvItemCategoryViewSet,
     InvItemViewSet,
+    InvItemOptionsView,
     ProductFamilyViewSet,
     ProductFamilyLibraryViewSet,
     ProductViewSet,
@@ -18,6 +19,7 @@ from inventory.api_views import (
     ProductStepLibraryViewSet,
     ProductStepItemViewSet,
 )
+
 from vendors.api_views import (
     VendorViewSet,
     VendorItemViewSet,
@@ -135,5 +137,6 @@ urlpatterns = [
     path("api/login/", login_view),
     path("api/me/", me_view),
     path("api/csrf/", csrf_view),
+    path("api/inventory-item-options/", InvItemOptionsView.as_view()),
     path("api/", include(router.urls)),
 ]

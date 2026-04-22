@@ -4,6 +4,7 @@ from django.db.models import Sum
 from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.generics import ListAPIView
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from .models import (
@@ -22,6 +23,7 @@ from .serializers import (
     InvUnitSerializer,
     InvItemCategorySerializer,
     InvItemSerializer,
+    InvItemOptionSerializer,
     ProductFamilySerializer,
     ProductFamilyLibrarySerializer,
     ProductSerializer,
@@ -64,6 +66,21 @@ class InvItemViewSet(ModelViewSet):
 
         return queryset
 
+class InvItemOptionsView(ListAPIView):
+    serializer_class = InvItemOptionSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        queryset = InvItem.objects.select_related("category", "unit").filter(is_active=True)
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(name__icontains=search)
+                | models.Q(internal_code__icontains=search)
+            )
+
+        return queryset.order_by("name", "id")
 
 class ProductFamilyViewSet(ModelViewSet):
     queryset = ProductFamily.objects.filter(is_active=True)

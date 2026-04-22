@@ -53,6 +53,22 @@ class InvItemSerializer(serializers.ModelSerializer):
         ]
 
 
+class InvItemOptionSerializer(serializers.ModelSerializer):
+    category_name = serializers.CharField(source="category.name", read_only=True)
+    unit_symbol = serializers.CharField(source="unit.symbol", read_only=True)
+
+    class Meta:
+        model = InvItem
+        fields = [
+            "id",
+            "name",
+            "internal_code",
+            "category_name",
+            "unit_symbol",
+            "description",
+        ]
+
+
 class ProductFamilyLibrarySerializer(serializers.ModelSerializer):
     attachment_type_display = serializers.CharField(
         source="get_attachment_type_display",
