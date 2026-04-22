@@ -928,7 +928,7 @@ class TollingReceiptDocumentSerializer(serializers.ModelSerializer):
             "clear_image",
             "items",
         ]
-        read_only_fields = ("created_by", "created_at", "updated_at")
+        read_only_fields = ("receipt_no", "created_by", "created_at", "updated_at")
 
     def create(self, validated_data):
         validated_data.pop("clear_image", None)
@@ -1021,7 +1021,7 @@ class TollingOrderSerializer(serializers.ModelSerializer):
             "received_total_quantity",
             "is_completed",
         ]
-        read_only_fields = ("created_by", "created_at", "updated_at")
+        read_only_fields = ("order_no", "created_by", "created_at", "updated_at")
 
     def create(self, validated_data):
         validated_data.pop("clear_image", None)

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from django.db import models, transaction
@@ -139,6 +139,41 @@ def try_complete_tolling_order(order):
     ):
         order.status = TollingOrder.StatusChoices.COMPLETED
         order.save(update_fields=["status"])
+        
+def generate_tolling_order_no():
+    today = date.today()
+    prefix = today.strftime("%d%m%Y")
+
+    existing_numbers = TollingOrder.objects.filter(
+        created_at__date=today,
+        order_no__startswith=f"{prefix}_",
+    ).values_list("order_no", flat=True)
+
+    max_index = 0
+    for number in existing_numbers:
+        suffix = number.removeprefix(f"{prefix}_")
+        if suffix.isdigit():
+            max_index = max(max_index, int(suffix))
+
+    return f"{prefix}_{max_index + 1}"
+
+
+def generate_tolling_receipt_no(order):
+    base = order.order_no
+
+    existing_numbers = TollingReceiptDocument.objects.filter(
+        order=order,
+        receipt_no__startswith=f"{base}_r_",
+    ).values_list("receipt_no", flat=True)
+
+    max_index = 0
+    for number in existing_numbers:
+        suffix = number.removeprefix(f"{base}_r_")
+        if suffix.isdigit():
+            max_index = max(max_index, int(suffix))
+
+    return f"{base}_r_{max_index + 1}"
+
 class ExternalOrderViewSet(ModelViewSet):
     queryset = ExternalOrder.objects.select_related(
         "vendor",
@@ -803,7 +838,16 @@ class TollingOrderViewSet(ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        with transaction.atomic():
+            order_no = generate_tolling_order_no()
+
+            while TollingOrder.objects.filter(order_no=order_no).exists():
+                order_no = generate_tolling_order_no()
+
+            serializer.save(
+                order_no=order_no,
+                created_by=self.request.user,
+            )
 
     def perform_update(self, serializer):
         if serializer.instance.status == TollingOrder.StatusChoices.COMPLETED:
@@ -911,7 +955,17 @@ class TollingReceiptDocumentViewSet(ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        with transaction.atomic():
+            order = serializer.validated_data["order"]
+            receipt_no = generate_tolling_receipt_no(order)
+
+            while TollingReceiptDocument.objects.filter(receipt_no=receipt_no).exists():
+                receipt_no = generate_tolling_receipt_no(order)
+
+            serializer.save(
+                receipt_no=receipt_no,
+                created_by=self.request.user,
+            )
 
     def perform_update(self, serializer):
         instance = serializer.instance
