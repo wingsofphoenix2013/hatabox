@@ -745,7 +745,6 @@ class ExternalReceiptItemViewSet(ModelViewSet):
             instance.delete()
             try_complete_order(order)
 
-
 class TollingOrderViewSet(ModelViewSet):
     queryset = TollingOrder.objects.select_related(
         "organization",
@@ -780,6 +779,14 @@ class TollingOrderViewSet(ModelViewSet):
         if status:
             queryset = queryset.filter(status__in=status)
 
+        created_at_from = self.request.query_params.get("created_at_from")
+        if created_at_from:
+            queryset = queryset.filter(created_at__date__gte=created_at_from)
+
+        created_at_to = self.request.query_params.get("created_at_to")
+        if created_at_to:
+            queryset = queryset.filter(created_at__date__lte=created_at_to)
+
         search = self.request.query_params.get("search")
         if search:
             queryset = queryset.filter(
@@ -810,7 +817,6 @@ class TollingOrderViewSet(ModelViewSet):
                 pass
 
             try_complete_tolling_order(order)
-
 
 class TollingOrderItemViewSet(ModelViewSet):
     queryset = TollingOrderItem.objects.select_related(
