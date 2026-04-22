@@ -775,6 +775,10 @@ class TollingOrderViewSet(ModelViewSet):
         if organization:
             queryset = queryset.filter(organization_id__in=organization)
 
+        organization_type = self.request.query_params.get("organization_type")
+        if organization_type in ["military", "commercial", "charity"]:
+            queryset = queryset.filter(organization__type=organization_type)
+
         status = self.request.query_params.getlist("status")
         if status:
             queryset = queryset.filter(status__in=status)
