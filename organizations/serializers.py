@@ -14,6 +14,7 @@ class OrganizationListSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "name",
+            "type",
         ]
 
 
