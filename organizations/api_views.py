@@ -10,6 +10,7 @@ from .models import (
     CharityOrganization,
 )
 from .serializers import (
+    OrganizationListSerializer,
     OrganizationSerializer,
     CommercialOrganizationSerializer,
     MilitaryOrganizationSerializer,
@@ -21,6 +22,11 @@ class OrganizationViewSet(ModelViewSet):
     queryset = Organization.objects.order_by("name", "id")
     serializer_class = OrganizationSerializer
     permission_classes = [DjangoModelPermissions]
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return OrganizationListSerializer
+        return OrganizationSerializer
 
     def get_queryset(self):
         queryset = self.queryset

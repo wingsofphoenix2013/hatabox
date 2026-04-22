@@ -8,6 +8,15 @@ from .models import (
 )
 
 
+class OrganizationListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Organization
+        fields = [
+            "id",
+            "name",
+        ]
+
+
 class OrganizationSerializer(serializers.ModelSerializer):
     commercial_profile_id = serializers.IntegerField(
         source="commercial_profile.id",
@@ -35,7 +44,6 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "military_profile_id",
             "charity_profile_id",
         ]
-
 
 class CommercialOrganizationSerializer(serializers.ModelSerializer):
     organization_name = serializers.CharField(source="organization.name", read_only=True)
