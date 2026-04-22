@@ -22,6 +22,7 @@ class OrganizationViewSet(ModelViewSet):
     queryset = Organization.objects.order_by("name", "id")
     serializer_class = OrganizationSerializer
     permission_classes = [DjangoModelPermissions]
+    pagination_class = None
 
     def get_serializer_class(self):
         if self.action == "list":
