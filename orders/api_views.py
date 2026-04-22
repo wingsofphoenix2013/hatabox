@@ -751,7 +751,19 @@ class TollingOrderViewSet(ModelViewSet):
         "organization",
         "created_by",
     ).prefetch_related(
-        "items",
+        Prefetch(
+            "items",
+            queryset=TollingOrderItem.objects.select_related(
+                "inv_item",
+                "inv_item__category",
+                "inv_item__unit",
+            ).prefetch_related(
+                Prefetch(
+                    "receipt_items",
+                    queryset=TollingReceiptItem.objects.select_related("receipt_document"),
+                )
+            ),
+        )
     ).order_by("-created_at", "-id")
     serializer_class = TollingOrderSerializer
     permission_classes = [DjangoModelPermissions]
@@ -851,7 +863,15 @@ class TollingReceiptDocumentViewSet(ModelViewSet):
         "order__organization",
         "created_by",
     ).prefetch_related(
-        "items",
+        Prefetch(
+            "items",
+            queryset=TollingReceiptItem.objects.select_related(
+                "order_item",
+                "order_item__order",
+                "order_item__inv_item",
+                "order_item__inv_item__unit",
+            ),
+        )
     ).order_by("-created_at", "-id")
     serializer_class = TollingReceiptDocumentSerializer
     permission_classes = [DjangoModelPermissions]

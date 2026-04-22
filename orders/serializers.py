@@ -759,7 +759,10 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
         return (expected_delivery_date_min - date.today()).days
         
 class TollingOrderItemSerializer(serializers.ModelSerializer):
+    order_no = serializers.CharField(source="order.order_no", read_only=True)
+
     inv_item_name = serializers.CharField(source="inv_item.name", read_only=True)
+    inv_item_internal_code = serializers.CharField(source="inv_item.internal_code", read_only=True)
 
     received_quantity = serializers.SerializerMethodField()
     remaining_quantity = serializers.SerializerMethodField()
@@ -769,7 +772,9 @@ class TollingOrderItemSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "order",
+            "order_no",
             "inv_item",
+            "inv_item_internal_code",
             "inv_item_name",
             "quantity",
             "requires_unit_conversion",
@@ -783,17 +788,22 @@ class TollingOrderItemSerializer(serializers.ModelSerializer):
         for receipt_item in obj.receipt_items.all():
             if receipt_item.receipt_document.completed:
                 total += receipt_item.received_quantity
-        return total
+        return str(total)
 
     def get_remaining_quantity(self, obj):
-        return obj.quantity - self.get_received_quantity(obj)
+        remaining = obj.quantity - Decimal(self.get_received_quantity(obj))
+        return str(remaining)
 
     def validate(self, attrs):
         order = attrs.get("order")
+        inv_item = attrs.get("inv_item")
         requires_unit_conversion = attrs.get("requires_unit_conversion")
 
         if self.instance is not None:
             order = self.instance.order
+
+            if inv_item is None:
+                inv_item = self.instance.inv_item
 
             if requires_unit_conversion is None:
                 requires_unit_conversion = self.instance.requires_unit_conversion
@@ -812,6 +822,20 @@ class TollingOrderItemSerializer(serializers.ModelSerializer):
                     "Для давальницьких замовлень конвертація одиниць не використовується."
                 )
             })
+
+        if inv_item is not None:
+            duplicate_qs = TollingOrderItem.objects.filter(
+                order=order,
+                inv_item=inv_item,
+            )
+
+            if self.instance is not None:
+                duplicate_qs = duplicate_qs.exclude(pk=self.instance.pk)
+
+            if duplicate_qs.exists():
+                raise serializers.ValidationError({
+                    "inv_item": "Ця номенклатурна позиція вже існує в замовленні."
+                })
 
         return attrs
 
@@ -969,9 +993,11 @@ class TollingReceiptDocumentSerializer(serializers.ModelSerializer):
 
         return attrs
 
-
 class TollingOrderSerializer(serializers.ModelSerializer):
     clear_image = serializers.BooleanField(write_only=True, required=False, default=False)
+
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
+
     items = TollingOrderItemSerializer(many=True, read_only=True)
 
     received_total_quantity = serializers.SerializerMethodField()
@@ -983,6 +1009,7 @@ class TollingOrderSerializer(serializers.ModelSerializer):
             "id",
             "order_no",
             "organization",
+            "organization_name",
             "status",
             "created_by",
             "created_at",
@@ -1016,7 +1043,7 @@ class TollingOrderSerializer(serializers.ModelSerializer):
             for receipt_item in item.receipt_items.all():
                 if receipt_item.receipt_document.completed:
                     total += receipt_item.received_quantity
-        return total
+        return str(total)
 
     def get_is_completed(self, obj):
         if obj.status == TollingOrder.StatusChoices.COMPLETED:
