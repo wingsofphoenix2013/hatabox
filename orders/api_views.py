@@ -173,6 +173,86 @@ def generate_tolling_receipt_no(order):
             max_index = max(max_index, int(suffix))
 
     return f"{base}_r_{max_index + 1}"
+    
+def create_tolling_receipt_draft_from_order(order, created_by):
+    receipt_document = TollingReceiptDocument.objects.create(
+        receipt_no=generate_tolling_receipt_no(order),
+        order=order,
+        receipt_date=date.today(),
+        completed=False,
+        sent_to_warehouse=False,
+        created_by=created_by,
+        comment="Автоматично створено при переведенні замовлення в статус 'Активне'.",
+    )
+
+    receipt_items = [
+        TollingReceiptItem(
+            receipt_document=receipt_document,
+            order_item=order_item,
+            received_quantity=order_item.quantity,
+        )
+        for order_item in order.items.all()
+    ]
+
+    if receipt_items:
+        TollingReceiptItem.objects.bulk_create(receipt_items)
+
+    return receipt_document
+
+def validate_tolling_receipt_before_completion(receipt_document):
+    receipt_items = list(receipt_document.items.select_related("order_item"))
+
+    if not receipt_items:
+        raise ValidationError(
+            "Неможливо завершити документ приходу без рядків."
+        )
+
+    for receipt_item in receipt_items:
+        if receipt_item.received_quantity <= 0:
+            raise ValidationError(
+                "У завершеному документі приходу всі рядки повинні мати кількість більше 0."
+            )
+
+
+def create_next_tolling_receipt_draft_from_remainders(order, created_by):
+    remainder_items = []
+
+    order_items = list(order.items.all())
+
+    for order_item in order_items:
+        completed_received_quantity = Decimal("0.000")
+
+        for receipt_item in order_item.receipt_items.select_related("receipt_document"):
+            if receipt_item.receipt_document.completed:
+                completed_received_quantity += receipt_item.received_quantity
+
+        remaining_quantity = order_item.quantity - completed_received_quantity
+        if remaining_quantity > 0:
+            remainder_items.append((order_item, remaining_quantity))
+
+    if not remainder_items:
+        return None
+
+    receipt_document = TollingReceiptDocument.objects.create(
+        receipt_no=generate_tolling_receipt_no(order),
+        order=order,
+        receipt_date=date.today(),
+        completed=False,
+        sent_to_warehouse=False,
+        created_by=created_by,
+        comment="Автоматично створено на залишок після завершення попереднього документа приходу.",
+    )
+
+    TollingReceiptItem.objects.bulk_create([
+        TollingReceiptItem(
+            receipt_document=receipt_document,
+            order_item=order_item,
+            received_quantity=remaining_quantity,
+        )
+        for order_item, remaining_quantity in remainder_items
+    ])
+
+    return receipt_document
 
 class ExternalOrderViewSet(ModelViewSet):
     queryset = ExternalOrder.objects.select_related(
@@ -867,7 +947,25 @@ class TollingOrderViewSet(ModelViewSet):
                 old_status == TollingOrder.StatusChoices.DRAFT
                 and order.status == TollingOrder.StatusChoices.ACTIVE
             ):
-                pass
+                if not order.items.exists():
+                    raise ValidationError(
+                        "Неможливо перевести замовлення в статус 'Активне' без рядків."
+                    )
+
+                existing_draft_receipt = TollingReceiptDocument.objects.filter(
+                    order=order,
+                    completed=False,
+                ).exists()
+
+                if existing_draft_receipt:
+                    raise ValidationError(
+                        "Для цього замовлення вже існує незавершений документ приходу."
+                    )
+
+                create_tolling_receipt_draft_from_order(
+                    order=order,
+                    created_by=self.request.user,
+                )
 
             try_complete_tolling_order(order)
 
@@ -999,9 +1097,38 @@ class TollingReceiptDocumentViewSet(ModelViewSet):
                     "Після завершення можна змінювати лише передачу на склад, коментар або файл."
                 )
 
+        will_be_completed = (
+            not instance.completed
+            and serializer.validated_data.get("completed") is True
+        )
+
         with transaction.atomic():
+            if will_be_completed:
+                validate_tolling_receipt_before_completion(instance)
+
             receipt_document = serializer.save()
-            try_complete_tolling_order(receipt_document.order)
+            order = receipt_document.order
+
+            if will_be_completed:
+                try_complete_tolling_order(order)
+
+                if order.status != TollingOrder.StatusChoices.COMPLETED:
+                    existing_draft_receipt = TollingReceiptDocument.objects.filter(
+                        order=order,
+                        completed=False,
+                    ).exclude(id=receipt_document.id).exists()
+
+                    if existing_draft_receipt:
+                        raise ValidationError(
+                            "Для цього замовлення вже існує інший незавершений документ приходу."
+                        )
+
+                    create_next_tolling_receipt_draft_from_remainders(
+                        order=order,
+                        created_by=self.request.user,
+                    )
+            else:
+                try_complete_tolling_order(order)
 
 
 class TollingReceiptItemViewSet(ModelViewSet):
