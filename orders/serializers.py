@@ -816,8 +816,15 @@ class TollingOrderItemSerializer(serializers.ModelSerializer):
             return attrs
 
         if order.status != TollingOrder.StatusChoices.DRAFT:
+            if (
+                self.instance is not None
+                and order.status == TollingOrder.StatusChoices.ACTIVE
+                and set(attrs.keys()) == {"expected_delivery_date"}
+            ):
+                return attrs
+
             raise serializers.ValidationError(
-                "Після активації замовлення змінювати рядки заборонено."
+                "Після активації замовлення можна змінювати лише очікувану дату поставки."
             )
 
         if requires_unit_conversion:
