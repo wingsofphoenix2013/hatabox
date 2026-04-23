@@ -1013,6 +1013,9 @@ class TollingOrderSerializer(serializers.ModelSerializer):
 
     received_total_quantity = serializers.SerializerMethodField()
     is_completed = serializers.SerializerMethodField()
+    is_overdue = serializers.SerializerMethodField()
+    overdue_days = serializers.SerializerMethodField()
+    expected_days = serializers.SerializerMethodField()
 
     class Meta:
         model = TollingOrder
@@ -1031,6 +1034,9 @@ class TollingOrderSerializer(serializers.ModelSerializer):
             "items",
             "received_total_quantity",
             "is_completed",
+            "is_overdue",
+            "overdue_days",
+            "expected_days",
         ]
         read_only_fields = ("order_no", "created_by", "created_at", "updated_at")
 
@@ -1060,6 +1066,68 @@ class TollingOrderSerializer(serializers.ModelSerializer):
         if obj.status == TollingOrder.StatusChoices.COMPLETED:
             return True
         return False
+
+    def _get_tolling_overdue_data(self, obj):
+        if obj.status == TollingOrder.StatusChoices.COMPLETED:
+            return {
+                "is_overdue": False,
+                "overdue_days": None,
+                "expected_days": None,
+            }
+
+        today = date.today()
+        relevant_expected_delivery_date = None
+
+        items = getattr(obj, "prefetched_items", None)
+        if items is None:
+            items = obj.items.all()
+
+        for item in items:
+            received_quantity = Decimal("0.000")
+
+            receipt_items = getattr(item, "prefetched_receipt_items", None)
+            if receipt_items is None:
+                receipt_items = item.receipt_items.all()
+
+            for receipt_item in receipt_items:
+                if receipt_item.receipt_document.completed:
+                    received_quantity += receipt_item.received_quantity
+
+            if received_quantity < item.quantity and item.expected_delivery_date is not None:
+                if (
+                    relevant_expected_delivery_date is None
+                    or item.expected_delivery_date < relevant_expected_delivery_date
+                ):
+                    relevant_expected_delivery_date = item.expected_delivery_date
+
+        if relevant_expected_delivery_date is None:
+            return {
+                "is_overdue": False,
+                "overdue_days": None,
+                "expected_days": None,
+            }
+
+        if relevant_expected_delivery_date < today:
+            return {
+                "is_overdue": True,
+                "overdue_days": (today - relevant_expected_delivery_date).days,
+                "expected_days": None,
+            }
+
+        return {
+            "is_overdue": False,
+            "overdue_days": None,
+            "expected_days": (relevant_expected_delivery_date - today).days,
+        }
+
+    def get_is_overdue(self, obj):
+        return self._get_tolling_overdue_data(obj)["is_overdue"]
+
+    def get_overdue_days(self, obj):
+        return self._get_tolling_overdue_data(obj)["overdue_days"]
+
+    def get_expected_days(self, obj):
+        return self._get_tolling_overdue_data(obj)["expected_days"]
 
     def validate(self, attrs):
         status = attrs.get("status")

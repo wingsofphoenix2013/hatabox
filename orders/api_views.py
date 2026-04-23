@@ -875,8 +875,10 @@ class TollingOrderViewSet(ModelViewSet):
                 Prefetch(
                     "receipt_items",
                     queryset=TollingReceiptItem.objects.select_related("receipt_document"),
+                    to_attr="prefetched_receipt_items",
                 )
             ),
+            to_attr="prefetched_items",
         )
     ).order_by("-created_at", "-id")
     serializer_class = TollingOrderSerializer
