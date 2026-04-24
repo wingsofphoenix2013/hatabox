@@ -129,15 +129,23 @@ def build_stock_overview(
     procurement_pending_receipts = list(procurement_pending_receipts_queryset)
     tolling_pending_receipts = list(tolling_pending_receipts_queryset)
 
+    procurement_pending_intake_by_item: Dict[int, Decimal] = defaultdict(lambda: ZERO)
+    tolling_pending_intake_by_item: Dict[int, Decimal] = defaultdict(lambda: ZERO)
     pending_intake_by_item: Dict[int, Decimal] = defaultdict(lambda: ZERO)
 
     for receipt_item in procurement_pending_receipts:
         item_id = receipt_item.order_item.vendor_item.item_id
-        pending_intake_by_item[item_id] += _to_decimal(receipt_item.received_quantity)
+        quantity = _to_decimal(receipt_item.received_quantity)
+
+        procurement_pending_intake_by_item[item_id] += quantity
+        pending_intake_by_item[item_id] += quantity
 
     for receipt_item in tolling_pending_receipts:
         item_id = receipt_item.order_item.inv_item_id
-        pending_intake_by_item[item_id] += _to_decimal(receipt_item.received_quantity)
+        quantity = _to_decimal(receipt_item.received_quantity)
+
+        tolling_pending_intake_by_item[item_id] += quantity
+        pending_intake_by_item[item_id] += quantity
 
     procurement_completed_receipt_sums = ExternalReceiptItem.objects.filter(
         order_item__vendor_item__item_id__in=item_ids,
@@ -235,6 +243,8 @@ def build_stock_overview(
     results = []
     for item in items:
         available_quantity = available_by_item[item.id]
+        procurement_pending_intake_quantity = procurement_pending_intake_by_item[item.id]
+        tolling_pending_intake_quantity = tolling_pending_intake_by_item[item.id]
         pending_intake_quantity = pending_intake_by_item[item.id]
         incoming_quantity = incoming_by_item[item.id]
         item_locations = sorted(
@@ -242,6 +252,8 @@ def build_stock_overview(
             key=lambda x: (x["code"], x["id"]),
         )
 
+        row_has_procurement_pending_intake = procurement_pending_intake_quantity > ZERO
+        row_has_tolling_pending_intake = tolling_pending_intake_quantity > ZERO
         row_has_unconverted_pending_intake = item.id in unconverted_pending_intake_item_ids
         row_has_unconverted_incoming = item.id in unconverted_incoming_item_ids
 
@@ -270,7 +282,11 @@ def build_stock_overview(
             "inventory_item_unit_symbol": item.unit.symbol,
             "available_quantity": available_quantity,
             "pending_intake_quantity": pending_intake_quantity,
+            "procurement_pending_intake_quantity": procurement_pending_intake_quantity,
+            "tolling_pending_intake_quantity": tolling_pending_intake_quantity,
             "incoming_quantity": incoming_quantity,
+            "has_procurement_pending_intake": row_has_procurement_pending_intake,
+            "has_tolling_pending_intake": row_has_tolling_pending_intake,
             "has_unconverted_pending_intake": row_has_unconverted_pending_intake,
             "has_unconverted_incoming": row_has_unconverted_incoming,
             "locations": item_locations,

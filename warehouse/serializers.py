@@ -572,12 +572,24 @@ class WarehouseStockOverviewRowSerializer(serializers.Serializer):
         decimal_places=3,
         read_only=True,
     )
+    procurement_pending_intake_quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
+    tolling_pending_intake_quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
     incoming_quantity = serializers.DecimalField(
         max_digits=12,
         decimal_places=3,
         read_only=True,
     )
 
+    has_procurement_pending_intake = serializers.BooleanField(read_only=True)
+    has_tolling_pending_intake = serializers.BooleanField(read_only=True)
     has_unconverted_pending_intake = serializers.BooleanField(read_only=True)
     has_unconverted_incoming = serializers.BooleanField(read_only=True)
 
