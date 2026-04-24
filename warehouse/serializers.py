@@ -1,6 +1,11 @@
 from rest_framework import serializers
 from orders.models import ExternalReceiptItem, TollingReceiptItem
-from .models import WarehouseLocation, WarehouseStoragePlace, WarehouseUnit
+from .models import (
+    WarehouseLocation,
+    WarehouseReceiptItemConversion,
+    WarehouseStoragePlace,
+    WarehouseUnit,
+)
 from inventory.models import InvItem
 
 class WarehouseLocationSerializer(serializers.ModelSerializer):
@@ -407,6 +412,29 @@ class WarehouseAcceptPendingIntakeSerializer(serializers.Serializer):
     location = serializers.PrimaryKeyRelatedField(
         queryset=WarehouseLocation.objects.filter(is_active=True)
     )
+
+
+class WarehouseAcceptConvertedPendingIntakeSerializer(serializers.Serializer):
+    location = serializers.PrimaryKeyRelatedField(
+        queryset=WarehouseLocation.objects.filter(is_active=True)
+    )
+    target_quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+    )
+    comment = serializers.CharField(
+        required=False,
+        allow_blank=True,
+    )
+
+    def validate_target_quantity(self, value):
+        if value <= 0:
+            raise serializers.ValidationError(
+                "Кількість для складу повинна бути більше 0."
+            )
+
+        return value
+
 
 class WarehouseBulkAcceptPendingIntakeSerializer(serializers.Serializer):
     location = serializers.PrimaryKeyRelatedField(

@@ -253,6 +253,7 @@ class WarehouseStoragePlace(models.Model):
 class WarehouseUnitEvent(models.Model):
     class OperationType(models.TextChoices):
         INTAKE = "intake", "Первинна прийомка"
+        CONVERTED_INTAKE = "converted_intake", "Первинна прийомка з конвертацією"
         MOVE = "move", "Переміщення"
         SPLIT_MOVE = "split_move", "Переміщення з розділенням"
 
@@ -356,7 +357,10 @@ class WarehouseUnitEvent(models.Model):
                 "Потрібно вказати або to_location, або to_storage_place, але не обидва одночасно."
             )
 
-        if self.operation_type == self.OperationType.INTAKE:
+        if self.operation_type in [
+            self.OperationType.INTAKE,
+            self.OperationType.CONVERTED_INTAKE,
+        ]:
             if self.source_unit is not None:
                 raise ValidationError({
                     "source_unit": "Для первинної прийомки source_unit повинен бути порожнім."
@@ -534,5 +538,101 @@ class WarehouseUnit(models.Model):
                 )
 
     def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class WarehouseReceiptItemConversion(models.Model):
+    receipt_item = models.OneToOneField(
+        ExternalReceiptItem,
+        on_delete=models.PROTECT,
+        related_name="warehouse_conversion",
+        verbose_name="Рядок приходу",
+    )
+
+    source_quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        verbose_name="Кількість у документах постачальника",
+    )
+
+    target_quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        verbose_name="Кількість у складських одиницях",
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="warehouse_receipt_item_conversions",
+        verbose_name="Хто створив",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Створено",
+    )
+
+    comment = models.TextField(
+        blank=True,
+        verbose_name="Коментар",
+    )
+
+    class Meta:
+        db_table = "warehouse_receipt_item_conversions"
+        ordering = ["-created_at", "-id"]
+        verbose_name = "Конвертація рядка приходу"
+        verbose_name_plural = "Конвертації рядків приходу"
+
+    def __str__(self):
+        return f"{self.receipt_item} → {self.target_quantity}"
+
+    def clean(self):
+        super().clean()
+
+        if self.source_quantity <= 0:
+            raise ValidationError({
+                "source_quantity": "Кількість у документах повинна бути більше 0."
+            })
+
+        if self.target_quantity <= 0:
+            raise ValidationError({
+                "target_quantity": "Кількість для складу повинна бути більше 0."
+            })
+
+        if self.receipt_item_id:
+            order_item = self.receipt_item.order_item
+            receipt_document = self.receipt_item.receipt_document
+
+            if not order_item.requires_unit_conversion:
+                raise ValidationError(
+                    "Конвертація дозволена лише для рядків, які потребують конвертації одиниць."
+                )
+
+            if not receipt_document.completed:
+                raise ValidationError(
+                    "Конвертація дозволена лише для завершеного документа приходу."
+                )
+
+            if receipt_document.sent_to_warehouse:
+                raise ValidationError(
+                    "Неможливо створити конвертацію для документа, вже переданого на склад."
+                )
+
+            if self.source_quantity != self.receipt_item.received_quantity:
+                raise ValidationError({
+                    "source_quantity": "Кількість у документах повинна збігатися з кількістю рядка приходу."
+                })
+
+            if self.receipt_item.warehouse_units.filter(is_active=True).exists():
+                raise ValidationError(
+                    "Неможливо створити конвертацію для рядка, який вже оброблено складом."
+                )
+
+    def save(self, *args, **kwargs):
+        if self.receipt_item_id:
+            self.source_quantity = self.receipt_item.received_quantity
+
         self.full_clean()
         super().save(*args, **kwargs)

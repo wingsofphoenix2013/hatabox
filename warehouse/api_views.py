@@ -16,6 +16,7 @@ from inventory.models import InvItem
 
 from .models import (
     WarehouseLocation,
+    WarehouseReceiptItemConversion,
     WarehouseStoragePlace,
     WarehouseUnit,
     WarehouseUnitEvent,
@@ -30,6 +31,7 @@ from .serializers import (
     WarehousePendingIntakeItemSerializer,
     WarehouseTollingPendingIntakeItemSerializer,
     WarehouseAcceptPendingIntakeSerializer,
+    WarehouseAcceptConvertedPendingIntakeSerializer,
     WarehouseBulkAcceptPendingIntakeSerializer,
     WarehouseDebugPlanMoveSerializer,
     WarehouseDebugExecuteMoveSerializer,
@@ -775,6 +777,110 @@ class WarehousePendingIntakeItemViewSet(ReadOnlyModelViewSet):
 
         return Response({
             "status": "ok",
+            "created_units": len(units_to_create),
+            "location_id": location.id,
+            "receipt_item_id": receipt_item.id,
+            "receipt_document_id": receipt_document.id,
+            "sent_to_warehouse": receipt_document.sent_to_warehouse,
+        })
+        
+    @action(detail=True, methods=["post"], url_path="accept-with-conversion")
+    def accept_with_conversion(self, request, pk=None):
+        receipt_item = self.get_object()
+        serializer = WarehouseAcceptConvertedPendingIntakeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        location = serializer.validated_data["location"]
+        target_quantity = serializer.validated_data["target_quantity"]
+        comment = serializer.validated_data.get("comment", "")
+
+        receipt_document = receipt_item.receipt_document
+        order_item = receipt_item.order_item
+
+        if not receipt_document.completed:
+            raise ValidationError("Документ приходу повинен бути завершеним.")
+
+        if receipt_document.sent_to_warehouse:
+            raise ValidationError("Документ приходу вже передано на склад.")
+
+        if not order_item.requires_unit_conversion:
+            raise ValidationError(
+                "Цей рядок не потребує конвертації одиниць."
+            )
+
+        existing_units = WarehouseUnit.objects.filter(
+            source_receipt_item=receipt_item,
+            is_active=True,
+        )
+        if existing_units.exists():
+            raise ValidationError("Цей рядок приходу вже оброблено складом.")
+
+        with transaction.atomic():
+            conversion = WarehouseReceiptItemConversion.objects.create(
+                receipt_item=receipt_item,
+                source_quantity=receipt_item.received_quantity,
+                target_quantity=target_quantity,
+                comment=comment,
+                created_by=request.user if request.user.is_authenticated else None,
+            )
+
+            whole_units = int(target_quantity)
+            fractional_part = target_quantity - Decimal(whole_units)
+
+            units_to_create = []
+
+            for _ in range(whole_units):
+                units_to_create.append(
+                    WarehouseUnit(
+                        inventory_item=order_item.vendor_item.item,
+                        location=location,
+                        quantity=Decimal("1.000"),
+                        source_receipt_item=receipt_item,
+                        source_order_item=order_item,
+                    )
+                )
+
+            if fractional_part > 0:
+                units_to_create.append(
+                    WarehouseUnit(
+                        inventory_item=order_item.vendor_item.item,
+                        location=location,
+                        quantity=fractional_part,
+                        source_receipt_item=receipt_item,
+                        source_order_item=order_item,
+                    )
+                )
+
+            created_units = WarehouseUnit.objects.bulk_create(units_to_create)
+
+            WarehouseUnitEvent.objects.bulk_create([
+                WarehouseUnitEvent(
+                    operation_type=WarehouseUnitEvent.OperationType.CONVERTED_INTAKE,
+                    source_unit=None,
+                    result_unit=unit,
+                    quantity=unit.quantity,
+                    from_location=None,
+                    from_storage_place=None,
+                    to_location=unit.location,
+                    to_storage_place=unit.storage_place,
+                    created_by=request.user if request.user.is_authenticated else None,
+                )
+                for unit in created_units
+            ])
+
+            remaining_items = ExternalReceiptItem.objects.filter(
+                receipt_document=receipt_document,
+            ).exclude(
+                warehouse_units__is_active=True,
+            ).distinct()
+
+            if not remaining_items.exists():
+                receipt_document.sent_to_warehouse = True
+                receipt_document.save(update_fields=["sent_to_warehouse"])
+
+        return Response({
+            "status": "ok",
+            "conversion_id": conversion.id,
             "created_units": len(units_to_create),
             "location_id": location.id,
             "receipt_item_id": receipt_item.id,
