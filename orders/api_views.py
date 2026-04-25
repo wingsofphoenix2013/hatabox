@@ -50,6 +50,7 @@ from .serializers import (
 
 VAT_RATE = Decimal("0.20")
 VAT_DIVISOR = Decimal("1.20")
+PAYMENT_COMPLETION_TOLERANCE = Decimal("0.01")
 
 
 def recalculate_order_vat_amount(order):
@@ -95,7 +96,7 @@ def try_complete_order(order):
     receipt_percent = 0
 
     if order_total_amount > 0:
-        if paid_amount >= order_total_amount:
+        if paid_amount + PAYMENT_COMPLETION_TOLERANCE >= order_total_amount:
             payment_percent = 100
         else:
             payment_percent = round((paid_amount / order_total_amount) * 100)
@@ -377,9 +378,14 @@ class ExternalOrderViewSet(ModelViewSet):
                 output_field=DecimalField(max_digits=18, decimal_places=4),
             ),
         ).annotate(
+            payment_completion_threshold=ExpressionWrapper(
+                F("order_total_amount") - Value(PAYMENT_COMPLETION_TOLERANCE),
+                output_field=DecimalField(max_digits=18, decimal_places=4),
+            ),
+        ).annotate(
             payment_percent=Case(
                 When(order_total_amount__lte=0, then=Value(0)),
-                When(paid_amount__gte=F("order_total_amount"), then=Value(100)),
+                When(paid_amount__gte=F("payment_completion_threshold"), then=Value(100)),
                 default=Cast(
                     Least(
                         Value(99),

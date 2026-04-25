@@ -3,6 +3,8 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
+PAYMENT_COMPLETION_TOLERANCE = Decimal("0.01")
+
 from .models import (
     ExternalOrder,
     ExternalOrderItem,
@@ -619,7 +621,12 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
         return total
 
     def get_remaining_amount(self, obj):
-        return self.get_order_total_amount(obj) - self.get_paid_amount(obj)
+        remaining_amount = self.get_order_total_amount(obj) - self.get_paid_amount(obj)
+
+        if abs(remaining_amount) <= PAYMENT_COMPLETION_TOLERANCE:
+            return Decimal("0.00")
+
+        return remaining_amount
 
     def get_payment_percent(self, obj):
         annotated = self._get_annotated_value(obj, "payment_percent")
@@ -632,7 +639,7 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
         if order_total_amount <= 0:
             return 0
 
-        if paid_amount >= order_total_amount:
+        if paid_amount + PAYMENT_COMPLETION_TOLERANCE >= order_total_amount:
             return 100
 
         percent = round((paid_amount / order_total_amount) * 100)
