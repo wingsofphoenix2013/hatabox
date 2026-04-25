@@ -64,9 +64,12 @@ def accept_tolling_receipt_item_to_location(
                 )
             )
 
+        for unit in units_to_create:
+            unit.full_clean()
+
         created_units = WarehouseUnit.objects.bulk_create(units_to_create)
 
-        WarehouseUnitEvent.objects.bulk_create([
+        events_to_create = [
             WarehouseUnitEvent(
                 operation_type=WarehouseUnitEvent.OperationType.INTAKE,
                 source_unit=None,
@@ -79,7 +82,12 @@ def accept_tolling_receipt_item_to_location(
                 created_by=created_by,
             )
             for unit in created_units
-        ])
+        ]
+
+        for event in events_to_create:
+            event.full_clean()
+
+        WarehouseUnitEvent.objects.bulk_create(events_to_create)
 
         mark_tolling_receipt_document_sent_if_fully_processed(receipt_document)
 
@@ -179,9 +187,12 @@ def bulk_accept_tolling_receipt_items_to_location(
             )
 
     with transaction.atomic():
+        for unit in units_to_create:
+            unit.full_clean()
+
         created_units = WarehouseUnit.objects.bulk_create(units_to_create)
 
-        WarehouseUnitEvent.objects.bulk_create([
+        events_to_create = [
             WarehouseUnitEvent(
                 operation_type=WarehouseUnitEvent.OperationType.INTAKE,
                 source_unit=None,
@@ -194,7 +205,12 @@ def bulk_accept_tolling_receipt_items_to_location(
                 created_by=created_by,
             )
             for unit in created_units
-        ])
+        ]
+
+        for event in events_to_create:
+            event.full_clean()
+
+        WarehouseUnitEvent.objects.bulk_create(events_to_create)
 
         for receipt_document_id in affected_receipt_document_ids:
             mark_tolling_receipt_document_sent_by_id_if_fully_processed(
