@@ -3,8 +3,11 @@ from decimal import Decimal
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
 
-from orders.models import TollingReceiptItem
 from warehouse.models import WarehouseUnit, WarehouseUnitEvent
+from warehouse.services.intake_marking import (
+    mark_tolling_receipt_document_sent_by_id_if_fully_processed,
+    mark_tolling_receipt_document_sent_if_fully_processed,
+)
 
 def accept_tolling_receipt_item_to_location(
     *,
@@ -78,15 +81,7 @@ def accept_tolling_receipt_item_to_location(
             for unit in created_units
         ])
 
-        remaining_items = TollingReceiptItem.objects.filter(
-            receipt_document=receipt_document,
-        ).exclude(
-            warehouse_units__is_active=True,
-        ).distinct()
-
-        if not remaining_items.exists():
-            receipt_document.sent_to_warehouse = True
-            receipt_document.save(update_fields=["sent_to_warehouse"])
+        mark_tolling_receipt_document_sent_if_fully_processed(receipt_document)
 
     return {
         "status": "ok",
@@ -202,18 +197,9 @@ def bulk_accept_tolling_receipt_items_to_location(
         ])
 
         for receipt_document_id in affected_receipt_document_ids:
-            remaining_items = TollingReceiptItem.objects.filter(
-                receipt_document_id=receipt_document_id,
-            ).exclude(
-                warehouse_units__is_active=True,
-            ).distinct()
-
-            if not remaining_items.exists():
-                TollingReceiptItem.objects.filter(
-                    receipt_document_id=receipt_document_id
-                ).first().receipt_document.__class__.objects.filter(
-                    id=receipt_document_id
-                ).update(sent_to_warehouse=True)
+            mark_tolling_receipt_document_sent_by_id_if_fully_processed(
+                receipt_document_id
+            )
 
     return {
         "status": "ok",
