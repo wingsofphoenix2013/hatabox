@@ -21,7 +21,7 @@ from .models import (
     WarehouseUnit,
     WarehouseUnitEvent,
 )
-from .services.movement import plan_move, execute_move, execute_bulk_move
+from .services.movement import execute_move, execute_bulk_move
 from .services.stock_overview import build_stock_overview
 from .services.stock_detail import build_stock_detail
 from .serializers import (
@@ -33,9 +33,6 @@ from .serializers import (
     WarehouseAcceptPendingIntakeSerializer,
     WarehouseAcceptConvertedPendingIntakeSerializer,
     WarehouseBulkAcceptPendingIntakeSerializer,
-    WarehouseDebugPlanMoveSerializer,
-    WarehouseDebugExecuteMoveSerializer,
-    WarehouseDebugExecuteBulkMoveSerializer,
     WarehouseMoveSerializer,
     WarehouseBulkMoveSerializer,
     WarehouseStockOverviewRowSerializer,
@@ -444,177 +441,6 @@ class WarehouseUnitViewSet(ModelViewSet):
                 for unit in execution_result.moved_units
             ],
         })
-
-    @action(detail=False, methods=["get", "post"], url_path="debug-plan-move")
-    def debug_plan_move(self, request):
-        input_data = request.query_params if request.method == "GET" else request.data
-
-        serializer = WarehouseDebugPlanMoveSerializer(data=input_data)
-        serializer.is_valid(raise_exception=True)
-
-        inventory_item = serializer.validated_data["inventory_item"]
-        quantity = serializer.validated_data["quantity"]
-
-        move_plan = plan_move(
-            inventory_item=inventory_item,
-            quantity=quantity,
-        )
-
-        return Response({
-            "inventory_item_id": move_plan.inventory_item_id,
-            "requested_quantity": str(move_plan.requested_quantity),
-            "requires_split": move_plan.requires_split,
-            "full_units": [
-                {
-                    "id": unit.id,
-                    "quantity": str(unit.quantity),
-                    "location_id": unit.location_id,
-                    "storage_place_id": unit.storage_place_id,
-                }
-                for unit in move_plan.full_units
-            ],
-            "split_source_unit": (
-                {
-                    "id": move_plan.split_source_unit.id,
-                    "quantity": str(move_plan.split_source_unit.quantity),
-                    "location_id": move_plan.split_source_unit.location_id,
-                    "storage_place_id": move_plan.split_source_unit.storage_place_id,
-                }
-                if move_plan.split_source_unit is not None
-                else None
-            ),
-            "split_move_quantity": (
-                str(move_plan.split_move_quantity)
-                if move_plan.split_move_quantity is not None
-                else None
-            ),
-            "split_remainder_quantity": (
-                str(move_plan.split_remainder_quantity)
-                if move_plan.split_remainder_quantity is not None
-                else None
-            ),
-        })
-
-    @action(detail=False, methods=["get", "post"], url_path="debug-execute-move")
-    def debug_execute_move(self, request):
-        try:
-            input_data = request.query_params if request.method == "GET" else request.data
-
-            serializer = WarehouseDebugExecuteMoveSerializer(data=input_data)
-            serializer.is_valid(raise_exception=True)
-
-            inventory_item = serializer.validated_data["inventory_item"]
-            quantity = serializer.validated_data["quantity"]
-            target_location = serializer.validated_data.get("target_location")
-            target_storage_place = serializer.validated_data.get("target_storage_place")
-
-            execution_result = execute_move(
-                inventory_item=inventory_item,
-                quantity=quantity,
-                target_location=target_location,
-                target_storage_place=target_storage_place,
-                created_by=request.user if request.user.is_authenticated else None,
-            )
-
-            return Response({
-                "inventory_item_id": execution_result.move_plan.inventory_item_id,
-                "requested_quantity": str(execution_result.move_plan.requested_quantity),
-                "requires_split": execution_result.move_plan.requires_split,
-                "destination": {
-                    "location_id": target_location.id if target_location is not None else None,
-                    "storage_place_id": (
-                        target_storage_place.id
-                        if target_storage_place is not None
-                        else None
-                    ),
-                },
-                "moved_units": [
-                    {
-                        "id": unit.id,
-                        "quantity": str(unit.quantity),
-                        "location_id": unit.location_id,
-                        "storage_place_id": unit.storage_place_id,
-                    }
-                    for unit in execution_result.moved_units
-                ],
-                "created_unit": (
-                    {
-                        "id": execution_result.created_unit.id,
-                        "quantity": str(execution_result.created_unit.quantity),
-                        "location_id": execution_result.created_unit.location_id,
-                        "storage_place_id": execution_result.created_unit.storage_place_id,
-                    }
-                    if execution_result.created_unit is not None
-                    else None
-                ),
-                "split_source_unit": (
-                    {
-                        "id": execution_result.split_source_unit.id,
-                        "quantity": str(execution_result.split_source_unit.quantity),
-                        "location_id": execution_result.split_source_unit.location_id,
-                        "storage_place_id": execution_result.split_source_unit.storage_place_id,
-                    }
-                    if execution_result.split_source_unit is not None
-                    else None
-                ),
-            })
-        except Exception as exc:
-            return Response(
-                {
-                    "error_type": exc.__class__.__name__,
-                    "error": str(exc),
-                    "traceback": traceback.format_exc(),
-                },
-                status=500,
-            )
-
-    @action(detail=False, methods=["get", "post"], url_path="debug-execute-bulk-move")
-    def debug_execute_bulk_move(self, request):
-        try:
-            input_data = request.query_params if request.method == "GET" else request.data
-
-            serializer = WarehouseDebugExecuteBulkMoveSerializer(data=input_data)
-            serializer.is_valid(raise_exception=True)
-
-            unit_ids = serializer.validated_data["unit_ids"]
-            target_location = serializer.validated_data.get("target_location")
-            target_storage_place = serializer.validated_data.get("target_storage_place")
-
-            execution_result = execute_bulk_move(
-                unit_ids=unit_ids,
-                target_location=target_location,
-                target_storage_place=target_storage_place,
-                created_by=request.user if request.user.is_authenticated else None,
-            )
-
-            return Response({
-                "destination": {
-                    "location_id": target_location.id if target_location is not None else None,
-                    "storage_place_id": (
-                        target_storage_place.id
-                        if target_storage_place is not None
-                        else None
-                    ),
-                },
-                "moved_units": [
-                    {
-                        "id": unit.id,
-                        "quantity": str(unit.quantity),
-                        "location_id": unit.location_id,
-                        "storage_place_id": unit.storage_place_id,
-                    }
-                    for unit in execution_result.moved_units
-                ],
-            })
-        except Exception as exc:
-            return Response(
-                {
-                    "error_type": exc.__class__.__name__,
-                    "error": str(exc),
-                    "traceback": traceback.format_exc(),
-                },
-                status=500,
-            )
 
 class WarehousePendingIntakeItemViewSet(ReadOnlyModelViewSet):
     queryset = ExternalReceiptItem.objects.select_related(
