@@ -13,6 +13,13 @@ from .movement import (
     WarehouseMoveSerializer,
     WarehouseBulkMoveSerializer,
 )
+
+from .movement_plan import (
+    MovementPlanSerializer,
+    MovementPlanItemSerializer,
+    CreateMovementPlanSerializer,
+    AddItemsToMovementPlanSerializer,
+)
 from .stock import (
     WarehouseStockOverviewLocationSerializer,
     WarehouseStockOverviewRowSerializer,

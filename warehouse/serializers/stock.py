@@ -23,6 +23,11 @@ class WarehouseStockOverviewRowSerializer(serializers.Serializer):
         decimal_places=3,
         read_only=True,
     )
+    reserved_quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
     pending_intake_quantity = serializers.DecimalField(
         max_digits=12,
         decimal_places=3,
@@ -103,6 +108,11 @@ class WarehouseStockDetailLocationSerializer(serializers.Serializer):
 
 class WarehouseStockDetailSummarySerializer(serializers.Serializer):
     total_available_quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
+    reserved_quantity = serializers.DecimalField(
         max_digits=12,
         decimal_places=3,
         read_only=True,

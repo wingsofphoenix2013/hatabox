@@ -46,6 +46,7 @@ from warehouse.api_views import (
     WarehouseTollingPendingIntakeItemViewSet,
     WarehouseStockOverviewViewSet,
     WarehouseStockDetailViewSet,
+    MovementPlanViewSet,
 )
 
 from reference.api_views import (
@@ -106,6 +107,7 @@ router.register("charity-organizations", CharityOrganizationViewSet)
 router.register("warehouse-locations", WarehouseLocationViewSet)
 router.register("warehouse-storage-places", WarehouseStoragePlaceViewSet)
 router.register("warehouse-units", WarehouseUnitViewSet)
+router.register("movement-plans", MovementPlanViewSet)
 router.register(
     "warehouse-pending-intake-items",
     WarehousePendingIntakeItemViewSet,

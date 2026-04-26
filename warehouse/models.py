@@ -474,6 +474,17 @@ class WarehouseUnit(models.Model):
     def clean(self):
         super().clean()
 
+        if self.pk:
+            from warehouse.models import MovementPlanItem
+
+            if MovementPlanItem.objects.filter(
+                warehouse_unit_id=self.pk,
+                plan__status=MovementPlan.Status.ACTIVE,
+            ).exists():
+                raise ValidationError(
+                    "Неможливо змінювати складську одиницю, яка зарезервована в активному плані переміщення."
+                )
+
         if (self.location is None) == (self.storage_place is None):
             raise ValidationError(
                 "Потрібно вказати або локацію, або місце зберігання, але не обидва одночасно."
@@ -636,3 +647,104 @@ class WarehouseReceiptItemConversion(models.Model):
 
         self.full_clean()
         super().save(*args, **kwargs)
+
+
+class MovementPlan(models.Model):
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Чернетка"
+        ACTIVE = "active", "Активний"
+        EXECUTED = "executed", "Виконаний"
+        CANCELLED = "cancelled", "Скасований"
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.DRAFT,
+    )
+
+    target_location = models.ForeignKey(
+        WarehouseLocation,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="movement_plans",
+    )
+
+    target_storage_place = models.ForeignKey(
+        WarehouseStoragePlace,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="movement_plans",
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="movement_plans",
+        null=True,
+        blank=True,
+    )
+
+    planned_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "warehouse_movement_plans"
+
+    def clean(self):
+        if (self.target_location is None) == (self.target_storage_place is None):
+            raise ValidationError(
+                "Потрібно вказати або target_location, або target_storage_place, але не обидва одночасно."
+            )
+
+
+class MovementPlanItem(models.Model):
+    plan = models.ForeignKey(
+        MovementPlan,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+
+    warehouse_unit = models.ForeignKey(
+        WarehouseUnit,
+        on_delete=models.PROTECT,
+        related_name="movement_plan_items",
+    )
+
+    reserved_quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+    )
+
+    move_quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        null=True,
+        blank=True,
+    )
+
+    remainder_quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        null=True,
+        blank=True,
+    )
+
+    requires_split = models.BooleanField(default=False)
+
+    is_reserved = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "warehouse_movement_plan_items"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["warehouse_unit"],
+                condition=models.Q(is_reserved=True),
+                name="uq_reserved_movement_plan_unit",
+            )
+        ]

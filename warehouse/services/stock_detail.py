@@ -12,7 +12,7 @@ from orders.models import (
     TollingOrderItem,
     TollingReceiptItem,
 )
-from warehouse.models import WarehouseUnit
+from warehouse.models import WarehouseUnit, MovementPlanItem, MovementPlan
 
 
 ZERO = Decimal("0.000")
@@ -52,8 +52,15 @@ def _build_header(item: InvItem) -> dict:
 
 
 def _build_stock_rows(item_id: int) -> List[dict]:
-    units = list(
-        WarehouseUnit.objects.select_related(
+    reserved_unit_ids = set(
+        MovementPlanItem.objects.filter(
+            plan__status=MovementPlan.Status.ACTIVE
+        ).values_list("warehouse_unit_id", flat=True)
+    )
+
+    units = [
+        unit
+        for unit in WarehouseUnit.objects.select_related(
             "location",
             "storage_place",
             "storage_place__location",
@@ -61,7 +68,8 @@ def _build_stock_rows(item_id: int) -> List[dict]:
             inventory_item_id=item_id,
             is_active=True,
         )
-    )
+        if unit.id not in reserved_unit_ids
+    ]
 
     grouped: Dict[tuple, Decimal] = defaultdict(lambda: ZERO)
     placement_meta: Dict[tuple, dict] = {}
@@ -112,6 +120,19 @@ def _build_stock_rows(item_id: int) -> List[dict]:
         )
     )
     return rows
+
+
+def _build_reserved_quantity(item_id: int) -> Decimal:
+    reserved_units = WarehouseUnit.objects.filter(
+        inventory_item_id=item_id,
+        is_active=True,
+        movement_plan_items__plan__status=MovementPlan.Status.ACTIVE,
+    )
+
+    return sum(
+        (_to_decimal(unit.quantity) for unit in reserved_units),
+        ZERO,
+    )
 
 
 def _build_pending_intake_rows(item_id: int) -> List[dict]:
@@ -316,6 +337,7 @@ def build_stock_detail(inventory_item_id: int) -> dict:
     ).get(pk=inventory_item_id)
 
     stock_rows = _build_stock_rows(item.id)
+    reserved_quantity = _build_reserved_quantity(item.id)
     pending_intake_rows = _build_pending_intake_rows(item.id)
     incoming_rows = _build_incoming_rows(item.id)
 
@@ -357,6 +379,7 @@ def build_stock_detail(inventory_item_id: int) -> dict:
         "header": _build_header(item),
         "summary": {
             "total_available_quantity": total_available_quantity,
+            "reserved_quantity": reserved_quantity,
             "total_pending_intake_quantity": total_pending_intake_quantity,
             "total_incoming_quantity": total_incoming_quantity,
             "has_unconverted_pending_intake": has_unconverted_pending_intake,

@@ -12,7 +12,7 @@ from orders.models import (
     TollingOrderItem,
     TollingReceiptItem,
 )
-from warehouse.models import WarehouseUnit
+from warehouse.models import WarehouseUnit, MovementPlanItem, MovementPlan
 
 
 ZERO = Decimal("0.000")
@@ -85,9 +85,26 @@ def build_stock_overview(
             | Q(storage_place__location_id__in=location_ids)
         )
 
-    available_units = list(available_units_queryset)
+    reserved_unit_ids = set(
+        MovementPlanItem.objects.filter(
+            plan__status=MovementPlan.Status.ACTIVE
+        ).values_list("warehouse_unit_id", flat=True)
+    )
+
+    available_units = [
+        unit
+        for unit in available_units_queryset
+        if unit.id not in reserved_unit_ids
+    ]
+
+    reserved_units = [
+        unit
+        for unit in available_units_queryset
+        if unit.id in reserved_unit_ids
+    ]
 
     available_by_item: Dict[int, Decimal] = defaultdict(lambda: ZERO)
+    reserved_by_item: Dict[int, Decimal] = defaultdict(lambda: ZERO)
     locations_by_item: Dict[int, dict] = defaultdict(dict)
 
     for unit in available_units:
@@ -99,6 +116,9 @@ def build_stock_overview(
 
         if location is not None:
             locations_by_item[unit.inventory_item_id][location.id] = _serialize_location(location)
+
+    for unit in reserved_units:
+        reserved_by_item[unit.inventory_item_id] += _to_decimal(unit.quantity)
 
     procurement_pending_receipts_queryset = ExternalReceiptItem.objects.select_related(
         "receipt_document",
@@ -243,6 +263,7 @@ def build_stock_overview(
     results = []
     for item in items:
         available_quantity = available_by_item[item.id]
+        reserved_quantity = reserved_by_item[item.id]
         procurement_pending_intake_quantity = procurement_pending_intake_by_item[item.id]
         tolling_pending_intake_quantity = tolling_pending_intake_by_item[item.id]
         pending_intake_quantity = pending_intake_by_item[item.id]
@@ -281,6 +302,7 @@ def build_stock_overview(
             "inventory_item_unit_name": item.unit.name,
             "inventory_item_unit_symbol": item.unit.symbol,
             "available_quantity": available_quantity,
+            "reserved_quantity": reserved_quantity,
             "pending_intake_quantity": pending_intake_quantity,
             "procurement_pending_intake_quantity": procurement_pending_intake_quantity,
             "tolling_pending_intake_quantity": tolling_pending_intake_quantity,
