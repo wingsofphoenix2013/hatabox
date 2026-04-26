@@ -58,41 +58,41 @@ def accept_procurement_receipt_item_to_location(
                 )
             )
 
-            if fractional_part > 0:
-                units_to_create.append(
-                    WarehouseUnit(
-                        inventory_item=order_item.vendor_item.item,
-                        location=location,
-                        quantity=fractional_part,
-                        source_receipt_item=receipt_item,
-                        source_order_item=order_item,
-                    )
+        if fractional_part > 0:
+            units_to_create.append(
+                WarehouseUnit(
+                    inventory_item=order_item.vendor_item.item,
+                    location=location,
+                    quantity=fractional_part,
+                    source_receipt_item=receipt_item,
+                    source_order_item=order_item,
                 )
+            )
 
-            for unit in units_to_create:
-                unit.full_clean()
+        for unit in units_to_create:
+            unit.full_clean()
 
-            created_units = WarehouseUnit.objects.bulk_create(units_to_create)
+        created_units = WarehouseUnit.objects.bulk_create(units_to_create)
 
-            events_to_create = [
-                WarehouseUnitEvent(
-                    operation_type=WarehouseUnitEvent.OperationType.INTAKE,
-                    source_unit=None,
-                    result_unit=unit,
-                    quantity=unit.quantity,
-                    from_location=None,
-                    from_storage_place=None,
-                    to_location=unit.location,
-                    to_storage_place=unit.storage_place,
-                    created_by=created_by,
-                )
-                for unit in created_units
-            ]
+        events_to_create = [
+            WarehouseUnitEvent(
+                operation_type=WarehouseUnitEvent.OperationType.INTAKE,
+                source_unit=None,
+                result_unit=unit,
+                quantity=unit.quantity,
+                from_location=None,
+                from_storage_place=None,
+                to_location=unit.location,
+                to_storage_place=unit.storage_place,
+                created_by=created_by,
+            )
+            for unit in created_units
+        ]
 
-            for event in events_to_create:
-                event.full_clean()
+        for event in events_to_create:
+            event.full_clean()
 
-            WarehouseUnitEvent.objects.bulk_create(events_to_create)
+        WarehouseUnitEvent.objects.bulk_create(events_to_create)
 
         mark_external_receipt_document_sent_if_fully_processed(receipt_document)
 
