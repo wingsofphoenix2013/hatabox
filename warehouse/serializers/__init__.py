@@ -9,10 +9,6 @@ from .intake import (
     WarehouseBulkAcceptPendingIntakeSerializer,
     WarehousePendingIntakeStatusSerializer,
 )
-from .movement import (
-    WarehouseMoveSerializer,
-    WarehouseBulkMoveSerializer,
-)
 
 from .movement_plan import (
     MovementPlanSerializer,

@@ -78,16 +78,50 @@ def add_items_to_plan(
         if move_plan.requires_split:
             units_to_reserve.append(move_plan.split_source_unit)
 
+        # запрет: unit уже в destination
+        same_destination_ids = [
+            unit.id
+            for unit in units_to_reserve
+            if (
+                plan.target_location is not None
+                and unit.location_id == plan.target_location.id
+                and unit.storage_place_id is None
+            ) or (
+                plan.target_storage_place is not None
+                and unit.storage_place_id == plan.target_storage_place.id
+                and unit.location_id is None
+            )
+        ]
+
+        if same_destination_ids:
+            raise ValidationError(
+                f"Неможливо додати складські одиниці, які вже знаходяться у місці призначення: {same_destination_ids}"
+            )
+
+        # запрет: уже зарезервированы (в любом active плане)
         already_reserved_ids = list(
             MovementPlanItem.objects.filter(
                 warehouse_unit__in=units_to_reserve,
-                plan__status=MovementPlan.Status.ACTIVE,
+                is_reserved=True,
             ).values_list("warehouse_unit_id", flat=True)
         )
 
         if already_reserved_ids:
             raise ValidationError(
-                f"Деякі складські одиниці вже зарезервовані в іншому активному плані: {already_reserved_ids}"
+                f"Деякі складські одиниці вже зарезервовані: {already_reserved_ids}"
+            )
+
+        # запрет: уже есть в текущем плане
+        existing_in_plan_ids = list(
+            MovementPlanItem.objects.filter(
+                plan=plan,
+                warehouse_unit__in=units_to_reserve,
+            ).values_list("warehouse_unit_id", flat=True)
+        )
+
+        if existing_in_plan_ids:
+            raise ValidationError(
+                f"Деякі складські одиниці вже додані до цього плану: {existing_in_plan_ids}"
             )
 
         for unit in move_plan.full_units:

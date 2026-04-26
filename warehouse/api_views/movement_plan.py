@@ -18,6 +18,8 @@ from warehouse.services.movement_plan import (
 
 
 class MovementPlanViewSet(ModelViewSet):
+    http_method_names = ["get", "post", "head", "options"]
+
     queryset = MovementPlan.objects.select_related(
         "target_location",
         "target_storage_place",
