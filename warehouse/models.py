@@ -182,6 +182,22 @@ class WarehouseStoragePlace(models.Model):
             parts.append(self.code)
 
         return "-".join(parts)
+
+    def get_display_name_verbose(self):
+        chain = []
+        current = self
+
+        while current is not None:
+            chain.append(f"{current.get_place_type_display()} {current.code}")
+            current = current.parent
+
+        chain.reverse()
+        result = ", ".join(chain)
+
+        if self.parent is None:
+            result = f"{result} на локації"
+
+        return result
         
     def clean(self):
         super().clean()

@@ -33,6 +33,7 @@ class MovementPlanListSerializer(serializers.ModelSerializer):
     target_location_name = serializers.CharField(source="target_location.name", read_only=True)
     target_storage_place_code = serializers.CharField(source="target_storage_place.code", read_only=True)
     target_storage_place_display_name = serializers.CharField(source="target_storage_place.get_display_name", read_only=True)
+    target_storage_place_full_display = serializers.CharField(source="target_storage_place.get_display_name_verbose", read_only=True)
     items_count = serializers.IntegerField(read_only=True)
 
     class Meta:
@@ -46,6 +47,7 @@ class MovementPlanListSerializer(serializers.ModelSerializer):
             "target_storage_place",
             "target_storage_place_code",
             "target_storage_place_display_name",
+            "target_storage_place_full_display",
             "created_by",
             "planned_at",
             "comment",
@@ -60,6 +62,7 @@ class MovementPlanSerializer(serializers.ModelSerializer):
     target_location_name = serializers.CharField(source="target_location.name", read_only=True)
     target_storage_place_code = serializers.CharField(source="target_storage_place.code", read_only=True)
     target_storage_place_display_name = serializers.CharField(source="target_storage_place.get_display_name", read_only=True)
+    target_storage_place_full_display = serializers.CharField(source="target_storage_place.get_display_name_verbose", read_only=True)
     items_count = serializers.IntegerField(read_only=True)
 
     class Meta:
@@ -73,6 +76,7 @@ class MovementPlanSerializer(serializers.ModelSerializer):
             "target_storage_place",
             "target_storage_place_code",
             "target_storage_place_display_name",
+            "target_storage_place_full_display",
             "created_by",
             "planned_at",
             "comment",

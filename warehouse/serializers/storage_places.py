@@ -50,17 +50,4 @@ class WarehouseStoragePlaceSerializer(serializers.ModelSerializer):
         return ", ".join(ancestors)
         
     def get_display_name_verbose(self, obj):
-        chain = []
-        current = obj
-
-        while current is not None:
-            chain.append(f"{current.get_place_type_display()} {current.code}")
-            current = current.parent
-
-        chain.reverse()
-        result = ", ".join(chain)
-
-        if obj.parent is None:
-            result = f"{result} на локації"
-
-        return result
+        return obj.get_display_name_verbose()
