@@ -36,6 +36,7 @@ def create_movement_plan(
     target_storage_place: Optional[WarehouseStoragePlace] = None,
     created_by=None,
     planned_at=None,
+    comment="",
 ) -> MovementPlan:
     _validate_destination(
         target_location=target_location,
@@ -49,6 +50,7 @@ def create_movement_plan(
             target_storage_place=target_storage_place,
             created_by=created_by,
             planned_at=planned_at,
+            comment=comment,
         )
 
     return plan

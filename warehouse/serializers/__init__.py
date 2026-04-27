@@ -12,6 +12,7 @@ from .intake import (
 
 from .movement_plan import (
     MovementPlanSerializer,
+    MovementPlanListSerializer,
     MovementPlanItemSerializer,
     CreateMovementPlanSerializer,
     AddItemsToMovementPlanSerializer,

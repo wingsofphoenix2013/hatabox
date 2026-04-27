@@ -691,6 +691,10 @@ class MovementPlan(models.Model):
         blank=True,
     )
 
+    comment = models.TextField(
+        blank=True,
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -28,8 +28,12 @@ class MovementPlanItemSerializer(serializers.ModelSerializer):
         ]
 
 
-class MovementPlanSerializer(serializers.ModelSerializer):
-    items = MovementPlanItemSerializer(many=True, read_only=True)
+class MovementPlanListSerializer(serializers.ModelSerializer):
+    target_location_code = serializers.CharField(source="target_location.code", read_only=True)
+    target_location_name = serializers.CharField(source="target_location.name", read_only=True)
+    target_storage_place_code = serializers.CharField(source="target_storage_place.code", read_only=True)
+    target_storage_place_display_name = serializers.CharField(source="target_storage_place.get_display_name", read_only=True)
+    items_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = MovementPlan
@@ -37,10 +41,43 @@ class MovementPlanSerializer(serializers.ModelSerializer):
             "id",
             "status",
             "target_location",
+            "target_location_code",
+            "target_location_name",
             "target_storage_place",
+            "target_storage_place_code",
+            "target_storage_place_display_name",
             "created_by",
             "planned_at",
+            "comment",
             "created_at",
+            "items_count",
+        ]
+
+
+class MovementPlanSerializer(serializers.ModelSerializer):
+    items = MovementPlanItemSerializer(many=True, read_only=True)
+    target_location_code = serializers.CharField(source="target_location.code", read_only=True)
+    target_location_name = serializers.CharField(source="target_location.name", read_only=True)
+    target_storage_place_code = serializers.CharField(source="target_storage_place.code", read_only=True)
+    target_storage_place_display_name = serializers.CharField(source="target_storage_place.get_display_name", read_only=True)
+    items_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = MovementPlan
+        fields = [
+            "id",
+            "status",
+            "target_location",
+            "target_location_code",
+            "target_location_name",
+            "target_storage_place",
+            "target_storage_place_code",
+            "target_storage_place_display_name",
+            "created_by",
+            "planned_at",
+            "comment",
+            "created_at",
+            "items_count",
             "items",
         ]
         read_only_fields = [
@@ -65,6 +102,10 @@ class CreateMovementPlanSerializer(serializers.Serializer):
     planned_at = serializers.DateTimeField(
         required=False,
         allow_null=True,
+    )
+    comment = serializers.CharField(
+        required=False,
+        allow_blank=True,
     )
 
     def validate(self, attrs):

@@ -2,10 +2,12 @@ from rest_framework.decorators import action
 from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
+from django.db.models import Count
 
 from warehouse.models import MovementPlan
 from warehouse.serializers import (
     MovementPlanSerializer,
+    MovementPlanListSerializer,
     CreateMovementPlanSerializer,
     AddItemsToMovementPlanSerializer,
 )
@@ -24,10 +26,8 @@ class MovementPlanViewSet(ModelViewSet):
         "target_location",
         "target_storage_place",
         "created_by",
-    ).prefetch_related(
-        "items",
-        "items__warehouse_unit",
-        "items__warehouse_unit__inventory_item",
+    ).annotate(
+        items_count=Count("items")
     ).order_by("-created_at", "-id")
 
     serializer_class = MovementPlanSerializer
@@ -41,10 +41,48 @@ class MovementPlanViewSet(ModelViewSet):
             target_location=serializer.validated_data.get("target_location"),
             target_storage_place=serializer.validated_data.get("target_storage_place"),
             planned_at=serializer.validated_data.get("planned_at"),
+            comment=serializer.validated_data.get("comment", ""),
             created_by=request.user if request.user.is_authenticated else None,
         )
 
         return Response(self.get_serializer(plan).data)
+
+    def get_queryset(self):
+        queryset = self.queryset
+
+        if self.action != "list":
+            queryset = queryset.prefetch_related(
+                "items",
+                "items__warehouse_unit",
+                "items__warehouse_unit__inventory_item",
+            )
+
+        status_list = self.request.query_params.getlist("status")
+        if status_list:
+            queryset = queryset.filter(status__in=status_list)
+
+        created_at_from = self.request.query_params.get("created_at_from")
+        if created_at_from:
+            queryset = queryset.filter(created_at__gte=created_at_from)
+
+        created_at_to = self.request.query_params.get("created_at_to")
+        if created_at_to:
+            queryset = queryset.filter(created_at__lte=created_at_to)
+
+        planned_at_from = self.request.query_params.get("planned_at_from")
+        if planned_at_from:
+            queryset = queryset.filter(planned_at__gte=planned_at_from)
+
+        planned_at_to = self.request.query_params.get("planned_at_to")
+        if planned_at_to:
+            queryset = queryset.filter(planned_at__lte=planned_at_to)
+
+        return queryset
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return MovementPlanListSerializer
+        return MovementPlanSerializer
 
     @action(detail=True, methods=["post"], url_path="add-items")
     def add_items(self, request, pk=None):
