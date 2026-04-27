@@ -86,6 +86,7 @@ def _build_stock_rows(item_id: int) -> List[dict]:
                 "storage_place_id": unit.storage_place.id,
                 "storage_place_code": unit.storage_place.code,
                 "storage_place_display_name": unit.storage_place.get_display_name(),
+                "storage_place_full_display": unit.storage_place.get_display_name_verbose(),
             }
         else:
             location = unit.location
@@ -98,6 +99,7 @@ def _build_stock_rows(item_id: int) -> List[dict]:
                 "storage_place_id": None,
                 "storage_place_code": None,
                 "storage_place_display_name": None,
+                "storage_place_full_display": None,
             }
 
         grouped[key] += _to_decimal(unit.quantity)
