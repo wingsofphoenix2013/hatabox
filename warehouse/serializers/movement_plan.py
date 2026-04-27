@@ -29,8 +29,8 @@ class MovementPlanItemSerializer(serializers.ModelSerializer):
 
 
 class MovementPlanListSerializer(serializers.ModelSerializer):
-    target_location_code = serializers.CharField(source="target_location.code", read_only=True)
-    target_location_name = serializers.CharField(source="target_location.name", read_only=True)
+    target_location_code = serializers.SerializerMethodField()
+    target_location_name = serializers.SerializerMethodField()
     target_storage_place_code = serializers.CharField(source="target_storage_place.code", read_only=True)
     target_storage_place_display_name = serializers.CharField(source="target_storage_place.get_display_name", read_only=True)
     target_storage_place_full_display = serializers.CharField(source="target_storage_place.get_display_name_verbose", read_only=True)
@@ -54,12 +54,26 @@ class MovementPlanListSerializer(serializers.ModelSerializer):
             "created_at",
             "items_count",
         ]
+        
+    def get_target_location_code(self, obj):
+        if obj.target_location is not None:
+            return obj.target_location.code
+        if obj.target_storage_place is not None:
+            return obj.target_storage_place.location.code
+        return None
+
+    def get_target_location_name(self, obj):
+        if obj.target_location is not None:
+            return obj.target_location.name
+        if obj.target_storage_place is not None:
+            return obj.target_storage_place.location.name
+        return None
 
 
 class MovementPlanSerializer(serializers.ModelSerializer):
     items = MovementPlanItemSerializer(many=True, read_only=True)
-    target_location_code = serializers.CharField(source="target_location.code", read_only=True)
-    target_location_name = serializers.CharField(source="target_location.name", read_only=True)
+    target_location_code = serializers.SerializerMethodField()
+    target_location_name = serializers.SerializerMethodField()
     target_storage_place_code = serializers.CharField(source="target_storage_place.code", read_only=True)
     target_storage_place_display_name = serializers.CharField(source="target_storage_place.get_display_name", read_only=True)
     target_storage_place_full_display = serializers.CharField(source="target_storage_place.get_display_name_verbose", read_only=True)
@@ -91,6 +105,19 @@ class MovementPlanSerializer(serializers.ModelSerializer):
             "items",
         ]
 
+    def get_target_location_code(self, obj):
+        if obj.target_location is not None:
+            return obj.target_location.code
+        if obj.target_storage_place is not None:
+            return obj.target_storage_place.location.code
+        return None
+
+    def get_target_location_name(self, obj):
+        if obj.target_location is not None:
+            return obj.target_location.name
+        if obj.target_storage_place is not None:
+            return obj.target_storage_place.location.name
+        return None
 
 class CreateMovementPlanSerializer(serializers.Serializer):
     target_location = serializers.PrimaryKeyRelatedField(
