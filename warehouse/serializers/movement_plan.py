@@ -1,3 +1,5 @@
+from django.utils import timezone
+
 from rest_framework import serializers
 
 from inventory.models import InvItem
@@ -31,6 +33,9 @@ class MovementPlanItemSerializer(serializers.ModelSerializer):
 class MovementPlanListSerializer(serializers.ModelSerializer):
     target_location_code = serializers.SerializerMethodField()
     target_location_name = serializers.SerializerMethodField()
+    is_overdue = serializers.SerializerMethodField()
+    days_delta = serializers.SerializerMethodField()
+    planned_status_text = serializers.SerializerMethodField()
     target_storage_place_code = serializers.CharField(source="target_storage_place.code", read_only=True)
     target_storage_place_display_name = serializers.CharField(source="target_storage_place.get_display_name", read_only=True)
     target_storage_place_full_display = serializers.CharField(source="target_storage_place.get_display_name_verbose", read_only=True)
@@ -50,6 +55,9 @@ class MovementPlanListSerializer(serializers.ModelSerializer):
             "target_storage_place_full_display",
             "created_by",
             "planned_at",
+            "is_overdue",
+            "days_delta",
+            "planned_status_text",
             "comment",
             "created_at",
             "items_count",
@@ -68,12 +76,45 @@ class MovementPlanListSerializer(serializers.ModelSerializer):
         if obj.target_storage_place is not None:
             return obj.target_storage_place.location.name
         return None
+        
+    def _get_planned_days_delta(self, obj):
+        if obj.status != MovementPlan.Status.ACTIVE or obj.planned_at is None:
+            return None
+
+        today = timezone.localdate()
+        planned_date = timezone.localtime(obj.planned_at).date()
+
+        return (planned_date - today).days
+
+    def get_is_overdue(self, obj):
+        days_delta = self._get_planned_days_delta(obj)
+        return days_delta is not None and days_delta < 0
+
+    def get_days_delta(self, obj):
+        return self._get_planned_days_delta(obj)
+
+    def get_planned_status_text(self, obj):
+        days_delta = self._get_planned_days_delta(obj)
+
+        if days_delta is None:
+            return None
+
+        if days_delta < 0:
+            return f"Просрочено на {abs(days_delta)} дн."
+
+        if days_delta == 0:
+            return "Сьогодні"
+
+        return f"Осталось {days_delta} дн."
 
 
 class MovementPlanSerializer(serializers.ModelSerializer):
     items = MovementPlanItemSerializer(many=True, read_only=True)
     target_location_code = serializers.SerializerMethodField()
     target_location_name = serializers.SerializerMethodField()
+    is_overdue = serializers.SerializerMethodField()
+    days_delta = serializers.SerializerMethodField()
+    planned_status_text = serializers.SerializerMethodField()
     target_storage_place_code = serializers.CharField(source="target_storage_place.code", read_only=True)
     target_storage_place_display_name = serializers.CharField(source="target_storage_place.get_display_name", read_only=True)
     target_storage_place_full_display = serializers.CharField(source="target_storage_place.get_display_name_verbose", read_only=True)
@@ -93,6 +134,9 @@ class MovementPlanSerializer(serializers.ModelSerializer):
             "target_storage_place_full_display",
             "created_by",
             "planned_at",
+            "is_overdue",
+            "days_delta",
+            "planned_status_text",
             "comment",
             "created_at",
             "items_count",
@@ -118,6 +162,36 @@ class MovementPlanSerializer(serializers.ModelSerializer):
         if obj.target_storage_place is not None:
             return obj.target_storage_place.location.name
         return None
+        
+    def _get_planned_days_delta(self, obj):
+        if obj.status != MovementPlan.Status.ACTIVE or obj.planned_at is None:
+            return None
+
+        today = timezone.localdate()
+        planned_date = timezone.localtime(obj.planned_at).date()
+
+        return (planned_date - today).days
+
+    def get_is_overdue(self, obj):
+        days_delta = self._get_planned_days_delta(obj)
+        return days_delta is not None and days_delta < 0
+
+    def get_days_delta(self, obj):
+        return self._get_planned_days_delta(obj)
+
+    def get_planned_status_text(self, obj):
+        days_delta = self._get_planned_days_delta(obj)
+
+        if days_delta is None:
+            return None
+
+        if days_delta < 0:
+            return f"Просрочено на {abs(days_delta)} дн."
+
+        if days_delta == 0:
+            return "Сьогодні"
+
+        return f"Осталось {days_delta} дн."
 
 class CreateMovementPlanSerializer(serializers.Serializer):
     target_location = serializers.PrimaryKeyRelatedField(
