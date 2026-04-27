@@ -1,6 +1,7 @@
 from typing import Optional
 
 from django.db import transaction
+from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from warehouse.models import (
@@ -55,6 +56,124 @@ def create_movement_plan(
 
     return plan
 
+def update_movement_plan(
+    *,
+    plan: MovementPlan,
+    target_location=None,
+    target_storage_place=None,
+    planned_at=None,
+    comment=None,
+    destination_provided=False,
+):
+    if plan.status not in [MovementPlan.Status.DRAFT, MovementPlan.Status.ACTIVE]:
+        raise ValidationError("Можна редагувати лише draft або active план.")
+
+    if planned_at is not None:
+        planned_date = timezone.localtime(planned_at).date()
+        today = timezone.localdate()
+
+        if planned_date < today:
+            raise ValidationError({
+                "planned_at": "Планова дата не може бути в минулому."
+            })
+
+    if plan.status == MovementPlan.Status.ACTIVE and destination_provided:
+        raise ValidationError(
+            "Неможливо змінювати місце призначення для active плану."
+        )
+
+    with transaction.atomic():
+        if plan.status == MovementPlan.Status.DRAFT and destination_provided:
+            _validate_destination(
+                target_location=target_location,
+                target_storage_place=target_storage_place,
+            )
+            plan.target_location = target_location
+            plan.target_storage_place = target_storage_place
+
+        if planned_at is not None:
+            plan.planned_at = planned_at
+
+        if comment is not None:
+            plan.comment = comment
+
+        plan.save()
+
+    return plan
+
+def remove_item_from_plan(
+    *,
+    plan: MovementPlan,
+    item_id: int,
+):
+    if plan.status != MovementPlan.Status.ACTIVE:
+        raise ValidationError("Можна видаляти рядки лише з active плану.")
+
+    try:
+        item = MovementPlanItem.objects.get(
+            id=item_id,
+            plan=plan,
+        )
+    except MovementPlanItem.DoesNotExist:
+        raise ValidationError("Рядок плану не знайдено.")
+
+    with transaction.atomic():
+        if item.is_reserved:
+            item.is_reserved = False
+            item.save(update_fields=["is_reserved"])
+
+        item.delete()
+
+        remaining_items_exists = MovementPlanItem.objects.filter(
+            plan=plan,
+            is_reserved=True,
+        ).exists()
+
+        if not remaining_items_exists:
+            plan.status = MovementPlan.Status.CANCELLED
+            plan.save(update_fields=["status"])
+
+    return {
+        "status": "ok",
+        "plan_status": plan.status,
+    }
+    
+def change_plan_item_quantity(
+    *,
+    plan: MovementPlan,
+    item_id: int,
+    quantity,
+):
+    if plan.status != MovementPlan.Status.ACTIVE:
+        raise ValidationError("Можна змінювати кількість лише в active плані.")
+
+    try:
+        item = MovementPlanItem.objects.select_related(
+            "warehouse_unit",
+            "warehouse_unit__inventory_item",
+        ).get(
+            id=item_id,
+            plan=plan,
+        )
+    except MovementPlanItem.DoesNotExist:
+        raise ValidationError("Рядок плану не знайдено.")
+
+    inventory_item = item.warehouse_unit.inventory_item
+
+    with transaction.atomic():
+        if item.is_reserved:
+            item.is_reserved = False
+            item.save(update_fields=["is_reserved"])
+
+        item.delete()
+
+        add_items_to_plan(
+            plan=plan,
+            inventory_item=inventory_item,
+            quantity=quantity,
+        )
+
+    return plan
 
 def add_items_to_plan(
     *,

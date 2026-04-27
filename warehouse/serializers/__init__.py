@@ -16,6 +16,9 @@ from .movement_plan import (
     MovementPlanItemSerializer,
     CreateMovementPlanSerializer,
     AddItemsToMovementPlanSerializer,
+    UpdateMovementPlanSerializer,
+    RemoveMovementPlanItemSerializer,
+    ChangeMovementPlanItemQuantitySerializer,
 )
 from .stock import (
     WarehouseStockOverviewLocationSerializer,

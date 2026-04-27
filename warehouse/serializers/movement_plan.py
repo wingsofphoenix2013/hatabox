@@ -233,3 +233,36 @@ class AddItemsToMovementPlanSerializer(serializers.Serializer):
         max_digits=12,
         decimal_places=3,
     )
+
+
+class UpdateMovementPlanSerializer(serializers.Serializer):
+    target_location = serializers.PrimaryKeyRelatedField(
+        queryset=WarehouseLocation.objects.filter(is_active=True),
+        required=False,
+        allow_null=True,
+    )
+    target_storage_place = serializers.PrimaryKeyRelatedField(
+        queryset=WarehouseStoragePlace.objects.filter(is_active=True),
+        required=False,
+        allow_null=True,
+    )
+    planned_at = serializers.DateTimeField(
+        required=False,
+        allow_null=True,
+    )
+    comment = serializers.CharField(
+        required=False,
+        allow_blank=True,
+    )
+
+
+class RemoveMovementPlanItemSerializer(serializers.Serializer):
+    item_id = serializers.IntegerField(min_value=1)
+
+
+class ChangeMovementPlanItemQuantitySerializer(serializers.Serializer):
+    item_id = serializers.IntegerField(min_value=1)
+    quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+    )

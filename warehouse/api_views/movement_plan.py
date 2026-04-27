@@ -10,17 +10,22 @@ from warehouse.serializers import (
     MovementPlanListSerializer,
     CreateMovementPlanSerializer,
     AddItemsToMovementPlanSerializer,
+    UpdateMovementPlanSerializer,
+    RemoveMovementPlanItemSerializer,
+    ChangeMovementPlanItemQuantitySerializer,
 )
 from warehouse.services.movement_plan import (
     create_movement_plan,
+    update_movement_plan,
     add_items_to_plan,
+    remove_item_from_plan,
+    change_plan_item_quantity,
     execute_movement_plan,
     cancel_movement_plan,
 )
 
-
 class MovementPlanViewSet(ModelViewSet):
-    http_method_names = ["get", "post", "head", "options"]
+    http_method_names = ["get", "post", "patch", "head", "options"]
 
     queryset = MovementPlan.objects.select_related(
         "target_location",
@@ -44,6 +49,30 @@ class MovementPlanViewSet(ModelViewSet):
             comment=serializer.validated_data.get("comment", ""),
             created_by=request.user if request.user.is_authenticated else None,
         )
+
+        return Response(self.get_serializer(plan).data)
+        
+    def partial_update(self, request, *args, **kwargs):
+        plan = self.get_object()
+
+        serializer = UpdateMovementPlanSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        destination_provided = (
+            "target_location" in serializer.validated_data
+            or "target_storage_place" in serializer.validated_data
+        )
+
+        plan = update_movement_plan(
+            plan=plan,
+            target_location=serializer.validated_data.get("target_location"),
+            target_storage_place=serializer.validated_data.get("target_storage_place"),
+            planned_at=serializer.validated_data.get("planned_at"),
+            comment=serializer.validated_data.get("comment"),
+            destination_provided=destination_provided,
+        )
+
+        plan.refresh_from_db()
 
         return Response(self.get_serializer(plan).data)
 
@@ -94,6 +123,37 @@ class MovementPlanViewSet(ModelViewSet):
         add_items_to_plan(
             plan=plan,
             inventory_item=serializer.validated_data["inventory_item"],
+            quantity=serializer.validated_data["quantity"],
+        )
+
+        plan.refresh_from_db()
+
+        return Response(self.get_serializer(plan).data)
+        
+    @action(detail=True, methods=["post"], url_path="remove-item")
+    def remove_item(self, request, pk=None):
+        plan = self.get_object()
+
+        serializer = RemoveMovementPlanItemSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        result = remove_item_from_plan(
+            plan=plan,
+            item_id=serializer.validated_data["item_id"],
+        )
+
+        return Response(result)
+        
+    @action(detail=True, methods=["post"], url_path="change-item-quantity")
+    def change_item_quantity(self, request, pk=None):
+        plan = self.get_object()
+
+        serializer = ChangeMovementPlanItemQuantitySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        plan = change_plan_item_quantity(
+            plan=plan,
+            item_id=serializer.validated_data["item_id"],
             quantity=serializer.validated_data["quantity"],
         )
 
