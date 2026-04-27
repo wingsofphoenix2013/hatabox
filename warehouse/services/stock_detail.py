@@ -124,6 +124,73 @@ def _build_stock_rows(item_id: int) -> List[dict]:
     return rows
 
 
+def _build_reserved_stock_rows(item_id: int) -> List[dict]:
+    plan_items = list(
+        MovementPlanItem.objects.select_related(
+            "plan",
+            "warehouse_unit",
+            "warehouse_unit__location",
+            "warehouse_unit__storage_place",
+            "warehouse_unit__storage_place__location",
+        ).filter(
+            warehouse_unit__inventory_item_id=item_id,
+            warehouse_unit__is_active=True,
+            plan__status=MovementPlan.Status.ACTIVE,
+            is_reserved=True,
+        )
+    )
+
+    rows = []
+
+    for plan_item in plan_items:
+        unit = plan_item.warehouse_unit
+
+        if unit.storage_place_id is not None:
+            location = unit.storage_place.location
+            placement_type = "storage_place"
+            storage_place_id = unit.storage_place.id
+            storage_place_code = unit.storage_place.code
+            storage_place_display_name = unit.storage_place.get_display_name()
+            storage_place_full_display = unit.storage_place.get_display_name_verbose()
+        else:
+            location = unit.location
+            placement_type = "location"
+            storage_place_id = None
+            storage_place_code = None
+            storage_place_display_name = None
+            storage_place_full_display = None
+
+        rows.append({
+            "placement_type": placement_type,
+            "location_id": location.id,
+            "location_code": location.code,
+            "location_name": location.name,
+            "storage_place_id": storage_place_id,
+            "storage_place_code": storage_place_code,
+            "storage_place_display_name": storage_place_display_name,
+            "storage_place_full_display": storage_place_full_display,
+            "quantity": plan_item.reserved_quantity,
+            "movement_plan_id": plan_item.plan.id,
+            "movement_plan_status": plan_item.plan.status,
+            "movement_plan_planned_at": plan_item.plan.planned_at,
+            "movement_plan_item_id": plan_item.id,
+            "requires_split": plan_item.requires_split,
+            "move_quantity": plan_item.move_quantity,
+            "remainder_quantity": plan_item.remainder_quantity,
+        })
+
+    rows.sort(
+        key=lambda row: (
+            row["location_code"] or "",
+            0 if row["placement_type"] == "location" else 1,
+            row["storage_place_full_display"] or "",
+            row["movement_plan_id"],
+            row["movement_plan_item_id"],
+        )
+    )
+
+    return rows
+
 def _build_reserved_quantity(item_id: int) -> Decimal:
     reserved_units = WarehouseUnit.objects.filter(
         inventory_item_id=item_id,
@@ -339,6 +406,7 @@ def build_stock_detail(inventory_item_id: int) -> dict:
     ).get(pk=inventory_item_id)
 
     stock_rows = _build_stock_rows(item.id)
+    reserved_stock_rows = _build_reserved_stock_rows(item.id)
     reserved_quantity = _build_reserved_quantity(item.id)
     pending_intake_rows = _build_pending_intake_rows(item.id)
     incoming_rows = _build_incoming_rows(item.id)
@@ -389,6 +457,7 @@ def build_stock_detail(inventory_item_id: int) -> dict:
             "locations": locations,
         },
         "stock_rows": stock_rows,
+        "reserved_stock_rows": reserved_stock_rows,
         "pending_intake_rows": pending_intake_rows,
         "incoming_rows": incoming_rows,
     }

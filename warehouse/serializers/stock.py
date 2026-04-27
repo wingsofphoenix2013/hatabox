@@ -147,11 +147,50 @@ class WarehouseStockDetailStockRowSerializer(serializers.Serializer):
     storage_place_id = serializers.IntegerField(read_only=True, allow_null=True)
     storage_place_code = serializers.CharField(read_only=True, allow_null=True)
     storage_place_display_name = serializers.CharField(read_only=True, allow_null=True)
+    storage_place_full_display = serializers.CharField(read_only=True, allow_null=True)
 
     quantity = serializers.DecimalField(
         max_digits=12,
         decimal_places=3,
         read_only=True,
+    )
+
+
+class WarehouseStockDetailReservedStockRowSerializer(serializers.Serializer):
+    placement_type = serializers.CharField(read_only=True)
+
+    location_id = serializers.IntegerField(read_only=True)
+    location_code = serializers.CharField(read_only=True)
+    location_name = serializers.CharField(read_only=True)
+
+    storage_place_id = serializers.IntegerField(read_only=True, allow_null=True)
+    storage_place_code = serializers.CharField(read_only=True, allow_null=True)
+    storage_place_display_name = serializers.CharField(read_only=True, allow_null=True)
+    storage_place_full_display = serializers.CharField(read_only=True, allow_null=True)
+
+    quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
+
+    movement_plan_id = serializers.IntegerField(read_only=True)
+    movement_plan_status = serializers.CharField(read_only=True)
+    movement_plan_planned_at = serializers.DateTimeField(read_only=True, allow_null=True)
+
+    movement_plan_item_id = serializers.IntegerField(read_only=True)
+    requires_split = serializers.BooleanField(read_only=True)
+    move_quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+        allow_null=True,
+    )
+    remainder_quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+        allow_null=True,
     )
 
 
@@ -202,6 +241,10 @@ class WarehouseStockDetailSerializer(serializers.Serializer):
     header = WarehouseStockDetailHeaderSerializer(read_only=True)
     summary = WarehouseStockDetailSummarySerializer(read_only=True)
     stock_rows = WarehouseStockDetailStockRowSerializer(
+        many=True,
+        read_only=True,
+    )
+    reserved_stock_rows = WarehouseStockDetailReservedStockRowSerializer(
         many=True,
         read_only=True,
     )
