@@ -1,7 +1,14 @@
 from django import forms
 from django.contrib import admin
 
-from .models import WarehouseLocation, WarehouseStoragePlace, WarehouseUnit, WarehouseUnitEvent
+from .models import (
+    MovementPlan,
+    MovementPlanItem,
+    WarehouseLocation,
+    WarehouseStoragePlace,
+    WarehouseUnit,
+    WarehouseUnitEvent,
+)
 
 class WarehouseStoragePlaceAdminForm(forms.ModelForm):
     class Meta:
@@ -154,3 +161,65 @@ class WarehouseUnitEventAdmin(admin.ModelAdmin):
     )
     list_filter = ("operation_type", "created_at")
     search_fields = ("id",)
+    
+class MovementPlanItemInline(admin.TabularInline):
+    model = MovementPlanItem
+    extra = 0
+    autocomplete_fields = (
+        "warehouse_unit",
+    )
+
+
+@admin.register(MovementPlan)
+class MovementPlanAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "status",
+        "target_location",
+        "target_storage_place",
+        "planned_at",
+        "created_by",
+        "created_at",
+    )
+    list_filter = (
+        "status",
+        "target_location",
+        "target_storage_place",
+        "planned_at",
+        "created_at",
+    )
+    search_fields = (
+        "id",
+        "comment",
+    )
+    autocomplete_fields = (
+        "target_location",
+        "target_storage_place",
+        "created_by",
+    )
+    inlines = (
+        MovementPlanItemInline,
+    )
+
+
+@admin.register(MovementPlanItem)
+class MovementPlanItemAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "plan",
+        "warehouse_unit",
+        "reserved_quantity",
+        "move_quantity",
+        "remainder_quantity",
+        "requires_split",
+        "is_reserved",
+    )
+    list_filter = (
+        "requires_split",
+        "is_reserved",
+        "plan__status",
+    )
+    autocomplete_fields = (
+        "plan",
+        "warehouse_unit",
+    )
