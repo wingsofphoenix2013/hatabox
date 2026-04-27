@@ -15,6 +15,11 @@ class MovementPlanItemSerializer(serializers.ModelSerializer):
     warehouse_unit_id = serializers.IntegerField(source="warehouse_unit.id", read_only=True)
     inventory_item_id = serializers.IntegerField(source="warehouse_unit.inventory_item_id", read_only=True)
     inventory_item_name = serializers.CharField(source="warehouse_unit.inventory_item.name", read_only=True)
+    source_location_code = serializers.SerializerMethodField()
+    source_location_name = serializers.SerializerMethodField()
+    source_storage_place_display_name = serializers.SerializerMethodField()
+    source_storage_place_full_display = serializers.SerializerMethodField()
+    quantity_to_move = serializers.SerializerMethodField()
 
     class Meta:
         model = MovementPlanItem
@@ -23,11 +28,60 @@ class MovementPlanItemSerializer(serializers.ModelSerializer):
             "warehouse_unit_id",
             "inventory_item_id",
             "inventory_item_name",
+            "source_location_code",
+            "source_location_name",
+            "source_storage_place_display_name",
+            "source_storage_place_full_display",
+            "quantity_to_move",
             "reserved_quantity",
             "move_quantity",
             "remainder_quantity",
             "requires_split",
         ]
+        
+    def get_source_location_code(self, obj):
+        unit = obj.warehouse_unit
+
+        if unit.location is not None:
+            return unit.location.code
+
+        if unit.storage_place is not None:
+            return unit.storage_place.location.code
+
+        return None
+
+    def get_source_location_name(self, obj):
+        unit = obj.warehouse_unit
+
+        if unit.location is not None:
+            return unit.location.name
+
+        if unit.storage_place is not None:
+            return unit.storage_place.location.name
+
+        return None
+
+    def get_source_storage_place_display_name(self, obj):
+        unit = obj.warehouse_unit
+
+        if unit.storage_place is None:
+            return None
+
+        return unit.storage_place.get_display_name()
+
+    def get_source_storage_place_full_display(self, obj):
+        unit = obj.warehouse_unit
+
+        if unit.storage_place is None:
+            return None
+
+        return unit.storage_place.get_display_name_verbose()
+
+    def get_quantity_to_move(self, obj):
+        if obj.requires_split:
+            return obj.move_quantity
+
+        return obj.reserved_quantity
 
 
 class MovementPlanListSerializer(serializers.ModelSerializer):

@@ -84,6 +84,12 @@ class MovementPlanViewSet(ModelViewSet):
                 "items",
                 "items__warehouse_unit",
                 "items__warehouse_unit__inventory_item",
+                "items__warehouse_unit__location",
+                "items__warehouse_unit__storage_place",
+                "items__warehouse_unit__storage_place__location",
+                "items__warehouse_unit__storage_place__parent",
+                "items__warehouse_unit__storage_place__parent__parent",
+                "items__warehouse_unit__storage_place__parent__parent__parent",
             )
 
         status_list = self.request.query_params.getlist("status")
