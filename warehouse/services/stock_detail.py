@@ -4,6 +4,7 @@ from typing import Dict, List
 
 from django.db.models import Q, Sum
 from django.db.models.functions import Coalesce
+from django.utils import timezone
 
 from inventory.models import InvItem
 from orders.models import (
@@ -33,6 +34,31 @@ def _serialize_location(location) -> dict:
         "name": location.name,
     }
 
+def _build_delivery_status(expected_delivery_date):
+    if expected_delivery_date is None:
+        return {
+            "expected_delivery_date": None,
+            "is_delivery_overdue": False,
+            "delivery_days_delta": None,
+            "delivery_status_text": None,
+        }
+
+    today = timezone.localdate()
+    days_delta = (expected_delivery_date - today).days
+
+    if days_delta < 0:
+        status_text = f"Опоздание {abs(days_delta)} дн."
+    elif days_delta == 0:
+        status_text = "Сьогодні"
+    else:
+        status_text = f"Осталось {days_delta} дн."
+
+    return {
+        "expected_delivery_date": expected_delivery_date,
+        "is_delivery_overdue": days_delta < 0,
+        "delivery_days_delta": days_delta,
+        "delivery_status_text": status_text,
+    }
 
 def _build_header(item: InvItem) -> dict:
     return {
@@ -387,6 +413,7 @@ def _build_incoming_rows(item_id: int) -> List[dict]:
             "order_created_at": order_item.order.created_at,
             "counterparty_id": order_item.order.vendor.id,
             "counterparty_name": order_item.order.vendor.name,
+            **_build_delivery_status(order_item.expected_delivery_date),
             "quantity": remaining,
             "has_unconverted_quantity": is_unconverted,
         })
@@ -408,6 +435,7 @@ def _build_incoming_rows(item_id: int) -> List[dict]:
             "order_created_at": order_item.order.created_at,
             "counterparty_id": order_item.order.organization.id,
             "counterparty_name": order_item.order.organization.name,
+            **_build_delivery_status(order_item.expected_delivery_date),
             "quantity": remaining,
             "has_unconverted_quantity": False,
         })

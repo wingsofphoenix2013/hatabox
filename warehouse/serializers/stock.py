@@ -238,6 +238,11 @@ class WarehouseStockDetailIncomingRowSerializer(serializers.Serializer):
     counterparty_id = serializers.IntegerField(read_only=True)
     counterparty_name = serializers.CharField(read_only=True)
 
+    expected_delivery_date = serializers.DateField(read_only=True, allow_null=True)
+    is_delivery_overdue = serializers.BooleanField(read_only=True)
+    delivery_days_delta = serializers.IntegerField(read_only=True, allow_null=True)
+    delivery_status_text = serializers.CharField(read_only=True, allow_null=True)
+
     quantity = serializers.DecimalField(
         max_digits=12,
         decimal_places=3,
