@@ -14,11 +14,14 @@ from .movement_plan import (
     MovementPlanSerializer,
     MovementPlanListSerializer,
     MovementPlanItemSerializer,
+    MovementPlanLineSerializer,
     CreateMovementPlanSerializer,
     AddItemsToMovementPlanSerializer,
     UpdateMovementPlanSerializer,
     RemoveMovementPlanItemSerializer,
     ChangeMovementPlanItemQuantitySerializer,
+    ChangeMovementPlanInventoryItemQuantitySerializer,
+    RemoveMovementPlanInventoryItemSerializer,
 )
 from .stock import (
     WarehouseStockOverviewLocationSerializer,

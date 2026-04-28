@@ -13,6 +13,8 @@ from warehouse.serializers import (
     UpdateMovementPlanSerializer,
     RemoveMovementPlanItemSerializer,
     ChangeMovementPlanItemQuantitySerializer,
+    ChangeMovementPlanInventoryItemQuantitySerializer,
+    RemoveMovementPlanInventoryItemSerializer,
 )
 from warehouse.services.movement_plan import (
     create_movement_plan,
@@ -20,6 +22,8 @@ from warehouse.services.movement_plan import (
     add_items_to_plan,
     remove_item_from_plan,
     change_plan_item_quantity,
+    change_inventory_item_quantity_in_plan,
+    remove_inventory_item_from_plan,
     execute_movement_plan,
     cancel_movement_plan,
 )
@@ -84,6 +88,7 @@ class MovementPlanViewSet(ModelViewSet):
                 "items",
                 "items__warehouse_unit",
                 "items__warehouse_unit__inventory_item",
+                "items__warehouse_unit__inventory_item__unit",
                 "items__warehouse_unit__location",
                 "items__warehouse_unit__storage_place",
                 "items__warehouse_unit__storage_place__location",
@@ -118,6 +123,37 @@ class MovementPlanViewSet(ModelViewSet):
         if self.action == "list":
             return MovementPlanListSerializer
         return MovementPlanSerializer
+        
+    @action(detail=True, methods=["post"], url_path="change-inventory-item-quantity")
+    def change_inventory_item_quantity(self, request, pk=None):
+        plan = self.get_object()
+
+        serializer = ChangeMovementPlanInventoryItemQuantitySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        plan = change_inventory_item_quantity_in_plan(
+            plan=plan,
+            inventory_item=serializer.validated_data["inventory_item"],
+            quantity=serializer.validated_data["quantity"],
+        )
+
+        plan.refresh_from_db()
+
+        return Response(self.get_serializer(plan).data)
+        
+    @action(detail=True, methods=["post"], url_path="remove-inventory-item")
+    def remove_inventory_item(self, request, pk=None):
+        plan = self.get_object()
+
+        serializer = RemoveMovementPlanInventoryItemSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        result = remove_inventory_item_from_plan(
+            plan=plan,
+            inventory_item=serializer.validated_data["inventory_item"],
+        )
+
+        return Response(result)
 
     @action(detail=True, methods=["post"], url_path="add-items")
     def add_items(self, request, pk=None):

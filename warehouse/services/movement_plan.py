@@ -174,6 +174,92 @@ def change_plan_item_quantity(
         )
 
     return plan
+    
+def change_inventory_item_quantity_in_plan(
+    *,
+    plan: MovementPlan,
+    inventory_item,
+    quantity,
+):
+    if plan.status != MovementPlan.Status.ACTIVE:
+        raise ValidationError("Можна змінювати кількість лише в active плані.")
+
+    with transaction.atomic():
+        _delete_plan_inventory_item_reservations(
+            plan=plan,
+            inventory_item=inventory_item,
+        )
+
+        add_items_to_plan(
+            plan=plan,
+            inventory_item=inventory_item,
+            quantity=quantity,
+        )
+
+    return plan
+    
+def remove_inventory_item_from_plan(
+    *,
+    plan: MovementPlan,
+    inventory_item,
+):
+    if plan.status != MovementPlan.Status.ACTIVE:
+        raise ValidationError("Можна видаляти лише з active плану.")
+
+    with transaction.atomic():
+        _delete_plan_inventory_item_reservations(
+            plan=plan,
+            inventory_item=inventory_item,
+        )
+
+        has_items = MovementPlanItem.objects.filter(
+            plan=plan,
+            is_reserved=True,
+        ).exists()
+
+        if not has_items:
+            plan.status = MovementPlan.Status.CANCELLED
+            plan.save(update_fields=["status"])
+
+    return {
+        "status": "ok",
+        "plan_status": plan.status,
+    }
+
+def _get_plan_inventory_item_quantity(
+    *,
+    plan: MovementPlan,
+    inventory_item,
+):
+    total = 0
+
+    for item in MovementPlanItem.objects.select_related(
+        "warehouse_unit",
+        "warehouse_unit__inventory_item",
+    ).filter(
+        plan=plan,
+        warehouse_unit__inventory_item=inventory_item,
+    ):
+        if item.requires_split:
+            total += item.move_quantity
+        else:
+            total += item.reserved_quantity
+
+    return total
+
+
+def _delete_plan_inventory_item_reservations(
+    *,
+    plan: MovementPlan,
+    inventory_item,
+):
+    items = MovementPlanItem.objects.filter(
+        plan=plan,
+        warehouse_unit__inventory_item=inventory_item,
+    )
+
+    items.update(is_reserved=False)
+    items.delete()
 
 def add_items_to_plan(
     *,
@@ -184,9 +270,20 @@ def add_items_to_plan(
     if plan.status not in [MovementPlan.Status.DRAFT, MovementPlan.Status.ACTIVE]:
         raise ValidationError("Можна додавати товари лише в draft або active план.")
 
+    current_quantity = _get_plan_inventory_item_quantity(
+        plan=plan,
+        inventory_item=inventory_item,
+    )
+    target_quantity = current_quantity + quantity
+
+    _delete_plan_inventory_item_reservations(
+        plan=plan,
+        inventory_item=inventory_item,
+    )
+
     move_plan = plan_move(
         inventory_item=inventory_item,
-        quantity=quantity,
+        quantity=target_quantity,
     )
 
     with transaction.atomic():
@@ -230,19 +327,6 @@ def add_items_to_plan(
         if already_reserved_ids:
             raise ValidationError(
                 f"Деякі складські одиниці вже зарезервовані: {already_reserved_ids}"
-            )
-
-        # запрет: уже есть в текущем плане
-        existing_in_plan_ids = list(
-            MovementPlanItem.objects.filter(
-                plan=plan,
-                warehouse_unit__in=units_to_reserve,
-            ).values_list("warehouse_unit_id", flat=True)
-        )
-
-        if existing_in_plan_ids:
-            raise ValidationError(
-                f"Деякі складські одиниці вже додані до цього плану: {existing_in_plan_ids}"
             )
 
         for unit in move_plan.full_units:

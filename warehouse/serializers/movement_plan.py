@@ -82,6 +82,17 @@ class MovementPlanItemSerializer(serializers.ModelSerializer):
             return obj.move_quantity
 
         return obj.reserved_quantity
+        
+
+class MovementPlanLineSerializer(serializers.Serializer):
+    inventory_item_id = serializers.IntegerField(read_only=True)
+    inventory_item_name = serializers.CharField(read_only=True)
+    quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
+    unit_symbol = serializers.CharField(read_only=True)
 
 
 class MovementPlanListSerializer(serializers.ModelSerializer):
@@ -164,6 +175,7 @@ class MovementPlanListSerializer(serializers.ModelSerializer):
 
 class MovementPlanSerializer(serializers.ModelSerializer):
     items = MovementPlanItemSerializer(many=True, read_only=True)
+    lines = serializers.SerializerMethodField()
     target_location_code = serializers.SerializerMethodField()
     target_location_name = serializers.SerializerMethodField()
     is_overdue = serializers.SerializerMethodField()
@@ -194,12 +206,14 @@ class MovementPlanSerializer(serializers.ModelSerializer):
             "comment",
             "created_at",
             "items_count",
+            "lines",
             "items",
         ]
         read_only_fields = [
             "status",
             "created_by",
             "created_at",
+            "lines",
             "items",
         ]
 
@@ -246,6 +260,28 @@ class MovementPlanSerializer(serializers.ModelSerializer):
             return "Сьогодні"
 
         return f"Осталось {days_delta} дн."
+        
+    def get_lines(self, obj):
+        lines_by_item = {}
+
+        for item in obj.items.all():
+            inventory_item = item.warehouse_unit.inventory_item
+            quantity = item.move_quantity if item.requires_split else item.reserved_quantity
+
+            if inventory_item.id not in lines_by_item:
+                lines_by_item[inventory_item.id] = {
+                    "inventory_item_id": inventory_item.id,
+                    "inventory_item_name": inventory_item.name,
+                    "quantity": quantity,
+                    "unit_symbol": inventory_item.unit.symbol,
+                }
+            else:
+                lines_by_item[inventory_item.id]["quantity"] += quantity
+
+        return MovementPlanLineSerializer(
+            lines_by_item.values(),
+            many=True,
+        ).data
 
 class CreateMovementPlanSerializer(serializers.Serializer):
     target_location = serializers.PrimaryKeyRelatedField(
@@ -319,4 +355,19 @@ class ChangeMovementPlanItemQuantitySerializer(serializers.Serializer):
     quantity = serializers.DecimalField(
         max_digits=12,
         decimal_places=3,
+    )
+    
+class ChangeMovementPlanInventoryItemQuantitySerializer(serializers.Serializer):
+    inventory_item = serializers.PrimaryKeyRelatedField(
+        queryset=InvItem.objects.filter(is_active=True)
+    )
+    quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+    )
+
+
+class RemoveMovementPlanInventoryItemSerializer(serializers.Serializer):
+    inventory_item = serializers.PrimaryKeyRelatedField(
+        queryset=InvItem.objects.filter(is_active=True)
     )
