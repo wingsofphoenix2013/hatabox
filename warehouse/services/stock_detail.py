@@ -299,11 +299,16 @@ def _build_pending_intake_rows(item_id: int) -> List[dict]:
             "receipt_no": receipt_item.receipt_document.receipt_no,
             "receipt_date": receipt_item.receipt_document.receipt_date,
             "order_item_id": receipt_item.order_item.id,
-            "order_id": receipt_item.order_item.order.id,
-            "order_no": receipt_item.order_item.order.order_no,
-            "order_created_at": receipt_item.order_item.order.created_at,
-            "counterparty_id": receipt_item.order_item.order.vendor.id,
-            "counterparty_name": receipt_item.order_item.order.vendor.name,
+            "vendor_id": receipt_item.order_item.order.vendor.id,
+            "vendor_name": receipt_item.order_item.order.vendor.name,
+            "organization_id": None,
+            "organization_name": None,
+            "external_order_id": receipt_item.order_item.order.id,
+            "external_order_no": receipt_item.order_item.order.order_no,
+            "external_order_created_at": receipt_item.order_item.order.created_at,
+            "tolling_order_id": None,
+            "tolling_order_no": None,
+            "tolling_order_created_at": None,
             "quantity": ZERO if is_unconverted else _to_decimal(receipt_item.received_quantity),
             "has_unconverted_quantity": is_unconverted,
         })
@@ -316,20 +321,29 @@ def _build_pending_intake_rows(item_id: int) -> List[dict]:
             "receipt_no": receipt_item.receipt_document.receipt_no,
             "receipt_date": receipt_item.receipt_document.receipt_date,
             "order_item_id": receipt_item.order_item.id,
-            "order_id": receipt_item.order_item.order.id,
-            "order_no": receipt_item.order_item.order.order_no,
-            "order_created_at": receipt_item.order_item.order.created_at,
-            "counterparty_id": receipt_item.order_item.order.organization.id,
-            "counterparty_name": receipt_item.order_item.order.organization.name,
+            "vendor_id": None,
+            "vendor_name": None,
+            "organization_id": receipt_item.order_item.order.organization.id,
+            "organization_name": receipt_item.order_item.order.organization.name,
+            "external_order_id": None,
+            "external_order_no": None,
+            "external_order_created_at": None,
+            "tolling_order_id": receipt_item.order_item.order.id,
+            "tolling_order_no": receipt_item.order_item.order.order_no,
+            "tolling_order_created_at": receipt_item.order_item.order.created_at,
             "quantity": _to_decimal(receipt_item.received_quantity),
             "has_unconverted_quantity": False,
         })
 
     rows.sort(
         key=lambda row: (
-            row["receipt_date"] or "",
-            row["receipt_document_id"],
-            row["receipt_item_id"],
+            row.get("external_order_created_at")
+            or row.get("tolling_order_created_at")
+            or "",
+            row.get("external_order_id")
+            or row.get("tolling_order_id")
+            or 0,
+            row["order_item_id"],
         )
     )
     return rows
