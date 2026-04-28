@@ -221,7 +221,7 @@ class MovementPlanViewSet(ModelViewSet):
             created_by=request.user if request.user.is_authenticated else None,
         )
 
-        plan.refresh_from_db()
+        plan = self.get_queryset().get(pk=plan.pk)
 
         return Response(self.get_serializer(plan).data)
 
