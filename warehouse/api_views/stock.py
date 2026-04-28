@@ -66,6 +66,15 @@ class WarehouseStockDetailViewSet(ReadOnlyModelViewSet):
 
     def retrieve(self, request, *args, **kwargs):
         inventory_item_id = kwargs["pk"]
-        data = build_stock_detail(inventory_item_id=inventory_item_id)
+
+        try:
+            data = build_stock_detail(inventory_item_id=inventory_item_id)
+        except Exception as exc:
+            import traceback
+            print("WAREHOUSE STOCK DETAIL ERROR")
+            print(f"inventory_item_id={inventory_item_id}")
+            print(traceback.format_exc())
+            raise exc
+
         serializer = self.get_serializer(data)
         return Response(serializer.data)
