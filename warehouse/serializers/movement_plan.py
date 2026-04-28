@@ -95,6 +95,22 @@ class MovementPlanLineSerializer(serializers.Serializer):
     unit_symbol = serializers.CharField(read_only=True)
 
 
+class MovementPlanSourceLineSerializer(serializers.Serializer):
+    inventory_item_id = serializers.IntegerField(read_only=True)
+    inventory_item_name = serializers.CharField(read_only=True)
+    source_location_code = serializers.CharField(read_only=True)
+    source_location_name = serializers.CharField(read_only=True)
+    source_storage_place_display_name = serializers.CharField(read_only=True, allow_null=True)
+    source_storage_place_full_display = serializers.CharField(read_only=True, allow_null=True)
+    quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
+    unit_symbol = serializers.CharField(read_only=True)
+    has_split = serializers.BooleanField(read_only=True)
+
+
 class MovementPlanListSerializer(serializers.ModelSerializer):
     target_location_code = serializers.SerializerMethodField()
     target_location_name = serializers.SerializerMethodField()
@@ -176,6 +192,7 @@ class MovementPlanListSerializer(serializers.ModelSerializer):
 class MovementPlanSerializer(serializers.ModelSerializer):
     items = MovementPlanItemSerializer(many=True, read_only=True)
     lines = serializers.SerializerMethodField()
+    source_lines = serializers.SerializerMethodField()
     target_location_code = serializers.SerializerMethodField()
     target_location_name = serializers.SerializerMethodField()
     is_overdue = serializers.SerializerMethodField()
@@ -207,6 +224,7 @@ class MovementPlanSerializer(serializers.ModelSerializer):
             "created_at",
             "items_count",
             "lines",
+            "source_lines",
             "items",
         ]
         read_only_fields = [
@@ -214,6 +232,7 @@ class MovementPlanSerializer(serializers.ModelSerializer):
             "created_by",
             "created_at",
             "lines",
+            "source_lines",
             "items",
         ]
 
@@ -280,6 +299,54 @@ class MovementPlanSerializer(serializers.ModelSerializer):
 
         return MovementPlanLineSerializer(
             lines_by_item.values(),
+            many=True,
+        ).data
+
+    def get_source_lines(self, obj):
+        source_lines = {}
+
+        for item in obj.items.all():
+            unit = item.warehouse_unit
+            inventory_item = unit.inventory_item
+            quantity = item.move_quantity if item.requires_split else item.reserved_quantity
+
+            if unit.storage_place is not None:
+                source_location = unit.storage_place.location
+                source_storage_place_id = unit.storage_place.id
+                source_storage_place_display_name = unit.storage_place.get_display_name()
+                source_storage_place_full_display = unit.storage_place.get_display_name_verbose()
+            else:
+                source_location = unit.location
+                source_storage_place_id = None
+                source_storage_place_display_name = None
+                source_storage_place_full_display = None
+
+            key = (
+                inventory_item.id,
+                source_location.id,
+                source_storage_place_id,
+            )
+
+            if key not in source_lines:
+                source_lines[key] = {
+                    "inventory_item_id": inventory_item.id,
+                    "inventory_item_name": inventory_item.name,
+                    "source_location_code": source_location.code,
+                    "source_location_name": source_location.name,
+                    "source_storage_place_display_name": source_storage_place_display_name,
+                    "source_storage_place_full_display": source_storage_place_full_display,
+                    "quantity": quantity,
+                    "unit_symbol": inventory_item.unit.symbol,
+                    "has_split": item.requires_split,
+                }
+            else:
+                source_lines[key]["quantity"] += quantity
+                source_lines[key]["has_split"] = (
+                    source_lines[key]["has_split"] or item.requires_split
+                )
+
+        return MovementPlanSourceLineSerializer(
+            source_lines.values(),
             many=True,
         ).data
 
