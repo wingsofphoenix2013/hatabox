@@ -160,6 +160,21 @@ def _build_reserved_stock_rows(item_id: int) -> List[dict]:
             storage_place_display_name = None
             storage_place_full_display = None
 
+        plan = plan_item.plan
+
+        if plan.target_location is not None:
+            target_location = plan.target_location
+            target_storage_place_id = None
+            target_storage_place_code = None
+            target_storage_place_display_name = None
+            target_storage_place_full_display = None
+        else:
+            target_location = plan.target_storage_place.location
+            target_storage_place_id = plan.target_storage_place.id
+            target_storage_place_code = plan.target_storage_place.code
+            target_storage_place_display_name = plan.target_storage_place.get_display_name()
+            target_storage_place_full_display = plan.target_storage_place.get_display_name_verbose()
+
         rows.append({
             "placement_type": placement_type,
             "location_id": location.id,
@@ -170,9 +185,16 @@ def _build_reserved_stock_rows(item_id: int) -> List[dict]:
             "storage_place_display_name": storage_place_display_name,
             "storage_place_full_display": storage_place_full_display,
             "quantity": plan_item.reserved_quantity,
-            "movement_plan_id": plan_item.plan.id,
-            "movement_plan_status": plan_item.plan.status,
-            "movement_plan_planned_at": plan_item.plan.planned_at,
+            "movement_plan_id": plan.id,
+            "movement_plan_status": plan.status,
+            "movement_plan_planned_at": plan.planned_at,
+            "target_location_id": target_location.id,
+            "target_location_code": target_location.code,
+            "target_location_name": target_location.name,
+            "target_storage_place_id": target_storage_place_id,
+            "target_storage_place_code": target_storage_place_code,
+            "target_storage_place_display_name": target_storage_place_display_name,
+            "target_storage_place_full_display": target_storage_place_full_display,
             "movement_plan_item_id": plan_item.id,
             "requires_split": plan_item.requires_split,
             "move_quantity": plan_item.move_quantity,
