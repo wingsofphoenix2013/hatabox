@@ -452,8 +452,12 @@ def _build_incoming_rows(item_id: int) -> List[dict]:
 
     rows.sort(
         key=lambda row: (
-            row["order_created_at"] or "",
-            row["order_id"],
+            row.get("external_order_created_at")
+            or row.get("tolling_order_created_at")
+            or "",
+            row.get("external_order_id")
+            or row.get("tolling_order_id")
+            or 0,
             row["order_item_id"],
         )
     )
