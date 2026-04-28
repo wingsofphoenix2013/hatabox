@@ -116,10 +116,37 @@ def _build_reachable_sums(
     return reachable
 
 
+def _find_sequential_exact_units(
+    units: List[WarehouseUnit],
+    target_millis: int,
+) -> Optional[List[WarehouseUnit]]:
+    selected_units = []
+    selected_sum = 0
+
+    for unit in units:
+        selected_sum += _to_millis(unit.quantity)
+        selected_units.append(unit)
+
+        if selected_sum == target_millis:
+            return selected_units
+
+        if selected_sum > target_millis:
+            return None
+
+    return None
+
+
 def _find_exact_units(
     units: List[WarehouseUnit],
     target_millis: int,
 ) -> Optional[List[WarehouseUnit]]:
+    sequential_units = _find_sequential_exact_units(
+        units=units,
+        target_millis=target_millis,
+    )
+    if sequential_units is not None:
+        return sequential_units
+
     reachable = _build_reachable_sums(
         units=units,
         limit_millis=target_millis,
