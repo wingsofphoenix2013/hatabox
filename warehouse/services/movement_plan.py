@@ -1,6 +1,7 @@
 from typing import Optional
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
@@ -281,9 +282,29 @@ def add_items_to_plan(
         inventory_item=inventory_item,
     )
 
+    same_destination_unit_ids = list(
+        WarehouseUnit.objects.filter(
+            inventory_item=inventory_item,
+            is_active=True,
+        ).filter(
+            (
+                Q(
+                    location=plan.target_location,
+                    storage_place__isnull=True,
+                )
+                if plan.target_location is not None
+                else Q(
+                    location__isnull=True,
+                    storage_place=plan.target_storage_place,
+                )
+            )
+        ).values_list("id", flat=True)
+    )
+
     move_plan = plan_move(
         inventory_item=inventory_item,
         quantity=target_quantity,
+        exclude_unit_ids=same_destination_unit_ids,
     )
 
     with transaction.atomic():

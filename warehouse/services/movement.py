@@ -61,19 +61,27 @@ def _to_millis(quantity: Decimal) -> int:
     return int(normalized * 1000)
 
 
-def _get_available_units(inventory_item) -> List[WarehouseUnit]:
+def _get_available_units(
+    inventory_item,
+    exclude_unit_ids=None,
+) -> List[WarehouseUnit]:
     reserved_unit_ids = MovementPlanItem.objects.filter(
         plan__status=MovementPlan.Status.ACTIVE,
         is_reserved=True,
     ).values_list("warehouse_unit_id", flat=True)
 
+    queryset = WarehouseUnit.objects.filter(
+        inventory_item=inventory_item,
+        is_active=True,
+    ).exclude(
+        id__in=reserved_unit_ids,
+    )
+
+    if exclude_unit_ids:
+        queryset = queryset.exclude(id__in=exclude_unit_ids)
+
     return list(
-        WarehouseUnit.objects.filter(
-            inventory_item=inventory_item,
-            is_active=True,
-        ).exclude(
-            id__in=reserved_unit_ids,
-        ).order_by("-quantity", "id")
+        queryset.order_by("-quantity", "id")
     )
 
 
@@ -157,11 +165,15 @@ def _find_exact_units(
 def plan_move(
     inventory_item,
     quantity: Union[Decimal, int, float, str],
+    exclude_unit_ids=None,
 ) -> MovePlan:
     requested_quantity = _normalize_quantity(quantity)
     target_millis = _to_millis(requested_quantity)
 
-    available_units = _get_available_units(inventory_item)
+    available_units = _get_available_units(
+        inventory_item,
+        exclude_unit_ids=exclude_unit_ids,
+    )
     if not available_units:
         raise ValidationError(
             "Немає доступних складських одиниць для цього товару."
