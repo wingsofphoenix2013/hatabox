@@ -380,7 +380,15 @@ def execute_movement_plan(
     target_location = plan.target_location
     target_storage_place = plan.target_storage_place
 
-    items = list(plan.items.all())
+    items = list(
+        MovementPlanItem.objects.select_related(
+            "warehouse_unit",
+            "warehouse_unit__location",
+            "warehouse_unit__storage_place",
+        ).filter(
+            plan=plan,
+        )
+    )
 
     if not items:
         raise ValidationError("План не містить жодної складської одиниці.")
@@ -394,6 +402,9 @@ def execute_movement_plan(
         plan.status = MovementPlan.Status.EXECUTED
         plan.save(update_fields=["status"])
 
+        units_to_update = []
+        move_events_to_create = []
+
         for item in items:
             unit = item.warehouse_unit
 
@@ -402,17 +413,21 @@ def execute_movement_plan(
 
             if item.requires_split:
                 unit.quantity = item.remainder_quantity
-                unit.save()
+                WarehouseUnit.objects.filter(pk=unit.pk).update(
+                    quantity=unit.quantity,
+                    updated_at=timezone.now(),
+                )
+                unit.refresh_from_db(fields=["quantity"])
 
                 created_unit = WarehouseUnit(
-                    inventory_item=unit.inventory_item,
+                    inventory_item_id=unit.inventory_item_id,
                     location=None,
                     storage_place=None,
                     quantity=item.move_quantity,
-                    source_receipt_item=unit.source_receipt_item,
-                    source_order_item=unit.source_order_item,
-                    tolling_source_receipt_item=unit.tolling_source_receipt_item,
-                    tolling_source_order_item=unit.tolling_source_order_item,
+                    source_receipt_item_id=unit.source_receipt_item_id,
+                    source_order_item_id=unit.source_order_item_id,
+                    tolling_source_receipt_item_id=unit.tolling_source_receipt_item_id,
+                    tolling_source_order_item_id=unit.tolling_source_order_item_id,
                     is_active=unit.is_active,
                 )
 
@@ -435,17 +450,19 @@ def execute_movement_plan(
                     created_by=created_by,
                 )
 
+                continue
+
+            if target_location is not None:
+                unit.location = target_location
+                unit.storage_place = None
             else:
-                if target_location is not None:
-                    unit.location = target_location
-                    unit.storage_place = None
-                else:
-                    unit.location = None
-                    unit.storage_place = target_storage_place
+                unit.location = None
+                unit.storage_place = target_storage_place
 
-                unit.save()
+            units_to_update.append(unit)
 
-                WarehouseUnitEvent.objects.create(
+            move_events_to_create.append(
+                WarehouseUnitEvent(
                     operation_type=WarehouseUnitEvent.OperationType.MOVE,
                     source_unit=unit,
                     result_unit=unit,
@@ -456,7 +473,16 @@ def execute_movement_plan(
                     to_storage_place=unit.storage_place,
                     created_by=created_by,
                 )
+            )
 
+        if units_to_update:
+            WarehouseUnit.objects.bulk_update(
+                units_to_update,
+                ["location", "storage_place"],
+            )
+
+        if move_events_to_create:
+            WarehouseUnitEvent.objects.bulk_create(move_events_to_create)
 
 def cancel_movement_plan(
     *,
