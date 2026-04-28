@@ -76,7 +76,7 @@ class MovementPlanViewSet(ModelViewSet):
             destination_provided=destination_provided,
         )
 
-        plan.refresh_from_db()
+        plan = self.get_queryset().get(pk=plan.pk)
 
         return Response(self.get_serializer(plan).data)
 
@@ -137,7 +137,7 @@ class MovementPlanViewSet(ModelViewSet):
             quantity=serializer.validated_data["quantity"],
         )
 
-        plan.refresh_from_db()
+        plan = self.get_queryset().get(pk=plan.pk)
 
         return Response(self.get_serializer(plan).data)
         
@@ -177,7 +177,7 @@ class MovementPlanViewSet(ModelViewSet):
             print(traceback.format_exc())
             raise exc
 
-        plan.refresh_from_db()
+        plan = self.get_queryset().get(pk=plan.pk)
 
         return Response(self.get_serializer(plan).data)
         
@@ -208,7 +208,7 @@ class MovementPlanViewSet(ModelViewSet):
             quantity=serializer.validated_data["quantity"],
         )
 
-        plan.refresh_from_db()
+        plan = self.get_queryset().get(pk=plan.pk)
 
         return Response(self.get_serializer(plan).data)
 
@@ -231,6 +231,6 @@ class MovementPlanViewSet(ModelViewSet):
 
         cancel_movement_plan(plan=plan)
 
-        plan.refresh_from_db()
+        plan = self.get_queryset().get(pk=plan.pk)
 
         return Response(self.get_serializer(plan).data)
