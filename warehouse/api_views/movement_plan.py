@@ -162,11 +162,20 @@ class MovementPlanViewSet(ModelViewSet):
         serializer = AddItemsToMovementPlanSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        add_items_to_plan(
-            plan=plan,
-            inventory_item=serializer.validated_data["inventory_item"],
-            quantity=serializer.validated_data["quantity"],
-        )
+        try:
+            add_items_to_plan(
+                plan=plan,
+                inventory_item=serializer.validated_data["inventory_item"],
+                quantity=serializer.validated_data["quantity"],
+            )
+        except Exception as exc:
+            import traceback
+            print("ADD ITEMS ERROR")
+            print(f"plan_id={plan.id}")
+            print(f"inventory_item={serializer.validated_data.get('inventory_item')}")
+            print(f"quantity={serializer.validated_data.get('quantity')}")
+            print(traceback.format_exc())
+            raise exc
 
         plan.refresh_from_db()
 
