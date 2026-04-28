@@ -231,12 +231,20 @@ class WarehouseStockDetailIncomingRowSerializer(serializers.Serializer):
     source_type = serializers.CharField(read_only=True)
 
     order_item_id = serializers.IntegerField(read_only=True)
-    order_id = serializers.IntegerField(read_only=True)
-    order_no = serializers.CharField(read_only=True)
-    order_created_at = serializers.DateTimeField(read_only=True)
 
-    counterparty_id = serializers.IntegerField(read_only=True)
-    counterparty_name = serializers.CharField(read_only=True)
+    vendor_id = serializers.IntegerField(read_only=True, allow_null=True)
+    vendor_name = serializers.CharField(read_only=True, allow_null=True)
+
+    organization_id = serializers.IntegerField(read_only=True, allow_null=True)
+    organization_name = serializers.CharField(read_only=True, allow_null=True)
+
+    external_order_id = serializers.IntegerField(read_only=True, allow_null=True)
+    external_order_no = serializers.CharField(read_only=True, allow_null=True)
+    external_order_created_at = serializers.DateTimeField(read_only=True, allow_null=True)
+
+    tolling_order_id = serializers.IntegerField(read_only=True, allow_null=True)
+    tolling_order_no = serializers.CharField(read_only=True, allow_null=True)
+    tolling_order_created_at = serializers.DateTimeField(read_only=True, allow_null=True)
 
     expected_delivery_date = serializers.DateField(read_only=True, allow_null=True)
     is_delivery_overdue = serializers.BooleanField(read_only=True)
