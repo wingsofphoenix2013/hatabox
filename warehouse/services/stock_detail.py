@@ -154,6 +154,9 @@ def _build_reserved_stock_rows(item_id: int) -> List[dict]:
     plan_items = list(
         MovementPlanItem.objects.select_related(
             "plan",
+            "plan__target_location",
+            "plan__target_storage_place",
+            "plan__target_storage_place__location",
             "warehouse_unit",
             "warehouse_unit__location",
             "warehouse_unit__storage_place",
@@ -166,7 +169,7 @@ def _build_reserved_stock_rows(item_id: int) -> List[dict]:
         )
     )
 
-    rows = []
+    grouped = {}
 
     for plan_item in plan_items:
         unit = plan_item.warehouse_unit
@@ -201,31 +204,50 @@ def _build_reserved_stock_rows(item_id: int) -> List[dict]:
             target_storage_place_display_name = plan.target_storage_place.get_display_name()
             target_storage_place_full_display = plan.target_storage_place.get_display_name_verbose()
 
-        rows.append({
-            "placement_type": placement_type,
-            "location_id": location.id,
-            "location_code": location.code,
-            "location_name": location.name,
-            "storage_place_id": storage_place_id,
-            "storage_place_code": storage_place_code,
-            "storage_place_display_name": storage_place_display_name,
-            "storage_place_full_display": storage_place_full_display,
-            "quantity": plan_item.reserved_quantity,
-            "movement_plan_id": plan.id,
-            "movement_plan_status": plan.status,
-            "movement_plan_planned_at": plan.planned_at,
-            "target_location_id": target_location.id,
-            "target_location_code": target_location.code,
-            "target_location_name": target_location.name,
-            "target_storage_place_id": target_storage_place_id,
-            "target_storage_place_code": target_storage_place_code,
-            "target_storage_place_display_name": target_storage_place_display_name,
-            "target_storage_place_full_display": target_storage_place_full_display,
-            "movement_plan_item_id": plan_item.id,
-            "requires_split": plan_item.requires_split,
-            "move_quantity": plan_item.move_quantity,
-            "remainder_quantity": plan_item.remainder_quantity,
-        })
+        key = (
+            placement_type,
+            location.id,
+            storage_place_id,
+            plan.id,
+            target_location.id,
+            target_storage_place_id,
+            plan_item.requires_split,
+        )
+
+        if key not in grouped:
+            grouped[key] = {
+                "placement_type": placement_type,
+                "location_id": location.id,
+                "location_code": location.code,
+                "location_name": location.name,
+                "storage_place_id": storage_place_id,
+                "storage_place_code": storage_place_code,
+                "storage_place_display_name": storage_place_display_name,
+                "storage_place_full_display": storage_place_full_display,
+                "quantity": ZERO,
+                "movement_plan_id": plan.id,
+                "movement_plan_status": plan.status,
+                "movement_plan_planned_at": plan.planned_at,
+                "target_location_id": target_location.id,
+                "target_location_code": target_location.code,
+                "target_location_name": target_location.name,
+                "target_storage_place_id": target_storage_place_id,
+                "target_storage_place_code": target_storage_place_code,
+                "target_storage_place_display_name": target_storage_place_display_name,
+                "target_storage_place_full_display": target_storage_place_full_display,
+                "movement_plan_item_id": plan_item.id,
+                "requires_split": plan_item.requires_split,
+                "move_quantity": ZERO if plan_item.requires_split else None,
+                "remainder_quantity": ZERO if plan_item.requires_split else None,
+            }
+
+        grouped[key]["quantity"] += _to_decimal(plan_item.reserved_quantity)
+
+        if plan_item.requires_split:
+            grouped[key]["move_quantity"] += _to_decimal(plan_item.move_quantity)
+            grouped[key]["remainder_quantity"] += _to_decimal(plan_item.remainder_quantity)
+            
+    rows = list(grouped.values())
 
     rows.sort(
         key=lambda row: (
