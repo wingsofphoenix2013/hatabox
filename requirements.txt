@@ -9,3 +9,5 @@ Pillow
 djangorestframework
 django-cors-headers
 reportlab
+weasyprint
+xhtml2pdf
