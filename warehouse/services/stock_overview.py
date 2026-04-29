@@ -198,7 +198,6 @@ def build_stock_overview(
     procurement_completed_receipt_sums = ExternalReceiptItem.objects.filter(
         order_item__vendor_item__item_id__in=item_ids,
         receipt_document__completed=True,
-        order_item__requires_unit_conversion=False,
     ).values(
         "order_item_id",
     ).annotate(
