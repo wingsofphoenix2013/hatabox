@@ -2,7 +2,11 @@ import hashlib
 import json
 from decimal import Decimal
 
+from django.core.files.base import ContentFile
+from django.utils import timezone
+
 from warehouse.models import MovementPlan
+from warehouse.services.movement_plan_invoice_pdf import generate_movement_plan_invoice_pdf
 
 
 ZERO = Decimal("0.000")
@@ -105,3 +109,27 @@ def is_movement_plan_invoice_actual(plan: MovementPlan) -> bool:
         return False
 
     return plan.invoice_snapshot_hash == calculate_movement_plan_invoice_hash(plan)
+
+
+def generate_and_save_movement_plan_invoice(plan: MovementPlan) -> MovementPlan:
+    pdf = generate_movement_plan_invoice_pdf(plan)
+    snapshot_hash = calculate_movement_plan_invoice_hash(plan)
+
+    filename = f"movement-plan-{plan.id}-invoice.pdf"
+
+    plan.invoice_file.save(
+        filename,
+        ContentFile(pdf),
+        save=False,
+    )
+    plan.invoice_generated_at = timezone.now()
+    plan.invoice_snapshot_hash = snapshot_hash
+    plan.save(
+        update_fields=[
+            "invoice_file",
+            "invoice_generated_at",
+            "invoice_snapshot_hash",
+        ]
+    )
+
+    return plan

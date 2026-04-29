@@ -27,6 +27,7 @@ from warehouse.services.movement_plan import (
     execute_movement_plan,
     cancel_movement_plan,
 )
+from warehouse.services.movement_plan_invoice import generate_and_save_movement_plan_invoice
 
 class MovementPlanViewSet(ModelViewSet):
     http_method_names = ["get", "post", "patch", "head", "options"]
@@ -207,6 +208,19 @@ class MovementPlanViewSet(ModelViewSet):
             item_id=serializer.validated_data["item_id"],
             quantity=serializer.validated_data["quantity"],
         )
+
+        plan = self.get_queryset().get(pk=plan.pk)
+
+        return Response(self.get_serializer(plan).data)
+
+    @action(detail=True, methods=["post"], url_path="generate-invoice")
+    def generate_invoice(self, request, pk=None):
+        plan = self.get_object()
+
+        if plan.status != MovementPlan.Status.ACTIVE:
+            raise ValidationError("Накладну можна сформувати лише для active плану.")
+
+        plan = generate_and_save_movement_plan_invoice(plan)
 
         plan = self.get_queryset().get(pk=plan.pk)
 
