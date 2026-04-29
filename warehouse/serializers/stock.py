@@ -7,6 +7,19 @@ class WarehouseStockOverviewLocationSerializer(serializers.Serializer):
     name = serializers.CharField(read_only=True)
 
 
+class WarehouseStockOverviewAvailablePlacementSerializer(serializers.Serializer):
+    location_code = serializers.CharField(read_only=True)
+    location_name = serializers.CharField(read_only=True)
+    storage_place_display_name = serializers.CharField(read_only=True, allow_null=True)
+    storage_place_full_display = serializers.CharField(read_only=True, allow_null=True)
+    available_quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
+    unit_symbol = serializers.CharField(read_only=True)
+
+
 class WarehouseStockOverviewRowSerializer(serializers.Serializer):
     inventory_item_id = serializers.IntegerField(read_only=True)
     inventory_item_code = serializers.CharField(read_only=True)
@@ -55,6 +68,10 @@ class WarehouseStockOverviewRowSerializer(serializers.Serializer):
     has_unconverted_incoming = serializers.BooleanField(read_only=True)
 
     locations = WarehouseStockOverviewLocationSerializer(
+        many=True,
+        read_only=True,
+    )
+    available_placements = WarehouseStockOverviewAvailablePlacementSerializer(
         many=True,
         read_only=True,
     )

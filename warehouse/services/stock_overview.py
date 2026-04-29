@@ -106,16 +106,44 @@ def build_stock_overview(
     available_by_item: Dict[int, Decimal] = defaultdict(lambda: ZERO)
     reserved_by_item: Dict[int, Decimal] = defaultdict(lambda: ZERO)
     locations_by_item: Dict[int, dict] = defaultdict(dict)
+    available_placements_by_item: Dict[int, dict] = defaultdict(dict)
 
     for unit in available_units:
         available_by_item[unit.inventory_item_id] += _to_decimal(unit.quantity)
 
         location = unit.location
-        if location is None and unit.storage_place_id is not None:
-            location = unit.storage_place.location
+        storage_place = unit.storage_place
+
+        if location is None and storage_place is not None:
+            location = storage_place.location
 
         if location is not None:
             locations_by_item[unit.inventory_item_id][location.id] = _serialize_location(location)
+
+        key = (
+            location.id,
+            storage_place.id if storage_place is not None else None,
+        )
+
+        if key not in available_placements_by_item[unit.inventory_item_id]:
+            available_placements_by_item[unit.inventory_item_id][key] = {
+                "location_code": location.code,
+                "location_name": location.name,
+                "storage_place_display_name": (
+                    storage_place.get_display_name()
+                    if storage_place is not None
+                    else None
+                ),
+                "storage_place_full_display": (
+                    storage_place.get_display_name_verbose()
+                    if storage_place is not None
+                    else None
+                ),
+                "available_quantity": ZERO,
+                "unit_symbol": unit.inventory_item.unit.symbol,
+            }
+
+        available_placements_by_item[unit.inventory_item_id][key]["available_quantity"] += _to_decimal(unit.quantity)
 
     for unit in reserved_units:
         reserved_by_item[unit.inventory_item_id] += _to_decimal(unit.quantity)
@@ -272,6 +300,13 @@ def build_stock_overview(
             locations_by_item[item.id].values(),
             key=lambda x: (x["code"], x["id"]),
         )
+        available_placements = sorted(
+            available_placements_by_item[item.id].values(),
+            key=lambda x: (
+                x["location_code"] or "",
+                x["storage_place_full_display"] or "",
+            ),
+        )
 
         row_has_procurement_pending_intake = procurement_pending_intake_quantity > ZERO
         row_has_tolling_pending_intake = tolling_pending_intake_quantity > ZERO
@@ -312,8 +347,9 @@ def build_stock_overview(
             "has_unconverted_pending_intake": row_has_unconverted_pending_intake,
             "has_unconverted_incoming": row_has_unconverted_incoming,
             "locations": item_locations,
+            "available_placements": available_placements,
         }
-
+        
         if has_stock is not None and (available_quantity > ZERO) != has_stock:
             continue
 
