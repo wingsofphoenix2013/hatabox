@@ -107,6 +107,9 @@ def is_movement_plan_invoice_actual(plan: MovementPlan) -> bool:
     if not plan.invoice_snapshot_hash:
         return False
 
+    if plan.status == MovementPlan.Status.EXECUTED:
+        return True
+
     return plan.invoice_snapshot_hash == calculate_movement_plan_invoice_hash(plan)
 
 
