@@ -259,6 +259,9 @@ def build_stock_overview(
         if remaining < ZERO:
             remaining = ZERO
 
+        if remaining == ZERO:
+            continue
+
         incoming_by_item[order_item.vendor_item.item_id] += remaining
 
     for order_item in tolling_incoming_order_items:
@@ -266,6 +269,9 @@ def build_stock_overview(
         remaining = _to_decimal(order_item.quantity) - completed_received
         if remaining < ZERO:
             remaining = ZERO
+
+        if remaining == ZERO:
+            continue
 
         incoming_by_item[order_item.inv_item_id] += remaining
 
@@ -280,13 +286,23 @@ def build_stock_overview(
         ).values_list("order_item__vendor_item__item_id", flat=True)
     )
 
-    unconverted_incoming_item_ids = set(
-        ExternalOrderItem.objects.filter(
-            vendor_item__item_id__in=item_ids,
-            requires_unit_conversion=True,
-            order__status="in_progress",
-        ).values_list("vendor_item__item_id", flat=True)
+    unconverted_incoming_item_ids = set()
+
+    unconverted_incoming_order_items = ExternalOrderItem.objects.filter(
+        vendor_item__item_id__in=item_ids,
+        requires_unit_conversion=True,
+        order__status="in_progress",
+    ).values(
+        "id",
+        "vendor_item__item_id",
+        "quantity",
     )
+
+    for row in unconverted_incoming_order_items:
+        completed_received = procurement_completed_received_by_order_item.get(row["id"], ZERO)
+        remaining = _to_decimal(row["quantity"]) - completed_received
+        if remaining > ZERO:
+            unconverted_incoming_item_ids.add(row["vendor_item__item_id"])
 
     results = []
     for item in items:

@@ -431,15 +431,17 @@ def _build_incoming_rows(item_id: int) -> List[dict]:
         is_unconverted = order_item.requires_unit_conversion
         completed_received = procurement_completed_received_by_order_item.get(order_item.id, ZERO)
 
+        source_remaining = _to_decimal(order_item.quantity) - completed_received
+        if source_remaining < ZERO:
+            source_remaining = ZERO
+
+        if source_remaining == ZERO:
+            continue
+
         if is_unconverted:
             remaining = ZERO
         else:
-            remaining = _to_decimal(order_item.quantity) - completed_received
-            if remaining < ZERO:
-                remaining = ZERO
-
-        if remaining == ZERO and not is_unconverted:
-            continue
+            remaining = source_remaining
 
         rows.append({
             "source_type": "procurement",
