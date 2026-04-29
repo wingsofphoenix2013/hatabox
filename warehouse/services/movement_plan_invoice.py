@@ -6,7 +6,6 @@ from django.core.files.base import ContentFile
 from django.utils import timezone
 
 from warehouse.models import MovementPlan
-from warehouse.services.movement_plan_invoice_pdf import generate_movement_plan_invoice_pdf
 
 
 ZERO = Decimal("0.000")
@@ -112,6 +111,8 @@ def is_movement_plan_invoice_actual(plan: MovementPlan) -> bool:
 
 
 def generate_and_save_movement_plan_invoice(plan: MovementPlan) -> MovementPlan:
+    from warehouse.services.movement_plan_invoice_pdf import generate_movement_plan_invoice_pdf
+
     pdf = generate_movement_plan_invoice_pdf(plan)
     snapshot_hash = calculate_movement_plan_invoice_hash(plan)
 
