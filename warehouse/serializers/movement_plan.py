@@ -9,6 +9,7 @@ from warehouse.models import (
     WarehouseLocation,
     WarehouseStoragePlace,
 )
+from warehouse.services.movement_plan_invoice import is_movement_plan_invoice_actual
 
 
 class MovementPlanItemSerializer(serializers.ModelSerializer):
@@ -193,6 +194,9 @@ class MovementPlanSerializer(serializers.ModelSerializer):
     items = MovementPlanItemSerializer(many=True, read_only=True)
     lines = serializers.SerializerMethodField()
     source_lines = serializers.SerializerMethodField()
+    invoice_file = serializers.FileField(read_only=True)
+    invoice_generated_at = serializers.DateTimeField(read_only=True)
+    invoice_is_actual = serializers.SerializerMethodField()
     target_location_code = serializers.SerializerMethodField()
     target_location_name = serializers.SerializerMethodField()
     is_overdue = serializers.SerializerMethodField()
@@ -209,6 +213,9 @@ class MovementPlanSerializer(serializers.ModelSerializer):
             "id",
             "status",
             "target_location",
+            "invoice_file",
+            "invoice_generated_at",
+            "invoice_is_actual",
             "target_location_code",
             "target_location_name",
             "target_storage_place",
@@ -280,6 +287,9 @@ class MovementPlanSerializer(serializers.ModelSerializer):
 
         return f"Осталось {days_delta} дн."
         
+    def get_invoice_is_actual(self, obj):
+        return is_movement_plan_invoice_actual(obj)
+
     def get_lines(self, obj):
         lines_by_item = {}
 

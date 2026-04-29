@@ -14,6 +14,7 @@ from warehouse.models import (
     WarehouseUnitEvent,
 )
 from warehouse.services.movement import plan_move
+from warehouse.services.movement_plan_invoice import is_movement_plan_invoice_actual
 
 
 def _validate_destination(
@@ -376,6 +377,11 @@ def execute_movement_plan(
 ):
     if plan.status != MovementPlan.Status.ACTIVE:
         raise ValidationError("Можна виконати лише active план.")
+
+    if not is_movement_plan_invoice_actual(plan):
+        raise ValidationError(
+            "Накладна застаріла або відсутня. Оновіть PDF перед виконанням переміщення."
+        )
 
     target_location = plan.target_location
     target_storage_place = plan.target_storage_place

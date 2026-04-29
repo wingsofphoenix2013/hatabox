@@ -16,6 +16,11 @@ from orders.models import (
 def storage_place_image_upload_to(instance, filename):
     ext = os.path.splitext(filename)[1].lower() or ".bin"
     return f"warehouse/storage_places/{uuid.uuid4().hex}{ext}"
+
+
+def movement_plan_invoice_upload_to(instance, filename):
+    ext = os.path.splitext(filename)[1].lower() or ".pdf"
+    return f"warehouse/movement_plan_invoices/{uuid.uuid4().hex}{ext}"
     
 class WarehouseLocation(models.Model):
     code = models.CharField(
@@ -708,6 +713,22 @@ class MovementPlan(models.Model):
     )
 
     comment = models.TextField(
+        blank=True,
+    )
+
+    invoice_file = models.FileField(
+        upload_to=movement_plan_invoice_upload_to,
+        blank=True,
+        null=True,
+    )
+
+    invoice_generated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    invoice_snapshot_hash = models.CharField(
+        max_length=64,
         blank=True,
     )
 
