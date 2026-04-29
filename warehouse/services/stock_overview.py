@@ -40,6 +40,7 @@ def build_stock_overview(
     category_ids: Optional[List[int]] = None,
     location_ids: Optional[List[int]] = None,
     has_stock: Optional[bool] = None,
+    has_reserved: Optional[bool] = None,
     has_pending_intake: Optional[bool] = None,
     has_incoming: Optional[bool] = None,
     has_unconverted_pending_intake: Optional[bool] = None,
@@ -366,6 +367,9 @@ def build_stock_overview(
         }
         
         if has_stock is not None and (available_quantity > ZERO) != has_stock:
+            continue
+
+        if has_reserved is not None and (reserved_quantity > ZERO) != has_reserved:
             continue
 
         if has_pending_intake is not None and row_matches_pending_intake != has_pending_intake:

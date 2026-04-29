@@ -23,6 +23,7 @@ class WarehouseStockOverviewViewSet(ReadOnlyModelViewSet):
         location_ids = request.query_params.getlist("location")
 
         has_stock = request.query_params.get("has_stock")
+        has_reserved = request.query_params.get("has_reserved")
         has_pending_intake = request.query_params.get("has_pending_intake")
         has_incoming = request.query_params.get("has_incoming")
         has_unconverted_pending_intake = request.query_params.get("has_unconverted_pending_intake")
@@ -39,6 +40,7 @@ class WarehouseStockOverviewViewSet(ReadOnlyModelViewSet):
             category_ids=category_ids,
             location_ids=location_ids,
             has_stock=parse_bool(has_stock),
+            has_reserved=parse_bool(has_reserved),
             has_pending_intake=parse_bool(has_pending_intake),
             has_incoming=parse_bool(has_incoming),
             has_unconverted_pending_intake=parse_bool(has_unconverted_pending_intake),
