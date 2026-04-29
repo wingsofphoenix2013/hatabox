@@ -91,7 +91,7 @@ def generate_movement_plan_invoice_pdf(plan) -> bytes:
             "plan_id": plan.id,
             "invoice_generated_at": timezone.localtime(timezone.now()),
             "planned_at": (
-                timezone.localtime(plan.planned_at).strftime("%d.%m.%Y %H:%M")
+                timezone.localtime(plan.planned_at)
                 if plan.planned_at
                 else None
             ),
