@@ -45,7 +45,7 @@
 
       .logo {
         display: block;
-        height: 100px;
+        height: 120px;
         width: auto;
       }
 
@@ -206,33 +206,31 @@
       <!-- TITLE -->
       <section class="title-block">
         <h1 class="main-title">
-          Накладна №{{ plan_id }} від {{ invoice_generated_at }}
+          Накладна № {{ plan_id }} від {{ invoice_generated_at|date:"d.m.Y" }}
         </h1>
 
-        <p class="route-line">
-          Маршрут:
+<p class="route-line">
+  Маршрут:
 
-          {% if target_storage_place_full_display %}
-            <span class="tag">
-              {{ target_location_code }}: {{ target_storage_place_full_display }}
-            </span>
-          {% else %}
-            <span class="tag">
-              {{ target_location_code }} - {{ target_location_name }}
-            </span>
-          {% endif %}
+  {% if target_storage_place_full_display %}
+    <span class="tag">
+      {{ target_location_code }}: {{ target_storage_place_full_display }}
+    </span>
+  {% else %}
+    <span class="tag">
+      {{ target_location_code }} - {{ target_location_name }}
+    </span>
+  {% endif %}
 
-          <br />
-
-          Дата виконання:
-          <span class="strong">
-            {% if planned_at %}
-              {{ planned_at }}
-            {% else %}
-              Без визначеної дати виконання
-            {% endif %}
-          </span>
-        </p>
+  | Дата виконання:
+  <span class="strong">
+    {% if planned_at %}
+      {{ planned_at|date:"d.m.Y" }}
+    {% else %}
+      Без визначеної дати виконання
+    {% endif %}
+  </span>
+</p>
       </section>
 
       <!-- TABLE -->
@@ -273,7 +271,7 @@
             </td>
 
             <td class="col-quantity">
-              {{ row.quantity }} {{ row.unit_symbol }}
+              {{ row.quantity|floatformat:-3 }} {{ row.unit_symbol }}
             </td>
           </tr>
           {% endfor %}
@@ -281,19 +279,10 @@
       </table>
 
       <!-- SIGNATURES -->
-      <table class="signatures">
-        <tr>
-          <td>
-            <div class="signature-title">Передав</div>
-            <div class="signature-line">підпис / дата</div>
-          </td>
-
-          <td>
-            <div class="signature-title">Прийняв</div>
-            <div class="signature-line">підпис / дата</div>
-          </td>
-        </tr>
-      </table>
+<section class="stamp-block">
+  <div class="stamp-box"></div>
+  <div class="stamp-caption">Штамп та підпис</div>
+</section>
 
     </div>
   </body>
