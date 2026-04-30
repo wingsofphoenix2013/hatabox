@@ -1,4 +1,7 @@
-from .locations import WarehouseLocationSerializer
+from .locations import (
+    WarehouseLocationSerializer,
+    WarehouseLocationDetailSerializer,
+)
 from .storage_places import WarehouseStoragePlaceSerializer
 from .units import WarehouseUnitSerializer
 from .intake import (
