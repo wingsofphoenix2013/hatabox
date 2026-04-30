@@ -38,6 +38,7 @@ from .models import (
 )
 from .serializers import (
     ExternalOrderSerializer,
+    ExternalOrderRegistrySerializer,
     ExternalOrderItemSerializer,
     ExternalPaymentDocumentSerializer,
     ExternalReceiptDocumentSerializer,
@@ -254,6 +255,104 @@ def create_next_tolling_receipt_draft_from_remainders(order, created_by):
     ])
 
     return receipt_document
+
+class ExternalOrderRegistryViewSet(ModelViewSet):
+    queryset = ExternalOrder.objects.select_related(
+        "vendor",
+    ).order_by("-created_at", "-id")
+    serializer_class = ExternalOrderRegistrySerializer
+    permission_classes = [DjangoModelPermissions]
+
+    def _with_registry_annotations(self, queryset):
+        return ExternalOrderViewSet()._with_registry_annotations(queryset)
+
+    def get_queryset(self):
+        queryset = self._with_registry_annotations(self.queryset)
+
+        vendor = self.request.query_params.getlist("vendor")
+        if vendor:
+            queryset = queryset.filter(vendor_id__in=vendor)
+
+        status = self.request.query_params.getlist("status")
+        if status:
+            queryset = queryset.filter(status__in=status)
+
+        created_by = self.request.query_params.getlist("created_by")
+        if created_by:
+            queryset = queryset.filter(created_by_id__in=created_by)
+
+        payment_ranges = self.request.query_params.getlist("payment_range")
+        if payment_ranges:
+            payment_q = Q()
+            valid_payment_filter = False
+
+            for value in payment_ranges:
+                if value == "0":
+                    payment_q |= Q(payment_percent=0)
+                    valid_payment_filter = True
+                elif value == "1-49":
+                    payment_q |= Q(payment_percent__gte=1, payment_percent__lte=49)
+                    valid_payment_filter = True
+                elif value == "50-99":
+                    payment_q |= Q(payment_percent__gte=50, payment_percent__lte=99)
+                    valid_payment_filter = True
+                elif value == "100":
+                    payment_q |= Q(payment_percent=100)
+                    valid_payment_filter = True
+
+            if valid_payment_filter:
+                queryset = queryset.filter(payment_q)
+
+        receipt_ranges = self.request.query_params.getlist("receipt_range")
+        if receipt_ranges:
+            receipt_q = Q()
+            valid_receipt_filter = False
+
+            for value in receipt_ranges:
+                if value == "overdue":
+                    receipt_q |= Q(is_receipt_overdue=True)
+                    valid_receipt_filter = True
+                elif value == "0":
+                    receipt_q |= Q(receipt_percent=0)
+                    valid_receipt_filter = True
+                elif value == "1-49":
+                    receipt_q |= Q(receipt_percent__gte=1, receipt_percent__lte=49)
+                    valid_receipt_filter = True
+                elif value == "50-99":
+                    receipt_q |= Q(receipt_percent__gte=50, receipt_percent__lte=99)
+                    valid_receipt_filter = True
+                elif value == "100":
+                    receipt_q |= Q(receipt_percent=100)
+                    valid_receipt_filter = True
+
+            if valid_receipt_filter:
+                queryset = queryset.filter(receipt_q)
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(order_no__icontains=search)
+                | models.Q(comment__icontains=search)
+                | models.Q(vendor__code__icontains=search)
+                | models.Q(vendor__name__icontains=search)
+                | models.Q(created_by__username__icontains=search)
+            )
+
+        ordering = self.request.query_params.get("ordering")
+        allowed_ordering = {
+            "order_total_amount",
+            "-order_total_amount",
+            "payment_percent",
+            "-payment_percent",
+            "receipt_percent",
+            "-receipt_percent",
+        }
+
+        if ordering in allowed_ordering:
+            queryset = queryset.order_by(ordering, "-id")
+
+        return queryset
+
 
 class ExternalOrderViewSet(ModelViewSet):
     queryset = ExternalOrder.objects.select_related(

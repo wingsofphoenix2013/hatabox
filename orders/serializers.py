@@ -475,6 +475,87 @@ class ExternalReceiptDocumentSerializer(serializers.ModelSerializer):
 
         return attrs
 
+class ExternalOrderRegistrySerializer(serializers.ModelSerializer):
+    vendor_code = serializers.CharField(source="vendor.code", read_only=True)
+    vendor_name = serializers.CharField(source="vendor.name", read_only=True)
+
+    status_name = serializers.CharField(source="get_status_display", read_only=True)
+
+    order_total_amount = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=4,
+        read_only=True,
+    )
+    paid_amount = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=4,
+        read_only=True,
+    )
+    payment_percent = serializers.IntegerField(read_only=True)
+    receipt_percent = serializers.IntegerField(read_only=True)
+    is_receipt_overdue = serializers.BooleanField(read_only=True)
+
+    receipt_state = serializers.SerializerMethodField()
+    receipt_state_name = serializers.SerializerMethodField()
+    receipt_overdue_days = serializers.SerializerMethodField()
+    receipt_expected_days = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ExternalOrder
+        fields = [
+            "id",
+            "order_no",
+            "vendor",
+            "vendor_code",
+            "vendor_name",
+            "status",
+            "status_name",
+            "created_at",
+            "comment",
+            "order_total_amount",
+            "paid_amount",
+            "payment_percent",
+            "receipt_percent",
+            "receipt_state",
+            "receipt_state_name",
+            "is_receipt_overdue",
+            "receipt_overdue_days",
+            "receipt_expected_days",
+        ]
+        read_only_fields = fields
+
+    def get_receipt_state(self, obj):
+        if obj.receipt_percent == 0:
+            return "not_received"
+        if obj.receipt_percent < 100:
+            return "partially_received"
+        return "fully_received"
+
+    def get_receipt_state_name(self, obj):
+        state = self.get_receipt_state(obj)
+
+        if state == "not_received":
+            return "Не отримано"
+        if state == "partially_received":
+            return "Частково отримано"
+        return "Отримано повністю"
+
+    def get_receipt_overdue_days(self, obj):
+        if not obj.is_receipt_overdue or obj.expected_delivery_date_min is None:
+            return 0
+
+        return (date.today() - obj.expected_delivery_date_min).days
+
+    def get_receipt_expected_days(self, obj):
+        if obj.receipt_percent >= 100 or obj.expected_delivery_date_min is None:
+            return 0
+
+        if date.today() > obj.expected_delivery_date_min:
+            return 0
+
+        return (obj.expected_delivery_date_min - date.today()).days
+
+
 class ExternalOrderSerializer(serializers.ModelSerializer):
     clear_image = serializers.BooleanField(write_only=True, required=False, default=False)
     vendor_code = serializers.CharField(source="vendor.code", read_only=True)
