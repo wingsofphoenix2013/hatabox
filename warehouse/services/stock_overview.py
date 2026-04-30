@@ -39,6 +39,7 @@ def build_stock_overview(
     search: Optional[str] = None,
     category_ids: Optional[List[int]] = None,
     location_ids: Optional[List[int]] = None,
+    storage_place_ids: Optional[List[int]] = None,
     has_stock: Optional[bool] = None,
     has_reserved: Optional[bool] = None,
     has_pending_intake: Optional[bool] = None,
@@ -49,6 +50,7 @@ def build_stock_overview(
 ) -> List[dict]:
     category_ids = [int(x) for x in (category_ids or [])]
     location_ids = [int(x) for x in (location_ids or [])]
+    storage_place_ids = [int(x) for x in (storage_place_ids or [])]
 
     item_queryset = InvItem.objects.select_related(
         "category",
@@ -84,6 +86,11 @@ def build_stock_overview(
         available_units_queryset = available_units_queryset.filter(
             Q(location_id__in=location_ids)
             | Q(storage_place__location_id__in=location_ids)
+        )
+
+    if storage_place_ids:
+        available_units_queryset = available_units_queryset.filter(
+            storage_place_id__in=storage_place_ids
         )
 
     reserved_unit_ids = set(
@@ -139,6 +146,11 @@ def build_stock_overview(
                     storage_place.get_display_name_verbose()
                     if storage_place is not None
                     else None
+                ),
+                "placement_path": (
+                    f"{location.code}: {storage_place.get_display_name_verbose()}"
+                    if storage_place is not None
+                    else f"{location.code} - {location.name}"
                 ),
                 "available_quantity": ZERO,
                 "unit_symbol": unit.inventory_item.unit.symbol,
@@ -392,6 +404,9 @@ def build_stock_overview(
             continue
 
         if location_ids and not item_locations:
+            continue
+
+        if storage_place_ids and not available_placements:
             continue
 
         if has_any_activity is not None and row_has_any_activity != has_any_activity:

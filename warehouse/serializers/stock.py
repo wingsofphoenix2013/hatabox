@@ -12,6 +12,7 @@ class WarehouseStockOverviewAvailablePlacementSerializer(serializers.Serializer)
     location_name = serializers.CharField(read_only=True)
     storage_place_display_name = serializers.CharField(read_only=True, allow_null=True)
     storage_place_full_display = serializers.CharField(read_only=True, allow_null=True)
+    placement_path = serializers.CharField(read_only=True)
     available_quantity = serializers.DecimalField(
         max_digits=12,
         decimal_places=3,
