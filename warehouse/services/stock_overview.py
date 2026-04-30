@@ -340,6 +340,7 @@ def build_stock_overview(
 
         row_has_any_activity = (
             available_quantity > ZERO
+            or reserved_quantity > ZERO
             or row_matches_pending_intake
             or row_matches_incoming
         )
