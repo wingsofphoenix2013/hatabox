@@ -11,6 +11,7 @@ from warehouse.models import (
     WarehouseStoragePlace,
     WarehouseUnit,
 )
+from warehouse.services.storage_places import sort_storage_places_hierarchically
 from warehouse.serializers import WarehouseLocationDetailSerializer
 from collections import defaultdict
 from decimal import Decimal
@@ -46,10 +47,12 @@ class WarehouseLocationViewSet(ModelViewSet):
     def detail_view(self, request, pk=None):
         location = self.get_object()
 
-        storage_places = WarehouseStoragePlace.objects.filter(
+        storage_places_queryset = WarehouseStoragePlace.objects.filter(
             location=location,
             is_active=True,
         )
+
+        storage_places = sort_storage_places_hierarchically(storage_places_queryset)
 
         reserved_plan_items = MovementPlanItem.objects.select_related(
             "plan",
