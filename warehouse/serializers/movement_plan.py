@@ -118,6 +118,7 @@ class MovementPlanListSerializer(serializers.ModelSerializer):
     is_overdue = serializers.SerializerMethodField()
     days_delta = serializers.SerializerMethodField()
     planned_status_text = serializers.SerializerMethodField()
+    can_execute = serializers.SerializerMethodField()
     target_storage_place_code = serializers.CharField(source="target_storage_place.code", read_only=True)
     target_storage_place_display_name = serializers.CharField(source="target_storage_place.get_display_name", read_only=True)
     target_storage_place_full_display = serializers.CharField(source="target_storage_place.get_display_name_verbose", read_only=True)
@@ -140,6 +141,7 @@ class MovementPlanListSerializer(serializers.ModelSerializer):
             "is_overdue",
             "days_delta",
             "planned_status_text",
+            "can_execute",
             "comment",
             "created_at",
             "items_count",
@@ -188,6 +190,13 @@ class MovementPlanListSerializer(serializers.ModelSerializer):
             return "Сьогодні"
 
         return f"Осталось {days_delta} дн."
+        
+    def get_can_execute(self, obj):
+        return (
+            obj.status == MovementPlan.Status.ACTIVE
+            and is_movement_plan_invoice_actual(obj)
+            and obj.items_count > 0
+        )
 
 
 class MovementPlanSerializer(serializers.ModelSerializer):
