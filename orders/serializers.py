@@ -266,7 +266,7 @@ class ExternalPaymentDocumentSerializer(serializers.ModelSerializer):
             planned_total += payment.payment_amount
 
         # 5. Проверка превышения суммы заказа
-        if planned_total + payment_amount > order_total_amount:
+        if planned_total + payment_amount > order_total_amount + PAYMENT_COMPLETION_TOLERANCE:
             raise serializers.ValidationError(
                 "Сума всіх платіжних документів не може перевищувати суму замовлення."
             )
