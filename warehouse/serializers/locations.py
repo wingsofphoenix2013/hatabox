@@ -16,6 +16,28 @@ class WarehouseLocationDirectStockRowSerializer(serializers.Serializer):
     )
 
 
+class WarehouseLocationDirectReservedStockRowSerializer(serializers.Serializer):
+    inventory_item_id = serializers.IntegerField(read_only=True)
+    inventory_item_code = serializers.CharField(read_only=True)
+    inventory_item_name = serializers.CharField(read_only=True)
+    inventory_item_unit_symbol = serializers.CharField(read_only=True)
+    quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
+    movement_plan_id = serializers.IntegerField(read_only=True)
+    movement_plan_status = serializers.CharField(read_only=True)
+    movement_plan_planned_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    target_location_id = serializers.IntegerField(read_only=True)
+    target_location_code = serializers.CharField(read_only=True)
+    target_location_name = serializers.CharField(read_only=True)
+    target_storage_place_id = serializers.IntegerField(read_only=True, allow_null=True)
+    target_storage_place_code = serializers.CharField(read_only=True, allow_null=True)
+    target_storage_place_display_name = serializers.CharField(read_only=True, allow_null=True)
+    target_storage_place_full_display = serializers.CharField(read_only=True, allow_null=True)
+
+
 class WarehouseLocationDetailSerializer(serializers.Serializer):
     location = serializers.DictField(read_only=True)
     storage_places = WarehouseStoragePlaceSerializer(
@@ -23,6 +45,10 @@ class WarehouseLocationDetailSerializer(serializers.Serializer):
         read_only=True,
     )
     direct_stock = WarehouseLocationDirectStockRowSerializer(
+        many=True,
+        read_only=True,
+    )
+    direct_reserved_stock = WarehouseLocationDirectReservedStockRowSerializer(
         many=True,
         read_only=True,
     )
