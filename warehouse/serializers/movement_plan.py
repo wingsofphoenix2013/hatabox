@@ -197,6 +197,7 @@ class MovementPlanSerializer(serializers.ModelSerializer):
     invoice_file = serializers.FileField(read_only=True)
     invoice_generated_at = serializers.DateTimeField(read_only=True)
     invoice_is_actual = serializers.SerializerMethodField()
+    can_execute = serializers.SerializerMethodField()
     target_location_code = serializers.SerializerMethodField()
     target_location_name = serializers.SerializerMethodField()
     is_overdue = serializers.SerializerMethodField()
@@ -216,6 +217,7 @@ class MovementPlanSerializer(serializers.ModelSerializer):
             "invoice_file",
             "invoice_generated_at",
             "invoice_is_actual",
+            "can_execute",
             "target_location_code",
             "target_location_name",
             "target_storage_place",
@@ -289,6 +291,13 @@ class MovementPlanSerializer(serializers.ModelSerializer):
         
     def get_invoice_is_actual(self, obj):
         return is_movement_plan_invoice_actual(obj)
+
+    def get_can_execute(self, obj):
+        return (
+            obj.status == MovementPlan.Status.ACTIVE
+            and is_movement_plan_invoice_actual(obj)
+            and obj.items.exists()
+        )
 
     def get_lines(self, obj):
         lines_by_item = {}
