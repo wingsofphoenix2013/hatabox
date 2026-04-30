@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.viewsets import ModelViewSet
@@ -131,6 +132,27 @@ class WarehouseLocationViewSet(ModelViewSet):
                 target_storage_place_id,
             )
 
+            if plan.planned_at is None:
+                movement_plan_days_delta = None
+                movement_plan_is_overdue = False
+                movement_plan_planned_status_text = None
+            else:
+                planned_date = timezone.localtime(plan.planned_at).date()
+                today = timezone.localdate()
+                movement_plan_days_delta = (planned_date - today).days
+                movement_plan_is_overdue = movement_plan_days_delta < 0
+
+                if movement_plan_days_delta < 0:
+                    movement_plan_planned_status_text = (
+                        f"Просрочено на {abs(movement_plan_days_delta)} дн."
+                    )
+                elif movement_plan_days_delta == 0:
+                    movement_plan_planned_status_text = "Сьогодні"
+                else:
+                    movement_plan_planned_status_text = (
+                        f"Осталось {movement_plan_days_delta} дн."
+                    )
+
             if key not in reserved_grouped:
                 reserved_grouped[key] = {
                     "inventory_item_id": unit.inventory_item.id,
@@ -141,6 +163,9 @@ class WarehouseLocationViewSet(ModelViewSet):
                     "movement_plan_id": plan.id,
                     "movement_plan_status": plan.status,
                     "movement_plan_planned_at": plan.planned_at,
+                    "movement_plan_is_overdue": movement_plan_is_overdue,
+                    "movement_plan_days_delta": movement_plan_days_delta,
+                    "movement_plan_planned_status_text": movement_plan_planned_status_text,
                     "target_location_id": target_location.id,
                     "target_location_code": target_location.code,
                     "target_location_name": target_location.name,
