@@ -18,6 +18,11 @@ def storage_place_image_upload_to(instance, filename):
     return f"warehouse/storage_places/{uuid.uuid4().hex}{ext}"
 
 
+def storage_place_qr_pdf_upload_to(instance, filename):
+    ext = os.path.splitext(filename)[1].lower() or ".pdf"
+    return f"warehouse/storage_place_qr/{uuid.uuid4().hex}{ext}"
+
+
 def movement_plan_invoice_upload_to(instance, filename):
     ext = os.path.splitext(filename)[1].lower() or ".pdf"
     return f"warehouse/movement_plan_invoices/{uuid.uuid4().hex}{ext}"
@@ -126,11 +131,11 @@ class WarehouseStoragePlace(models.Model):
         verbose_name="Коментар",
     )
 
-    qr_code = models.CharField(
-        max_length=100,
-        unique=True,
-        editable=False,
-        verbose_name="QR код",
+    qr_pdf_file = models.FileField(
+        upload_to=storage_place_qr_pdf_upload_to,
+        blank=True,
+        null=True,
+        verbose_name="QR PDF",
     )
 
     image = models.ImageField(
@@ -263,10 +268,6 @@ class WarehouseStoragePlace(models.Model):
         with transaction.atomic():
             if is_new and not self.code:
                 self.code = self._generate_next_code()
-
-            # генерация QR (жёстко связана с code)
-            if not self.qr_code and self.code:
-                self.qr_code = f"{self.place_type}:{self.code}"
 
             self.full_clean()
             super().save(*args, **kwargs)

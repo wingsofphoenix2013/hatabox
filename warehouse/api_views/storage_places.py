@@ -49,7 +49,6 @@ class WarehouseStoragePlaceViewSet(ModelViewSet):
                 models.Q(code__icontains=search)
                 | models.Q(name__icontains=search)
                 | models.Q(comment__icontains=search)
-                | models.Q(qr_code__icontains=search)
                 | models.Q(location__code__icontains=search)
                 | models.Q(parent__code__icontains=search)
                 | models.Q(display_name_search__icontains=search)

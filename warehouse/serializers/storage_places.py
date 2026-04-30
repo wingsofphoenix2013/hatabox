@@ -28,12 +28,12 @@ class WarehouseStoragePlaceSerializer(serializers.ModelSerializer):
             "display_name_verbose",
             "name",
             "comment",
-            "qr_code",
+            "qr_pdf_file",
             "image",
             "is_active",
             "display_name",
         ]
-        read_only_fields = ("code", "qr_code", "display_name")
+        read_only_fields = ("code", "display_name")
 
     def get_placement_display(self, obj):
         if obj.parent is None:

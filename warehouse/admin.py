@@ -94,13 +94,13 @@ class WarehouseStoragePlaceAdmin(admin.ModelAdmin):
         "get_display_name",
         "location",
         "parent",
+        "qr_pdf_file",
         "is_active",
     )
     search_fields = (
         "code",
         "name",
         "comment",
-        "qr_code",
     )
     list_filter = (
         "place_type",
@@ -113,7 +113,6 @@ class WarehouseStoragePlaceAdmin(admin.ModelAdmin):
     )
     readonly_fields = (
         "code",
-        "qr_code",
     )
 
 @admin.register(WarehouseUnit)
