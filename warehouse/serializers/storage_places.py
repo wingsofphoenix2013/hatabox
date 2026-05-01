@@ -3,6 +3,112 @@ from rest_framework import serializers
 from ..models import WarehouseStoragePlace
 
 
+class WarehouseStoragePlaceStockRowSerializer(serializers.Serializer):
+    inventory_item_id = serializers.IntegerField(read_only=True)
+    inventory_item_code = serializers.CharField(read_only=True)
+    inventory_item_name = serializers.CharField(read_only=True)
+    inventory_item_unit_symbol = serializers.CharField(read_only=True)
+    quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
+
+
+class WarehouseStoragePlaceNestedStockRowSerializer(serializers.Serializer):
+    inventory_item_id = serializers.IntegerField(read_only=True)
+    inventory_item_code = serializers.CharField(read_only=True)
+    inventory_item_name = serializers.CharField(read_only=True)
+    inventory_item_unit_symbol = serializers.CharField(read_only=True)
+    storage_place_id = serializers.IntegerField(read_only=True)
+    storage_place_code = serializers.CharField(read_only=True)
+    storage_place_display_name = serializers.CharField(read_only=True)
+    storage_place_full_display = serializers.CharField(read_only=True)
+    quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
+
+
+class WarehouseStoragePlaceReservedStockRowSerializer(serializers.Serializer):
+    inventory_item_id = serializers.IntegerField(read_only=True)
+    inventory_item_code = serializers.CharField(read_only=True)
+    inventory_item_name = serializers.CharField(read_only=True)
+    inventory_item_unit_symbol = serializers.CharField(read_only=True)
+    quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
+    movement_plan_id = serializers.IntegerField(read_only=True)
+    movement_plan_status = serializers.CharField(read_only=True)
+    movement_plan_planned_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    movement_plan_is_overdue = serializers.BooleanField(read_only=True)
+    movement_plan_days_delta = serializers.IntegerField(read_only=True, allow_null=True)
+    movement_plan_planned_status_text = serializers.CharField(read_only=True, allow_null=True)
+    target_location_id = serializers.IntegerField(read_only=True)
+    target_location_code = serializers.CharField(read_only=True)
+    target_location_name = serializers.CharField(read_only=True)
+    target_storage_place_id = serializers.IntegerField(read_only=True, allow_null=True)
+    target_storage_place_code = serializers.CharField(read_only=True, allow_null=True)
+    target_storage_place_display_name = serializers.CharField(read_only=True, allow_null=True)
+    target_storage_place_full_display = serializers.CharField(read_only=True, allow_null=True)
+
+class WarehouseStoragePlaceNestedReservedStockRowSerializer(serializers.Serializer):
+    inventory_item_id = serializers.IntegerField(read_only=True)
+    inventory_item_code = serializers.CharField(read_only=True)
+    inventory_item_name = serializers.CharField(read_only=True)
+    inventory_item_unit_symbol = serializers.CharField(read_only=True)
+
+    storage_place_id = serializers.IntegerField(read_only=True)
+    storage_place_code = serializers.CharField(read_only=True)
+    storage_place_display_name = serializers.CharField(read_only=True)
+    storage_place_full_display = serializers.CharField(read_only=True)
+
+    quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
+
+    movement_plan_id = serializers.IntegerField(read_only=True)
+    movement_plan_status = serializers.CharField(read_only=True)
+    movement_plan_planned_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    movement_plan_is_overdue = serializers.BooleanField(read_only=True)
+    movement_plan_days_delta = serializers.IntegerField(read_only=True, allow_null=True)
+    movement_plan_planned_status_text = serializers.CharField(read_only=True, allow_null=True)
+
+    target_location_id = serializers.IntegerField(read_only=True)
+    target_location_code = serializers.CharField(read_only=True)
+    target_location_name = serializers.CharField(read_only=True)
+
+    target_storage_place_id = serializers.IntegerField(read_only=True, allow_null=True)
+    target_storage_place_code = serializers.CharField(read_only=True, allow_null=True)
+    target_storage_place_display_name = serializers.CharField(read_only=True, allow_null=True)
+    target_storage_place_full_display = serializers.CharField(read_only=True, allow_null=True)
+
+class WarehouseStoragePlaceDetailSerializer(serializers.Serializer):
+    storage_place = serializers.DictField(read_only=True)
+    children = serializers.ListField(read_only=True)
+    direct_stock = WarehouseStoragePlaceStockRowSerializer(
+        many=True,
+        read_only=True,
+    )
+    direct_reserved_stock = WarehouseStoragePlaceReservedStockRowSerializer(
+        many=True,
+        read_only=True,
+    )
+    nested_stock = WarehouseStoragePlaceNestedStockRowSerializer(
+        many=True,
+        read_only=True,
+    )
+    nested_reserved_stock = WarehouseStoragePlaceNestedReservedStockRowSerializer(
+        many=True,
+        read_only=True,
+    )
+
+
 class WarehouseStoragePlaceSerializer(serializers.ModelSerializer):
     location_code = serializers.CharField(source="location.code", read_only=True)
     parent_code = serializers.CharField(source="parent.code", read_only=True)

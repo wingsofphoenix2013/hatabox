@@ -2,7 +2,10 @@ from .locations import (
     WarehouseLocationSerializer,
     WarehouseLocationDetailSerializer,
 )
-from .storage_places import WarehouseStoragePlaceSerializer
+from .storage_places import (
+    WarehouseStoragePlaceSerializer,
+    WarehouseStoragePlaceDetailSerializer,
+)
 from .units import WarehouseUnitSerializer
 from .intake import (
     WarehousePendingIntakeItemSerializer,
