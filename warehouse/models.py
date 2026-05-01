@@ -781,6 +781,47 @@ class MovementPlanItem(models.Model):
 
     is_reserved = models.BooleanField(default=True)
 
+    executed_source_location = models.ForeignKey(
+        WarehouseLocation,
+        on_delete=models.PROTECT,
+        related_name="executed_movement_plan_items_from_location",
+        null=True,
+        blank=True,
+    )
+
+    executed_source_location_code = models.CharField(
+        max_length=3,
+        blank=True,
+    )
+
+    executed_source_location_name = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    executed_source_storage_place = models.ForeignKey(
+        WarehouseStoragePlace,
+        on_delete=models.PROTECT,
+        related_name="executed_movement_plan_items_from_storage_place",
+        null=True,
+        blank=True,
+    )
+
+    executed_source_storage_place_code = models.CharField(
+        max_length=3,
+        blank=True,
+    )
+
+    executed_source_storage_place_display_name = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    executed_source_storage_place_full_display = models.CharField(
+        max_length=500,
+        blank=True,
+    )
+
     class Meta:
         db_table = "warehouse_movement_plan_items"
         constraints = [
