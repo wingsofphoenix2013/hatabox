@@ -41,6 +41,9 @@ class MovementPlanItemSerializer(serializers.ModelSerializer):
         ]
         
     def get_source_location_code(self, obj):
+        if obj.plan.status == MovementPlan.Status.EXECUTED and obj.executed_source_location_code:
+            return obj.executed_source_location_code
+
         unit = obj.warehouse_unit
 
         if unit.location is not None:
@@ -52,6 +55,9 @@ class MovementPlanItemSerializer(serializers.ModelSerializer):
         return None
 
     def get_source_location_name(self, obj):
+        if obj.plan.status == MovementPlan.Status.EXECUTED and obj.executed_source_location_name:
+            return obj.executed_source_location_name
+
         unit = obj.warehouse_unit
 
         if unit.location is not None:
@@ -63,6 +69,9 @@ class MovementPlanItemSerializer(serializers.ModelSerializer):
         return None
 
     def get_source_storage_place_display_name(self, obj):
+        if obj.plan.status == MovementPlan.Status.EXECUTED:
+            return obj.executed_source_storage_place_display_name or None
+
         unit = obj.warehouse_unit
 
         if unit.storage_place is None:
@@ -71,6 +80,9 @@ class MovementPlanItemSerializer(serializers.ModelSerializer):
         return unit.storage_place.get_display_name()
 
     def get_source_storage_place_full_display(self, obj):
+        if obj.plan.status == MovementPlan.Status.EXECUTED:
+            return obj.executed_source_storage_place_full_display or None
+
         unit = obj.warehouse_unit
 
         if unit.storage_place is None:

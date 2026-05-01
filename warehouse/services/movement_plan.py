@@ -417,6 +417,38 @@ def execute_movement_plan(
             from_location = unit.location
             from_storage_place = unit.storage_place
 
+            # snapshot исходного размещения
+            if from_storage_place is not None:
+                src_location = from_storage_place.location
+                item.executed_source_location = src_location
+                item.executed_source_location_code = src_location.code
+                item.executed_source_location_name = src_location.name
+
+                item.executed_source_storage_place = from_storage_place
+                item.executed_source_storage_place_code = from_storage_place.code
+                item.executed_source_storage_place_display_name = from_storage_place.get_display_name()
+                item.executed_source_storage_place_full_display = from_storage_place.get_display_name_verbose()
+            else:
+                src_location = from_location
+                item.executed_source_location = src_location
+                item.executed_source_location_code = src_location.code
+                item.executed_source_location_name = src_location.name
+
+                item.executed_source_storage_place = None
+                item.executed_source_storage_place_code = ""
+                item.executed_source_storage_place_display_name = ""
+                item.executed_source_storage_place_full_display = ""
+
+            item.save(update_fields=[
+                "executed_source_location",
+                "executed_source_location_code",
+                "executed_source_location_name",
+                "executed_source_storage_place",
+                "executed_source_storage_place_code",
+                "executed_source_storage_place_display_name",
+                "executed_source_storage_place_full_display",
+            ])
+
             if item.requires_split:
                 unit.quantity = item.remainder_quantity
                 WarehouseUnit.objects.filter(pk=unit.pk).update(
