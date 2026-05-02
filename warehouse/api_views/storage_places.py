@@ -2,11 +2,13 @@ from warehouse.services.storage_places import sort_storage_places_hierarchically
 
 from django.db import models
 from django.db.models import Case, CharField, F, Value, When
+from django.db.models.deletion import ProtectedError
 from django.db.models.functions import Concat
 
 from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
+from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import action
 
 from collections import defaultdict
@@ -177,6 +179,21 @@ class WarehouseStoragePlaceViewSet(ModelViewSet):
 
         serializer = self.get_serializer(ordered_places, many=True)
         return Response(serializer.data)
+        
+    def destroy(self, request, *args, **kwargs):
+        storage_place = self.get_object()
+
+        if not storage_place.can_be_deleted():
+            raise ValidationError(
+                "Неможливо видалити місце зберігання, оскільки воно використовується в складських операціях."
+            )
+
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            raise ValidationError(
+                "Неможливо видалити місце зберігання, оскільки воно має пов'язані об'єкти."
+            )
         
     @action(detail=True, methods=["get"], url_path="detail-view")
     def detail_view(self, request, pk=None):
@@ -428,10 +445,7 @@ class WarehouseStoragePlaceViewSet(ModelViewSet):
                 "comment": storage_place.comment,
                 "image": storage_place.image.url if storage_place.image else None,
                 "qr_pdf_file": storage_place.qr_pdf_file.url if storage_place.qr_pdf_file else None,
-                "can_delete": (
-                    not storage_place.children.exists()
-                    and not storage_place.warehouse_units.exists()
-                ),
+                "can_delete": storage_place.can_be_deleted(),
                 "location_id": storage_place.location.id,
                 "location_code": storage_place.location.code,
                 "location_name": storage_place.location.name,

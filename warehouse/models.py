@@ -208,6 +208,16 @@ class WarehouseStoragePlace(models.Model):
             result = f"{result} на локації"
 
         return result
+
+    def can_be_deleted(self):
+        return (
+            not self.children.exists()
+            and not self.warehouse_units.exists()
+            and not self.unit_events_from_storage_place.exists()
+            and not self.unit_events_to_storage_place.exists()
+            and not self.movement_plans.exists()
+            and not self.executed_movement_plan_items_from_storage_place.exists()
+        )
         
     def clean(self):
         super().clean()

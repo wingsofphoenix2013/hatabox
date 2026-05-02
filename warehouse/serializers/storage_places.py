@@ -161,7 +161,4 @@ class WarehouseStoragePlaceSerializer(serializers.ModelSerializer):
         return obj.get_display_name_verbose()
         
     def get_can_delete(self, obj):
-        return (
-            not obj.children.exists()
-            and not obj.warehouse_units.exists()
-        )
+        return obj.can_be_deleted()
