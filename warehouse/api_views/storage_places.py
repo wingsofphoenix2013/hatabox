@@ -428,6 +428,10 @@ class WarehouseStoragePlaceViewSet(ModelViewSet):
                 "comment": storage_place.comment,
                 "image": storage_place.image.url if storage_place.image else None,
                 "qr_pdf_file": storage_place.qr_pdf_file.url if storage_place.qr_pdf_file else None,
+                "can_delete": (
+                    not storage_place.children.exists()
+                    and not storage_place.warehouse_units.exists()
+                ),
                 "location_id": storage_place.location.id,
                 "location_code": storage_place.location.code,
                 "location_name": storage_place.location.name,

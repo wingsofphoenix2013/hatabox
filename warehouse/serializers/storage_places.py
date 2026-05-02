@@ -117,6 +117,7 @@ class WarehouseStoragePlaceSerializer(serializers.ModelSerializer):
     display_name = serializers.CharField(source="get_display_name", read_only=True)
     placement_display = serializers.SerializerMethodField()
     display_name_verbose = serializers.SerializerMethodField()
+    can_delete = serializers.SerializerMethodField()
 
     class Meta:
         model = WarehouseStoragePlace
@@ -138,6 +139,7 @@ class WarehouseStoragePlaceSerializer(serializers.ModelSerializer):
             "image",
             "is_active",
             "display_name",
+            "can_delete",
         ]
         read_only_fields = ("code", "display_name")
 
@@ -157,3 +159,9 @@ class WarehouseStoragePlaceSerializer(serializers.ModelSerializer):
         
     def get_display_name_verbose(self, obj):
         return obj.get_display_name_verbose()
+        
+    def get_can_delete(self, obj):
+        return (
+            not obj.children.exists()
+            and not obj.warehouse_units.exists()
+        )
