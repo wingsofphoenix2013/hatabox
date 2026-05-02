@@ -162,6 +162,7 @@ class WarehouseLocationViewSet(ModelViewSet):
                     "quantity": Decimal("0.000"),
                     "movement_plan_id": plan.id,
                     "movement_plan_status": plan.status,
+                    "movement_plan_created_at": plan.created_at,
                     "movement_plan_planned_at": plan.planned_at,
                     "movement_plan_is_overdue": movement_plan_is_overdue,
                     "movement_plan_days_delta": movement_plan_days_delta,
