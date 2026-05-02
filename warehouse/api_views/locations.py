@@ -13,6 +13,7 @@ from warehouse.models import (
     WarehouseUnit,
 )
 from warehouse.services.storage_places import sort_storage_places_hierarchically
+from warehouse.services.movement_plan_invoice import is_movement_plan_invoice_actual
 from warehouse.serializers import WarehouseLocationDetailSerializer
 from collections import defaultdict
 from decimal import Decimal
@@ -162,6 +163,11 @@ class WarehouseLocationViewSet(ModelViewSet):
                     "quantity": Decimal("0.000"),
                     "movement_plan_id": plan.id,
                     "movement_plan_status": plan.status,
+                    "movement_plan_can_execute": (
+                        plan.status == MovementPlan.Status.ACTIVE
+                        and is_movement_plan_invoice_actual(plan)
+                        and plan.items.exists()
+                    ),
                     "movement_plan_created_at": plan.created_at,
                     "movement_plan_planned_at": plan.planned_at,
                     "movement_plan_is_overdue": movement_plan_is_overdue,

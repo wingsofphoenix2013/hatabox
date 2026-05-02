@@ -16,6 +16,7 @@ from decimal import Decimal
 from django.utils import timezone
 
 from warehouse.models import MovementPlan, MovementPlanItem, WarehouseUnit
+from warehouse.services.movement_plan_invoice import is_movement_plan_invoice_actual
 from warehouse.serializers import WarehouseStoragePlaceDetailSerializer
 
 from warehouse.models import WarehouseStoragePlace
@@ -291,6 +292,11 @@ class WarehouseStoragePlaceViewSet(ModelViewSet):
                     "quantity": Decimal("0.000"),
                     "movement_plan_id": plan.id,
                     "movement_plan_status": plan.status,
+                    "movement_plan_can_execute": (
+                        plan.status == MovementPlan.Status.ACTIVE
+                        and is_movement_plan_invoice_actual(plan)
+                        and plan.items.exists()
+                    ),
                     "movement_plan_created_at": plan.created_at,
                     "movement_plan_planned_at": plan.planned_at,
                     "movement_plan_is_overdue": is_overdue,
@@ -415,6 +421,11 @@ class WarehouseStoragePlaceViewSet(ModelViewSet):
                     "quantity": Decimal("0.000"),
                     "movement_plan_id": plan.id,
                     "movement_plan_status": plan.status,
+                    "movement_plan_can_execute": (
+                        plan.status == MovementPlan.Status.ACTIVE
+                        and is_movement_plan_invoice_actual(plan)
+                        and plan.items.exists()
+                    ),
                     "movement_plan_created_at": plan.created_at,
                     "movement_plan_planned_at": plan.planned_at,
                     "movement_plan_is_overdue": is_overdue,

@@ -28,6 +28,7 @@ class WarehouseLocationDirectReservedStockRowSerializer(serializers.Serializer):
     )
     movement_plan_id = serializers.IntegerField(read_only=True)
     movement_plan_status = serializers.CharField(read_only=True)
+    movement_plan_can_execute = serializers.BooleanField(read_only=True)
     movement_plan_created_at = serializers.DateTimeField(read_only=True)
     movement_plan_planned_at = serializers.DateTimeField(read_only=True, allow_null=True)
     movement_plan_is_overdue = serializers.BooleanField(read_only=True)
