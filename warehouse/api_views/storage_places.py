@@ -441,11 +441,23 @@ class WarehouseStoragePlaceViewSet(ModelViewSet):
                 "display_name_verbose": storage_place.get_display_name_verbose(),
                 "place_type": storage_place.place_type,
                 "place_type_name": storage_place.get_place_type_display(),
+                "parent_storage_place": (
+                    {
+                        "id": storage_place.parent.id,
+                        "display_name": storage_place.parent.get_display_name(),
+                        "display_name_verbose": storage_place.parent.get_display_name_verbose(),
+                        "place_type": storage_place.parent.place_type,
+                        "place_type_name": storage_place.parent.get_place_type_display(),
+                    }
+                    if storage_place.parent
+                    else None
+                ),
                 "name": storage_place.name,
                 "comment": storage_place.comment,
                 "image": storage_place.image.url if storage_place.image else None,
                 "qr_pdf_file": storage_place.qr_pdf_file.url if storage_place.qr_pdf_file else None,
                 "can_delete": storage_place.can_be_deleted(),
+                "delete_block_reasons": storage_place.get_delete_block_reasons(),
                 "location_id": storage_place.location.id,
                 "location_code": storage_place.location.code,
                 "location_name": storage_place.location.name,

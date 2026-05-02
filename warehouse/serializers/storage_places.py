@@ -118,6 +118,7 @@ class WarehouseStoragePlaceSerializer(serializers.ModelSerializer):
     placement_display = serializers.SerializerMethodField()
     display_name_verbose = serializers.SerializerMethodField()
     can_delete = serializers.SerializerMethodField()
+    delete_block_reasons = serializers.SerializerMethodField()
 
     class Meta:
         model = WarehouseStoragePlace
@@ -140,6 +141,7 @@ class WarehouseStoragePlaceSerializer(serializers.ModelSerializer):
             "is_active",
             "display_name",
             "can_delete",
+            "delete_block_reasons",
         ]
         read_only_fields = ("code", "display_name")
 
@@ -162,3 +164,6 @@ class WarehouseStoragePlaceSerializer(serializers.ModelSerializer):
         
     def get_can_delete(self, obj):
         return obj.can_be_deleted()
+        
+    def get_delete_block_reasons(self, obj):
+        return obj.get_delete_block_reasons()

@@ -209,15 +209,31 @@ class WarehouseStoragePlace(models.Model):
 
         return result
 
+    def get_delete_block_reasons(self):
+        reasons = []
+
+        if self.children.exists():
+            reasons.append("Є дочірні місця зберігання.")
+
+        if self.warehouse_units.exists():
+            reasons.append("Є складські одиниці.")
+
+        if self.unit_events_from_storage_place.exists():
+            reasons.append("Є складські події (джерело переміщення).")
+
+        if self.unit_events_to_storage_place.exists():
+            reasons.append("Є складські події (місце призначення).")
+
+        if self.movement_plans.exists():
+            reasons.append("Використовується в планах переміщення.")
+
+        if self.executed_movement_plan_items_from_storage_place.exists():
+            reasons.append("Використовується в виконаних переміщеннях.")
+
+        return reasons
+
     def can_be_deleted(self):
-        return (
-            not self.children.exists()
-            and not self.warehouse_units.exists()
-            and not self.unit_events_from_storage_place.exists()
-            and not self.unit_events_to_storage_place.exists()
-            and not self.movement_plans.exists()
-            and not self.executed_movement_plan_items_from_storage_place.exists()
-        )
+        return len(self.get_delete_block_reasons()) == 0
         
     def clean(self):
         super().clean()
