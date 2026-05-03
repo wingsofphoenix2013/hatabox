@@ -36,7 +36,6 @@ def accept_procurement_receipt_item_to_location(
 
     existing_units = WarehouseUnit.objects.filter(
         source_receipt_item=receipt_item,
-        is_active=True,
     )
     if existing_units.exists():
         raise ValidationError("Цей рядок приходу вже оброблено складом.")
@@ -129,7 +128,6 @@ def accept_procurement_receipt_item_with_conversion(
 
     existing_units = WarehouseUnit.objects.filter(
         source_receipt_item=receipt_item,
-        is_active=True,
     )
     if existing_units.exists():
         raise ValidationError("Цей рядок приходу вже оброблено складом.")
@@ -236,7 +234,6 @@ def bulk_accept_procurement_receipt_items_to_location(
     existing_units = set(
         WarehouseUnit.objects.filter(
             source_receipt_item_id__in=receipt_item_ids,
-            is_active=True,
         ).values_list("source_receipt_item_id", flat=True)
     )
     if existing_units:

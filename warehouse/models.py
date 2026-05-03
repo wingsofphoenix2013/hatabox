@@ -510,11 +510,6 @@ class WarehouseUnit(models.Model):
         verbose_name="Джерело рядка замовлення (давальницька схема)",
     )
 
-    is_active = models.BooleanField(
-        default=True,
-        verbose_name="Активна",
-    )
-
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -699,7 +694,7 @@ class WarehouseReceiptItemConversion(models.Model):
                     "source_quantity": "Кількість у документах повинна збігатися з кількістю рядка приходу."
                 })
 
-            if self.receipt_item.warehouse_units.filter(is_active=True).exists():
+            if self.receipt_item.warehouse_units.exists():
                 raise ValidationError(
                     "Неможливо створити конвертацію для рядка, який вже оброблено складом."
                 )

@@ -67,7 +67,7 @@ class WarehouseLocationViewSet(ModelViewSet):
         ).filter(
             warehouse_unit__location=location,
             warehouse_unit__storage_place__isnull=True,
-            warehouse_unit__is_active=True,
+            warehouse_unit__status=WarehouseUnit.Status.ON_STOCK,
             plan__status=MovementPlan.Status.ACTIVE,
             is_reserved=True,
         )
@@ -83,7 +83,7 @@ class WarehouseLocationViewSet(ModelViewSet):
         ).filter(
             location=location,
             storage_place__isnull=True,
-            is_active=True,
+            status=WarehouseUnit.Status.ON_STOCK,
         ).exclude(
             id__in=reserved_unit_ids,
         )

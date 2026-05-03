@@ -5,8 +5,7 @@ from orders.models import TollingReceiptDocument, TollingReceiptItem
 def mark_external_receipt_document_sent_if_fully_processed(receipt_document):
     remaining_items = ExternalReceiptItem.objects.filter(
         receipt_document=receipt_document,
-    ).exclude(
-        warehouse_units__is_active=True,
+        warehouse_units__isnull=True,
     ).distinct()
 
     if not remaining_items.exists():
@@ -24,8 +23,7 @@ def mark_external_receipt_document_sent_by_id_if_fully_processed(receipt_documen
 def mark_tolling_receipt_document_sent_if_fully_processed(receipt_document):
     remaining_items = TollingReceiptItem.objects.filter(
         receipt_document=receipt_document,
-    ).exclude(
-        warehouse_units__is_active=True,
+        warehouse_units__isnull=True,
     ).distinct()
 
     if not remaining_items.exists():

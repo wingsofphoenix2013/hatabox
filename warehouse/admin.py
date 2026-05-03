@@ -124,14 +124,14 @@ class WarehouseUnitAdmin(admin.ModelAdmin):
         "storage_place",
         "source_receipt_item",
         "source_order_item",
-        "is_active",
+        "status",
     )
     search_fields = (
         "inventory_item__internal_code",
         "inventory_item__name",
     )
     list_filter = (
-        "is_active",
+        "status",
         "inventory_item__unit",
         "location",
     )

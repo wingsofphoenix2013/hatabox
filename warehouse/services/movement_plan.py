@@ -286,7 +286,7 @@ def add_items_to_plan(
     same_destination_unit_ids = list(
         WarehouseUnit.objects.filter(
             inventory_item=inventory_item,
-            is_active=True,
+            status=WarehouseUnit.Status.ON_STOCK,
         ).filter(
             (
                 Q(
@@ -466,7 +466,7 @@ def execute_movement_plan(
                     source_order_item_id=unit.source_order_item_id,
                     tolling_source_receipt_item_id=unit.tolling_source_receipt_item_id,
                     tolling_source_order_item_id=unit.tolling_source_order_item_id,
-                    is_active=unit.is_active,
+                    status=unit.status,
                 )
 
                 if target_location is not None:

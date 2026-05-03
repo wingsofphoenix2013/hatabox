@@ -72,7 +72,7 @@ def _get_available_units(
 
     queryset = WarehouseUnit.objects.filter(
         inventory_item=inventory_item,
-        is_active=True,
+        status=WarehouseUnit.Status.ON_STOCK,
     ).exclude(
         id__in=reserved_unit_ids,
     )

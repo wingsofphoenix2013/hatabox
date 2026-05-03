@@ -92,7 +92,7 @@ def _build_stock_rows(item_id: int) -> List[dict]:
             "storage_place__location",
         ).filter(
             inventory_item_id=item_id,
-            is_active=True,
+            status=WarehouseUnit.Status.ON_STOCK,
         )
         if unit.id not in reserved_unit_ids
     ]
@@ -163,7 +163,7 @@ def _build_reserved_stock_rows(item_id: int) -> List[dict]:
             "warehouse_unit__storage_place__location",
         ).filter(
             warehouse_unit__inventory_item_id=item_id,
-            warehouse_unit__is_active=True,
+            warehouse_unit__status=WarehouseUnit.Status.ON_STOCK,
             plan__status=MovementPlan.Status.ACTIVE,
             is_reserved=True,
         )
@@ -264,7 +264,7 @@ def _build_reserved_stock_rows(item_id: int) -> List[dict]:
 def _build_reserved_quantity(item_id: int) -> Decimal:
     reserved_units = WarehouseUnit.objects.filter(
         inventory_item_id=item_id,
-        is_active=True,
+        status=WarehouseUnit.Status.ON_STOCK,
         movement_plan_items__plan__status=MovementPlan.Status.ACTIVE,
     )
 
@@ -287,8 +287,7 @@ def _build_pending_intake_rows(item_id: int) -> List[dict]:
             order_item__vendor_item__item_id=item_id,
             receipt_document__completed=True,
             receipt_document__sent_to_warehouse=False,
-        ).exclude(
-            warehouse_units__is_active=True,
+            warehouse_units__isnull=True,
         )
     )
 
@@ -304,8 +303,7 @@ def _build_pending_intake_rows(item_id: int) -> List[dict]:
             order_item__inv_item_id=item_id,
             receipt_document__completed=True,
             receipt_document__sent_to_warehouse=False,
-        ).exclude(
-            warehouse_units__is_active=True,
+            warehouse_units__isnull=True,
         )
     )
 

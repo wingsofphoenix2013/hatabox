@@ -79,7 +79,7 @@ def build_stock_overview(
         "storage_place__location",
     ).filter(
         inventory_item_id__in=item_ids,
-        is_active=True,
+        status=WarehouseUnit.Status.ON_STOCK,
     )
 
     if location_ids:
@@ -171,8 +171,7 @@ def build_stock_overview(
         receipt_document__completed=True,
         receipt_document__sent_to_warehouse=False,
         order_item__requires_unit_conversion=False,
-    ).exclude(
-        warehouse_units__is_active=True,
+        warehouse_units__isnull=True,
     )
 
     tolling_pending_receipts_queryset = TollingReceiptItem.objects.select_related(
@@ -183,8 +182,7 @@ def build_stock_overview(
         order_item__inv_item_id__in=item_ids,
         receipt_document__completed=True,
         receipt_document__sent_to_warehouse=False,
-    ).exclude(
-        warehouse_units__is_active=True,
+        warehouse_units__isnull=True,
     )
 
     procurement_pending_receipts = list(procurement_pending_receipts_queryset)
@@ -293,8 +291,7 @@ def build_stock_overview(
             receipt_document__completed=True,
             receipt_document__sent_to_warehouse=False,
             order_item__requires_unit_conversion=True,
-        ).exclude(
-            warehouse_units__is_active=True,
+            warehouse_units__isnull=True,
         ).values_list("order_item__vendor_item__item_id", flat=True)
     )
 

@@ -217,7 +217,7 @@ class WarehouseStoragePlaceViewSet(ModelViewSet):
             "warehouse_unit__inventory_item__unit",
         ).filter(
             warehouse_unit__storage_place=storage_place,
-            warehouse_unit__is_active=True,
+            warehouse_unit__status=WarehouseUnit.Status.ON_STOCK,
             plan__status=MovementPlan.Status.ACTIVE,
             is_reserved=True,
         )
@@ -233,7 +233,7 @@ class WarehouseStoragePlaceViewSet(ModelViewSet):
             "inventory_item__unit",
         ).filter(
             storage_place=storage_place,
-            is_active=True,
+            status=WarehouseUnit.Status.ON_STOCK,
         ).exclude(
             id__in=reserved_unit_ids,
         )
@@ -340,7 +340,7 @@ class WarehouseStoragePlaceViewSet(ModelViewSet):
             "warehouse_unit__storage_place",
         ).filter(
             warehouse_unit__storage_place_id__in=descendants,
-            warehouse_unit__is_active=True,
+            warehouse_unit__status=WarehouseUnit.Status.ON_STOCK,
             plan__status=MovementPlan.Status.ACTIVE,
             is_reserved=True,
         )
@@ -356,7 +356,7 @@ class WarehouseStoragePlaceViewSet(ModelViewSet):
             "storage_place",
         ).filter(
             storage_place_id__in=descendants,
-            is_active=True,
+            status=WarehouseUnit.Status.ON_STOCK,
         ).exclude(
             id__in=nested_reserved_unit_ids,
         )

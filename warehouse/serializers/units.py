@@ -59,7 +59,6 @@ class WarehouseUnitSerializer(serializers.ModelSerializer):
             "source_order_no",
             "source_counterparty_name",
             "source_item_name",
-            "is_active",
             "status",
             "created_at",
             "updated_at",

@@ -46,9 +46,9 @@ class WarehouseUnitViewSet(ModelViewSet):
         if storage_place:
             queryset = queryset.filter(storage_place_id__in=storage_place)
 
-        is_active = self.request.query_params.get("is_active")
-        if is_active is not None:
-            queryset = queryset.filter(is_active=is_active.lower() == "true")
+        status = self.request.query_params.getlist("status")
+        if status:
+            queryset = queryset.filter(status__in=status)
 
         search = self.request.query_params.get("search")
         if search:
