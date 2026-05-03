@@ -435,6 +435,14 @@ class WarehouseUnitEvent(models.Model):
         super().save(*args, **kwargs)
 
 class WarehouseUnit(models.Model):
+    class Status(models.TextChoices):
+        ON_STOCK = "on_stock", "На складі"
+        IN_PRODUCTION = "in_production", "У виробництві"
+        CONSUMED = "consumed", "Використано"
+        WRITTEN_OFF = "written_off", "Списано"
+        RETURNED = "returned", "Повернено"
+        BLOCKED = "blocked", "Заблоковано"
+
     inventory_item = models.ForeignKey(
         InvItem,
         on_delete=models.PROTECT,
@@ -505,6 +513,13 @@ class WarehouseUnit(models.Model):
     is_active = models.BooleanField(
         default=True,
         verbose_name="Активна",
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.ON_STOCK,
+        verbose_name="Статус",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
