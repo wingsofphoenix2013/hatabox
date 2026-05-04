@@ -1,5 +1,6 @@
 from django.db import models
 
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.viewsets import ModelViewSet
 
@@ -26,8 +27,21 @@ class OrganizationViewSet(ModelViewSet):
 
     def get_serializer_class(self):
         if self.action == "list":
-            return OrganizationListSerializer
+            return OrganizationSerializer
         return OrganizationSerializer
+
+    def get_pagination_class(self):
+        paginated = self.request.query_params.get("paginated")
+        if paginated and paginated.lower() == "true":
+            return PageNumberPagination
+        return None
+
+    @property
+    def paginator(self):
+        if not hasattr(self, "_paginator"):
+            pagination_class = self.get_pagination_class()
+            self._paginator = pagination_class() if pagination_class else None
+        return self._paginator
 
     def get_queryset(self):
         queryset = self.queryset
