@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.conf import settings
 
@@ -93,3 +94,25 @@ class SalesOrderComponent(models.Model):
     class Meta:
         db_table = "sales_order_components"
         ordering = ["sales_order", "id"]
+
+    def clean(self):
+        super().clean()
+
+        if self.source_type == self.SourceType.CUSTOMER:
+            self.source_organization = self.sales_order.organization
+
+        if self.source_type == self.SourceType.STOCK:
+            if self.source_organization is not None:
+                raise ValidationError({
+                    "source_organization": "Для джерела 'Склад' організація не вказується."
+                })
+
+        if self.source_type == self.SourceType.DONATED:
+            if self.source_organization is None:
+                raise ValidationError({
+                    "source_organization": "Потрібно вказати організацію для цього джерела."
+                })
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)

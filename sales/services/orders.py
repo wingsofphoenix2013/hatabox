@@ -27,6 +27,9 @@ def create_sales_order_components(sales_order):
             )
         )
 
+    for component in components_to_create:
+        component.full_clean()
+
     SalesOrderComponent.objects.bulk_create(components_to_create)
 
 

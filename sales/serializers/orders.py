@@ -64,3 +64,32 @@ class CreateSalesOrderSerializer(serializers.Serializer):
         required=False,
         allow_blank=True,
     )
+
+class UpdateSalesOrderComponentSourceSerializer(serializers.Serializer):
+    component_id = serializers.IntegerField(min_value=1)
+    source_type = serializers.ChoiceField(
+        choices=SalesOrderComponent.SourceType.choices,
+    )
+    source_organization = serializers.PrimaryKeyRelatedField(
+        queryset=Organization.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+
+    def validate(self, attrs):
+        source_type = attrs["source_type"]
+        source_organization = attrs.get("source_organization")
+
+        if source_type == SalesOrderComponent.SourceType.STOCK:
+            if source_organization is not None:
+                raise serializers.ValidationError({
+                    "source_organization": "Для джерела stock організація не вказується."
+                })
+
+        if source_type == SalesOrderComponent.SourceType.DONATED:
+            if source_organization is None:
+                raise serializers.ValidationError({
+                    "source_organization": "Для цього типу джерела потрібно вказати організацію."
+                })
+
+        return attrs

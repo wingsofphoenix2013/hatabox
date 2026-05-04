@@ -12,6 +12,10 @@ class SalesOrderComponentInline(admin.TabularInline):
         "source_organization",
     )
 
+    def save_model(self, request, obj, form, change):
+        obj.full_clean()
+        super().save_model(request, obj, form, change)
+
 
 @admin.register(SalesOrder)
 class SalesOrderAdmin(admin.ModelAdmin):
