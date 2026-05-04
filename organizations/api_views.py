@@ -20,7 +20,11 @@ from .serializers import (
 
 
 class OrganizationViewSet(ModelViewSet):
-    queryset = Organization.objects.order_by("name", "id")
+    queryset = (
+        Organization.objects
+        .select_related("military_profile")
+        .order_by("name", "id")
+    )
     serializer_class = OrganizationSerializer
     permission_classes = [DjangoModelPermissions]
     pagination_class = None
@@ -50,6 +54,18 @@ class OrganizationViewSet(ModelViewSet):
         if org_type:
             queryset = queryset.filter(type__in=org_type)
 
+        military_type = self.request.query_params.getlist("military_type")
+        if military_type:
+            queryset = queryset.filter(
+                military_profile__military_type__in=military_type
+            )
+
+        military_branch = self.request.query_params.getlist("military_branch")
+        if military_branch:
+            queryset = queryset.filter(
+                military_profile__military_branch__in=military_branch
+            )
+
         is_active = self.request.query_params.get("is_active")
         if is_active is not None:
             queryset = queryset.filter(is_active=(is_active.lower() == "true"))
@@ -60,6 +76,7 @@ class OrganizationViewSet(ModelViewSet):
                 models.Q(name__icontains=search)
                 | models.Q(legal_name__icontains=search)
                 | models.Q(edrpou__icontains=search)
+                | models.Q(military_profile__a_code__icontains=search)
             )
 
         return queryset

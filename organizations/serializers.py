@@ -24,6 +24,7 @@ class OrganizationListSerializer(serializers.ModelSerializer):
 
 class OrganizationSerializer(serializers.ModelSerializer):
     type_display = serializers.CharField(source="get_type_display", read_only=True)
+
     commercial_profile_id = serializers.IntegerField(
         source="commercial_profile.id",
         read_only=True,
@@ -35,6 +36,27 @@ class OrganizationSerializer(serializers.ModelSerializer):
     charity_profile_id = serializers.IntegerField(
         source="charity_profile.id",
         read_only=True,
+    )
+
+    military_type = serializers.CharField(
+        source="military_profile.military_type",
+        read_only=True,
+        allow_null=True,
+    )
+    military_type_display = serializers.CharField(
+        source="military_profile.get_military_type_display",
+        read_only=True,
+        allow_null=True,
+    )
+    military_branch = serializers.CharField(
+        source="military_profile.military_branch",
+        read_only=True,
+        allow_null=True,
+    )
+    military_branch_display = serializers.CharField(
+        source="military_profile.get_military_branch_display",
+        read_only=True,
+        allow_null=True,
     )
 
     class Meta:
@@ -50,6 +72,10 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "commercial_profile_id",
             "military_profile_id",
             "charity_profile_id",
+            "military_type",
+            "military_type_display",
+            "military_branch",
+            "military_branch_display",
         ]
 
 class CommercialOrganizationSerializer(serializers.ModelSerializer):
