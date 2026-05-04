@@ -66,6 +66,7 @@ from organizations.api_views import (
 )
 
 from accounts.views import login_view, me_view
+from sales.api_views import SalesOrderViewSet
 
 
 @ensure_csrf_cookie
@@ -134,6 +135,7 @@ router.register("order-statuses", ExternalOrderStatusViewSet)
 router.register("payment-statuses", ExternalOrderPaymentStatusViewSet)
 router.register("brands", BrandViewSet)
 router.register("countries", CountryViewSet)
+router.register("sales-orders", SalesOrderViewSet)
 
 
 urlpatterns = [

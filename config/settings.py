@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     "orders.apps.OrdersConfig",
     "warehouse.apps.WarehouseConfig",
     "organizations.apps.OrganizationsConfig",
+    "sales.apps.SalesConfig",
     "rest_framework",
     "corsheaders",
     "accounts",
