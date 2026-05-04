@@ -11,6 +11,7 @@ class SalesOrder(models.Model):
         DRAFT = "draft", "Чернетка"
         CONFIRMED = "confirmed", "Підтверджено"
         IN_PROGRESS = "in_progress", "В роботі"
+        READY = "ready", "Готово до передачі"
         COMPLETED = "completed", "Виконано"
         CANCELLED = "cancelled", "Скасовано"
 
