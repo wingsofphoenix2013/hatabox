@@ -86,7 +86,7 @@ class SalesOrderViewSet(ModelViewSet):
 
         sales_order = self.get_queryset().get(pk=sales_order.pk)
 
-        return Response(self.get_serializer(sales_order).data)
+        return Response(SalesOrderListSerializer(sales_order).data)
         
     @action(detail=True, methods=["post"], url_path="update-component-source")
     def update_component_source(self, request, pk=None):
