@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from sales.models import SalesOrder, SalesOrderComponent
+from sales.services.orders import create_sales_order_components
 
 
 class SalesOrderComponentInline(admin.TabularInline):
@@ -43,6 +44,14 @@ class SalesOrderAdmin(admin.ModelAdmin):
     inlines = (
         SalesOrderComponentInline,
     )
+    
+    def save_model(self, request, obj, form, change):
+        if obj.created_by_id is None:
+            obj.created_by = request.user
+
+        super().save_model(request, obj, form, change)
+
+        create_sales_order_components(obj)
 
 
 @admin.register(SalesOrderComponent)
