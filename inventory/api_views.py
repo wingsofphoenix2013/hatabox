@@ -27,6 +27,7 @@ from .serializers import (
     ProductFamilySerializer,
     ProductFamilyLibrarySerializer,
     ProductSerializer,
+    ProductOptionSerializer,
     ProductLibrarySerializer,
     ProductStepSerializer,
     ProductStepLibrarySerializer,
@@ -132,6 +133,23 @@ class ProductFamilyLibraryViewSet(ModelViewSet):
 
         return queryset
         
+class ProductOptionsView(ListAPIView):
+    serializer_class = ProductOptionSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        queryset = Product.objects.select_related("product_family").filter(is_active=True)
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(code__icontains=search)
+                | models.Q(product_family__name__icontains=search)
+            )
+
+        return queryset.order_by("product_family__name", "code", "id")
+
+
 class ProductViewSet(ModelViewSet):
     queryset = Product.objects.filter(is_active=True).select_related("product_family")
     serializer_class = ProductSerializer

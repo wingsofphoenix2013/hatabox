@@ -190,6 +190,21 @@ class ProductLibrarySerializer(serializers.ModelSerializer):
         return None
 
 
+class ProductOptionSerializer(serializers.ModelSerializer):
+    product_family_name = serializers.CharField(
+        source="product_family.name",
+        read_only=True,
+    )
+
+    class Meta:
+        model = Product
+        fields = [
+            "id",
+            "code",
+            "product_family_name",
+        ]
+
+
 class ProductSerializer(serializers.ModelSerializer):
     product_family_code = serializers.CharField(
         source="product_family.code",

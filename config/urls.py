@@ -14,6 +14,7 @@ from inventory.api_views import (
     ProductFamilyViewSet,
     ProductFamilyLibraryViewSet,
     ProductViewSet,
+    ProductOptionsView,
     ProductLibraryViewSet,
     ProductStepViewSet,
     ProductStepLibraryViewSet,
@@ -144,5 +145,6 @@ urlpatterns = [
     path("api/me/", me_view),
     path("api/csrf/", csrf_view),
     path("api/inventory-item-options/", InvItemOptionsView.as_view()),
+    path("api/product-options/", ProductOptionsView.as_view()),
     path("api/", include(router.urls)),
 ]
