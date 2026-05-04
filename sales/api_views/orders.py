@@ -38,6 +38,10 @@ class SalesOrderViewSet(ModelViewSet):
     def get_queryset(self):
         queryset = self.queryset
 
+        ordering = self.request.query_params.get("ordering")
+        if ordering in ["created_at", "-created_at", "completed_at", "-completed_at"]:
+            queryset = queryset.order_by(ordering)
+
         status = self.request.query_params.getlist("status")
         if status:
             queryset = queryset.filter(status__in=status)
