@@ -28,6 +28,37 @@ class SalesOrderComponentSerializer(serializers.ModelSerializer):
         ]
 
 
+class SalesOrderListSerializer(serializers.ModelSerializer):
+    organization_name = serializers.CharField(
+        source="organization.name",
+        read_only=True,
+    )
+    product_code = serializers.CharField(
+        source="product.code",
+        read_only=True,
+    )
+    product_family_name = serializers.CharField(
+        source="product.product_family.name",
+        read_only=True,
+    )
+
+    class Meta:
+        model = SalesOrder
+        fields = [
+            "id",
+            "organization",
+            "organization_name",
+            "product",
+            "product_code",
+            "product_family_name",
+            "status",
+            "created_by",
+            "created_at",
+            "completed_at",
+            "comment",
+        ]
+
+
 class SalesOrderSerializer(serializers.ModelSerializer):
     components = SalesOrderComponentSerializer(many=True, read_only=True)
 
@@ -41,6 +72,7 @@ class SalesOrderSerializer(serializers.ModelSerializer):
             "created_by",
             "created_at",
             "updated_at",
+            "completed_at",
             "comment",
             "components",
         ]

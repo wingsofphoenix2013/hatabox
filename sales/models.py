@@ -1,6 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 
 from organizations.models import Organization
 from inventory.models import Product, InvItem
@@ -46,11 +47,26 @@ class SalesOrder(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Дата виконання",
+    )
+
     comment = models.TextField(blank=True, verbose_name="Коментар")
 
     class Meta:
         db_table = "sales_orders"
         ordering = ["-created_at", "-id"]
+
+    def save(self, *args, **kwargs):
+        if self.status == self.Status.COMPLETED and self.completed_at is None:
+            self.completed_at = timezone.now()
+
+        if self.status != self.Status.COMPLETED:
+            self.completed_at = None
+
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.id} — {self.product}"

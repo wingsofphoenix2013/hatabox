@@ -1,3 +1,5 @@
+from django.db import models
+
 from rest_framework.decorators import action
 from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.response import Response
@@ -7,6 +9,7 @@ from rest_framework.exceptions import ValidationError
 from sales.models import SalesOrder
 from sales.serializers import (
     SalesOrderSerializer,
+    SalesOrderListSerializer,
     CreateSalesOrderSerializer,
     UpdateSalesOrderComponentSourceSerializer,
 )
@@ -26,6 +29,44 @@ class SalesOrderViewSet(ModelViewSet):
     ).order_by("-created_at", "-id")
 
     serializer_class = SalesOrderSerializer
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return SalesOrderListSerializer
+        return SalesOrderSerializer
+
+    def get_queryset(self):
+        queryset = self.queryset
+
+        status = self.request.query_params.getlist("status")
+        if status:
+            queryset = queryset.filter(status__in=status)
+
+        created_at_from = self.request.query_params.get("created_at_from")
+        if created_at_from:
+            queryset = queryset.filter(created_at__gte=created_at_from)
+
+        created_at_to = self.request.query_params.get("created_at_to")
+        if created_at_to:
+            queryset = queryset.filter(created_at__lte=created_at_to)
+
+        completed_at_from = self.request.query_params.get("completed_at_from")
+        if completed_at_from:
+            queryset = queryset.filter(completed_at__gte=completed_at_from)
+
+        completed_at_to = self.request.query_params.get("completed_at_to")
+        if completed_at_to:
+            queryset = queryset.filter(completed_at__lte=completed_at_to)
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(organization__name__icontains=search)
+                | models.Q(product__code__icontains=search)
+                | models.Q(product__product_family__name__icontains=search)
+            )
+
+        return queryset
     permission_classes = [DjangoModelPermissions]
 
     def create(self, request, *args, **kwargs):
