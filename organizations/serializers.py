@@ -11,6 +11,37 @@ from .models import (
 class OrganizationListSerializer(serializers.ModelSerializer):
     type_display = serializers.CharField(source="get_type_display", read_only=True)
 
+    military_type = serializers.CharField(
+        source="military_profile.military_type",
+        read_only=True,
+        allow_null=True,
+    )
+    military_type_display = serializers.CharField(
+        source="military_profile.get_military_type_display",
+        read_only=True,
+        allow_null=True,
+    )
+    military_branch = serializers.CharField(
+        source="military_profile.military_branch",
+        read_only=True,
+        allow_null=True,
+    )
+    military_branch_display = serializers.CharField(
+        source="military_profile.get_military_branch_display",
+        read_only=True,
+        allow_null=True,
+    )
+    military_corps = serializers.CharField(
+        source="military_profile.military_corps",
+        read_only=True,
+        allow_null=True,
+    )
+    military_corps_display = serializers.CharField(
+        source="military_profile.get_military_corps_display",
+        read_only=True,
+        allow_null=True,
+    )
+
     class Meta:
         model = Organization
         fields = [
@@ -19,8 +50,13 @@ class OrganizationListSerializer(serializers.ModelSerializer):
             "legal_name",
             "type",
             "type_display",
+            "military_type",
+            "military_type_display",
+            "military_branch",
+            "military_branch_display",
+            "military_corps",
+            "military_corps_display",
         ]
-
 
 class OrganizationSerializer(serializers.ModelSerializer):
     type_display = serializers.CharField(source="get_type_display", read_only=True)
@@ -58,6 +94,16 @@ class OrganizationSerializer(serializers.ModelSerializer):
         read_only=True,
         allow_null=True,
     )
+    military_corps = serializers.CharField(
+        source="military_profile.military_corps",
+        read_only=True,
+        allow_null=True,
+    )
+    military_corps_display = serializers.CharField(
+        source="military_profile.get_military_corps_display",
+        read_only=True,
+        allow_null=True,
+    )
 
     class Meta:
         model = Organization
@@ -76,6 +122,8 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "military_type_display",
             "military_branch",
             "military_branch_display",
+            "military_corps",
+            "military_corps_display",
         ]
 
 class CommercialOrganizationSerializer(serializers.ModelSerializer):
