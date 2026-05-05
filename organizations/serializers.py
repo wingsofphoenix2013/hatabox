@@ -203,6 +203,8 @@ class PersonSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(source="__str__", read_only=True)
     phone_1_type_display = serializers.CharField(source="get_phone_1_type_display", read_only=True)
     phone_2_type_display = serializers.CharField(source="get_phone_2_type_display", read_only=True)
+    rank_display = serializers.CharField(source="get_rank_display", read_only=True)
+    rank_force_type_display = serializers.CharField(source="get_rank_force_type_display", read_only=True)
 
     class Meta:
         model = Person
@@ -221,6 +223,10 @@ class PersonSerializer(serializers.ModelSerializer):
             "phone_2_type",
             "phone_2_type_display",
             "phone_2",
+            "rank_force_type",
+            "rank_force_type_display",
+            "rank",
+            "rank_display",
             "comment",
             "is_active",
         ]

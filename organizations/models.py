@@ -200,12 +200,75 @@ class Person(models.Model):
         VIBER = "viber", "Viber"
         OTHER = "other", "Other"
 
+    class RankForceType(models.TextChoices):
+        LAND = "land", "Land"
+        NAVY = "navy", "Navy"
+
+    class Rank(models.TextChoices):
+        # LAND
+        SOLDIER = "soldier", "Солдат"
+        SENIOR_SOLDIER = "senior_soldier", "Старший солдат"
+        JUNIOR_SERGEANT = "junior_sergeant", "Молодший сержант"
+        SERGEANT = "sergeant", "Сержант"
+        SENIOR_SERGEANT = "senior_sergeant", "Старший сержант"
+        CHIEF_SERGEANT = "chief_sergeant", "Головний сержант"
+        STAFF_SERGEANT = "staff_sergeant", "Штаб-сержант"
+        MASTER_SERGEANT = "master_sergeant", "Майстер-сержант"
+        SENIOR_MASTER_SERGEANT = "senior_master_sergeant", "Старший майстер-сержант"
+        CHIEF_MASTER_SERGEANT = "chief_master_sergeant", "Головний майстер-сержант"
+
+        # NAVY
+        MATROS = "matros", "Матрос"
+        SENIOR_MATROS = "senior_matros", "Старший матрос"
+        STARSHYNA_2 = "starshyna_2", "Старшина 2 статті"
+        STARSHYNA_1 = "starshyna_1", "Старшина 1 статті"
+        CHIEF_STARSHYNA = "chief_starshyna", "Головний старшина"
+        CHIEF_SHIP_STARSHYNA = "chief_ship_starshyna", "Головний корабельний старшина"
+        STAFF_STARSHYNA = "staff_starshyna", "Штаб-старшина"
+        MASTER_STARSHYNA = "master_starshyna", "Майстер-старшина"
+        SENIOR_MASTER_STARSHYNA = "senior_master_starshyna", "Старший майстер-старшина"
+        CHIEF_MASTER_STARSHYNA = "chief_master_starshyna", "Головний майстер-старшина"
+
+        # OFFICERS (common)
+        JUNIOR_LIEUTENANT = "junior_lieutenant", "Молодший лейтенант"
+        LIEUTENANT = "lieutenant", "Лейтенант"
+        SENIOR_LIEUTENANT = "senior_lieutenant", "Старший лейтенант"
+        CAPTAIN = "captain", "Капітан"
+        CAPTAIN_LIEUTENANT = "captain_lieutenant", "Капітан-лейтенант"
+        MAJOR = "major", "Майор"
+        CAPTAIN_3_RANK = "captain_3_rank", "Капітан 3 рангу"
+        LIEUTENANT_COLONEL = "lieutenant_colonel", "Підполковник"
+        CAPTAIN_2_RANK = "captain_2_rank", "Капітан 2 рангу"
+        COLONEL = "colonel", "Полковник"
+        CAPTAIN_1_RANK = "captain_1_rank", "Капітан 1 рангу"
+        BRIGADIER_GENERAL = "brigadier_general", "Бригадний генерал"
+        COMMODORE = "commodore", "Коммодор"
+        MAJOR_GENERAL = "major_general", "Генерал-майор"
+        REAR_ADMIRAL = "rear_admiral", "Контр-адмірал"
+        LIEUTENANT_GENERAL = "lieutenant_general", "Генерал-лейтенант"
+        VICE_ADMIRAL = "vice_admiral", "Віце-адмірал"
+        GENERAL = "general", "Генерал"
+        ADMIRAL = "admiral", "Адмірал"
+
     last_name = models.CharField(max_length=255, verbose_name="Прізвище")
     first_name = models.CharField(max_length=255, verbose_name="Ім'я")
     middle_name = models.CharField(
         max_length=255,
         blank=True,
         verbose_name="По батькові",
+    )
+
+    rank_force_type = models.CharField(
+        max_length=10,
+        choices=RankForceType.choices,
+        blank=True,
+        verbose_name="Тип звань",
+    )
+    rank = models.CharField(
+        max_length=50,
+        choices=Rank.choices,
+        blank=True,
+        verbose_name="Звання",
     )
 
     birth_day = models.PositiveSmallIntegerField(
@@ -252,6 +315,18 @@ class Person(models.Model):
 
     class Meta:
         ordering = ["last_name", "first_name", "middle_name", "id"]
+        
+    def clean(self):
+        super().clean()
+
+        if self.rank and not self.rank_force_type:
+            raise ValidationError({
+                "rank_force_type": "Rank force type is required if rank is set."
+            })
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         parts = [self.last_name, self.first_name, self.middle_name]
