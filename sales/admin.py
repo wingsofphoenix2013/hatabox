@@ -8,9 +8,20 @@ class SalesOrderComponentInline(admin.TabularInline):
     model = SalesOrderComponent
     extra = 0
     autocomplete_fields = (
-        "inv_item",
         "source_organization",
     )
+    readonly_fields = ("inv_item", "quantity")
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        if obj and obj.status != obj.Status.DRAFT:
+            return False
+        return super().has_change_permission(request, obj)
 
     def save_model(self, request, obj, form, change):
         obj.full_clean()

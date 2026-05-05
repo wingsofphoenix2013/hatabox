@@ -6,6 +6,8 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.exceptions import ValidationError
 
+from sales.services.orders import check_sales_order_can_confirm
+
 from sales.models import SalesOrder
 from sales.serializers import (
     SalesOrderSerializer,
@@ -92,6 +94,11 @@ class SalesOrderViewSet(ModelViewSet):
     def update_component_source(self, request, pk=None):
         sales_order = self.get_object()
 
+        if sales_order.status != SalesOrder.Status.DRAFT:
+            raise ValidationError(
+                "Джерело компонента можна змінювати лише для замовлення в статусі draft."
+            )
+
         serializer = UpdateSalesOrderComponentSourceSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -110,6 +117,30 @@ class SalesOrderViewSet(ModelViewSet):
             component.source_organization = None
 
         component.save(update_fields=["source_type", "source_organization"])
+
+        sales_order = self.get_queryset().get(pk=sales_order.pk)
+
+        return Response(self.get_serializer(sales_order).data)
+        
+    @action(detail=True, methods=["get"], url_path="confirmation-status")
+    def confirmation_status(self, request, pk=None):
+        sales_order = self.get_object()
+
+        result = check_sales_order_can_confirm(sales_order)
+
+        return Response(result)
+
+    @action(detail=True, methods=["post"], url_path="confirm")
+    def confirm(self, request, pk=None):
+        sales_order = self.get_object()
+
+        result = check_sales_order_can_confirm(sales_order)
+
+        if not result["can_confirm"]:
+            return Response(result, status=400)
+
+        sales_order.status = SalesOrder.Status.CONFIRMED
+        sales_order.save(update_fields=["status"])
 
         sales_order = self.get_queryset().get(pk=sales_order.pk)
 
