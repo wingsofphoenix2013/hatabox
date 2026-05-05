@@ -99,6 +99,9 @@ class SalesOrderSerializer(serializers.ModelSerializer):
             "components",
         ]
         
+    def get_can_confirm(self, obj):
+        return check_sales_order_can_confirm(obj)["can_confirm"]
+
     def get_customer_responsible_person_name(self, obj):
         if obj.customer_responsible_person is None:
             return None
