@@ -1,10 +1,4 @@
-import logging
-import traceback
-
 from django.db import models
-
-
-logger = logging.getLogger(__name__)
 
 from rest_framework.decorators import action
 from rest_framework.permissions import DjangoModelPermissions
@@ -82,32 +76,19 @@ class SalesOrderViewSet(ModelViewSet):
     permission_classes = [DjangoModelPermissions]
 
     def create(self, request, *args, **kwargs):
-        try:
-            logger.info(
-                "SalesOrder create request: user=%s authenticated=%s data=%s",
-                request.user,
-                request.user.is_authenticated,
-                request.data,
-            )
+        serializer = CreateSalesOrderSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-            serializer = CreateSalesOrderSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
+        sales_order = create_sales_order(
+            organization=serializer.validated_data["organization"],
+            product=serializer.validated_data["product"],
+            created_by=request.user if request.user.is_authenticated else None,
+            comment=serializer.validated_data.get("comment", ""),
+        )
 
-            sales_order = create_sales_order(
-                organization=serializer.validated_data["organization"],
-                product=serializer.validated_data["product"],
-                created_by=request.user if request.user.is_authenticated else None,
-                comment=serializer.validated_data.get("comment", ""),
-            )
+        sales_order = self.get_queryset().get(pk=sales_order.pk)
 
-            sales_order = self.get_queryset().get(pk=sales_order.pk)
-
-            return Response(SalesOrderListSerializer(sales_order).data)
-
-        except Exception as exc:
-            logger.error("SalesOrder create failed: %s", exc)
-            logger.error(traceback.format_exc())
-            raise
+        return Response(SalesOrderListSerializer(sales_order).data)
         
     @action(detail=True, methods=["post"], url_path="update-component-source")
     def update_component_source(self, request, pk=None):

@@ -7,6 +7,7 @@ from inventory.models import Product
 
 
 class SalesOrderComponentSerializer(serializers.ModelSerializer):
+    is_required_for_start = serializers.BooleanField(read_only=True)
     inv_item_code = serializers.CharField(
         source="inv_item.internal_code",
         read_only=True,
@@ -26,6 +27,7 @@ class SalesOrderComponentSerializer(serializers.ModelSerializer):
             "quantity",
             "source_type",
             "source_organization",
+            "is_required_for_start",
         ]
 
 

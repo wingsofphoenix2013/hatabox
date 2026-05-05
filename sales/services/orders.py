@@ -67,7 +67,8 @@ def check_sales_order_can_confirm(sales_order):
         source_type__in=[
             SalesOrderComponent.SourceType.CUSTOMER,
             SalesOrderComponent.SourceType.DONATED,
-        ]
+        ],
+        is_required_for_start=True,
     )
 
     for component in external_components:
