@@ -64,6 +64,9 @@ from organizations.api_views import (
     CommercialOrganizationViewSet,
     MilitaryOrganizationViewSet,
     CharityOrganizationViewSet,
+    PersonViewSet,
+    OrganizationPositionViewSet,
+    OrganizationPersonAssignmentViewSet,
 )
 
 from accounts.views import login_view, me_view
@@ -104,10 +107,15 @@ router.register("tolling-receipt-documents", TollingReceiptDocumentViewSet)
 router.register("tolling-receipt-items", TollingReceiptItemViewSet)
 
 router.register("tax-types", TaxTypeViewSet)
+
 router.register("organizations", OrganizationViewSet)
 router.register("commercial-organizations", CommercialOrganizationViewSet)
 router.register("military-organizations", MilitaryOrganizationViewSet)
 router.register("charity-organizations", CharityOrganizationViewSet)
+router.register("people", PersonViewSet)
+router.register("organization-positions", OrganizationPositionViewSet)
+router.register("organization-person-assignments", OrganizationPersonAssignmentViewSet)
+
 router.register("warehouse-locations", WarehouseLocationViewSet)
 router.register("warehouse-storage-places", WarehouseStoragePlaceViewSet)
 router.register("warehouse-units", WarehouseUnitViewSet)

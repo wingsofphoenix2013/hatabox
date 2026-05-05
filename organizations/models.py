@@ -190,3 +190,125 @@ class CharityOrganization(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         return super().save(*args, **kwargs)
+        
+class Person(models.Model):
+    class CommunicationType(models.TextChoices):
+        VOICE = "voice", "Voice"
+        WHATSAPP = "whatsapp", "WhatsApp"
+        SIGNAL = "signal", "Signal"
+        TELEGRAM = "telegram", "Telegram"
+        VIBER = "viber", "Viber"
+        OTHER = "other", "Other"
+
+    last_name = models.CharField(max_length=255, verbose_name="Прізвище")
+    first_name = models.CharField(max_length=255, verbose_name="Ім'я")
+    middle_name = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="По батькові",
+    )
+
+    birth_day = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="День народження",
+    )
+    birth_month = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Місяць народження",
+    )
+    birth_year = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Рік народження",
+    )
+
+    phone_1_type = models.CharField(
+        max_length=20,
+        choices=CommunicationType.choices,
+        blank=True,
+        verbose_name="Тип комунікації 1",
+    )
+    phone_1 = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Телефон 1",
+    )
+    phone_2_type = models.CharField(
+        max_length=20,
+        choices=CommunicationType.choices,
+        blank=True,
+        verbose_name="Тип комунікації 2",
+    )
+    phone_2 = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Телефон 2",
+    )
+
+    comment = models.TextField(blank=True, verbose_name="Коментар")
+    is_active = models.BooleanField(default=True, verbose_name="Активна")
+
+    class Meta:
+        ordering = ["last_name", "first_name", "middle_name", "id"]
+
+    def __str__(self):
+        parts = [self.last_name, self.first_name, self.middle_name]
+        return " ".join(part for part in parts if part)
+
+
+class OrganizationPosition(models.Model):
+    name = models.CharField(
+        max_length=255,
+        unique=True,
+        verbose_name="Назва посади",
+    )
+    is_active = models.BooleanField(default=True, verbose_name="Активна")
+
+    class Meta:
+        ordering = ["name", "id"]
+
+    def __str__(self):
+        return self.name
+
+
+class OrganizationPersonAssignment(models.Model):
+    person = models.ForeignKey(
+        "organizations.Person",
+        on_delete=models.PROTECT,
+        related_name="organization_assignments",
+        verbose_name="Людина",
+    )
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.PROTECT,
+        related_name="person_assignments",
+        verbose_name="Організація",
+    )
+    position = models.ForeignKey(
+        "organizations.OrganizationPosition",
+        on_delete=models.PROTECT,
+        related_name="person_assignments",
+        verbose_name="Посада",
+    )
+    is_current = models.BooleanField(default=True, verbose_name="Поточне призначення")
+
+    class Meta:
+        ordering = ["organization__name", "position__name", "person__last_name", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["person"],
+                condition=models.Q(is_current=True),
+                name="uq_person_single_current_assignment",
+            ),
+            models.UniqueConstraint(
+                fields=["organization", "position"],
+                condition=models.Q(is_current=True),
+                name="uq_organization_position_single_current_person",
+            ),
+        ]
+
+    def __str__(self):
+        status = "current" if self.is_current else "inactive"
+        return f"{self.person} — {self.organization} — {self.position} ({status})"

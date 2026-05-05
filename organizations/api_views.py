@@ -9,6 +9,9 @@ from .models import (
     CommercialOrganization,
     MilitaryOrganization,
     CharityOrganization,
+    Person,
+    OrganizationPosition,
+    OrganizationPersonAssignment,
 )
 from .serializers import (
     OrganizationListSerializer,
@@ -16,6 +19,9 @@ from .serializers import (
     CommercialOrganizationSerializer,
     MilitaryOrganizationSerializer,
     CharityOrganizationSerializer,
+    PersonSerializer,
+    OrganizationPositionSerializer,
+    OrganizationPersonAssignmentSerializer,
 )
 
 
@@ -178,6 +184,106 @@ class CharityOrganizationViewSet(ModelViewSet):
                 | models.Q(organization__legal_name__icontains=search)
                 | models.Q(organization__edrpou__icontains=search)
                 | models.Q(legal_address__icontains=search)
+            )
+
+        return queryset
+        
+class PersonViewSet(ModelViewSet):
+    queryset = Person.objects.order_by("last_name", "first_name", "middle_name", "id")
+    serializer_class = PersonSerializer
+    permission_classes = [DjangoModelPermissions]
+
+    def get_queryset(self):
+        queryset = self.queryset
+
+        is_active = self.request.query_params.get("is_active")
+        if is_active is not None:
+            queryset = queryset.filter(is_active=(is_active.lower() == "true"))
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(last_name__icontains=search)
+                | models.Q(first_name__icontains=search)
+                | models.Q(middle_name__icontains=search)
+                | models.Q(phone_1__icontains=search)
+                | models.Q(phone_2__icontains=search)
+                | models.Q(comment__icontains=search)
+            )
+
+        return queryset
+
+    def perform_destroy(self, instance):
+        instance.is_active = False
+        instance.save(update_fields=["is_active"])
+
+
+class OrganizationPositionViewSet(ModelViewSet):
+    queryset = OrganizationPosition.objects.order_by("name", "id")
+    serializer_class = OrganizationPositionSerializer
+    permission_classes = [DjangoModelPermissions]
+
+    def get_queryset(self):
+        queryset = self.queryset
+
+        is_active = self.request.query_params.get("is_active")
+        if is_active is not None:
+            queryset = queryset.filter(is_active=(is_active.lower() == "true"))
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(name__icontains=search)
+
+        return queryset
+
+    def perform_destroy(self, instance):
+        instance.is_active = False
+        instance.save(update_fields=["is_active"])
+
+
+class OrganizationPersonAssignmentViewSet(ModelViewSet):
+    queryset = OrganizationPersonAssignment.objects.select_related(
+        "person",
+        "organization",
+        "position",
+    ).order_by(
+        "organization__name",
+        "position__name",
+        "person__last_name",
+        "id",
+    )
+    serializer_class = OrganizationPersonAssignmentSerializer
+    permission_classes = [DjangoModelPermissions]
+
+    def get_queryset(self):
+        queryset = self.queryset
+
+        person = self.request.query_params.getlist("person")
+        if person:
+            queryset = queryset.filter(person_id__in=person)
+
+        organization = self.request.query_params.getlist("organization")
+        if organization:
+            queryset = queryset.filter(organization_id__in=organization)
+
+        position = self.request.query_params.getlist("position")
+        if position:
+            queryset = queryset.filter(position_id__in=position)
+
+        is_current = self.request.query_params.get("is_current")
+        if is_current is not None:
+            queryset = queryset.filter(is_current=(is_current.lower() == "true"))
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(person__last_name__icontains=search)
+                | models.Q(person__first_name__icontains=search)
+                | models.Q(person__middle_name__icontains=search)
+                | models.Q(organization__name__icontains=search)
+                | models.Q(organization__legal_name__icontains=search)
+                | models.Q(organization__edrpou__icontains=search)
+                | models.Q(position__name__icontains=search)
             )
 
         return queryset

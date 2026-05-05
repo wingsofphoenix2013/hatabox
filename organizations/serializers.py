@@ -5,6 +5,9 @@ from .models import (
     CommercialOrganization,
     MilitaryOrganization,
     CharityOrganization,
+    Person,
+    OrganizationPosition,
+    OrganizationPersonAssignment,
 )
 
 
@@ -194,4 +197,61 @@ class CharityOrganizationSerializer(serializers.ModelSerializer):
             "organization_type",
             "organization_edrpou",
             "legal_address",
+        ]
+        
+class PersonSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(source="__str__", read_only=True)
+    phone_1_type_display = serializers.CharField(source="get_phone_1_type_display", read_only=True)
+    phone_2_type_display = serializers.CharField(source="get_phone_2_type_display", read_only=True)
+
+    class Meta:
+        model = Person
+        fields = [
+            "id",
+            "last_name",
+            "first_name",
+            "middle_name",
+            "full_name",
+            "birth_day",
+            "birth_month",
+            "birth_year",
+            "phone_1_type",
+            "phone_1_type_display",
+            "phone_1",
+            "phone_2_type",
+            "phone_2_type_display",
+            "phone_2",
+            "comment",
+            "is_active",
+        ]
+
+
+class OrganizationPositionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrganizationPosition
+        fields = [
+            "id",
+            "name",
+            "is_active",
+        ]
+
+
+class OrganizationPersonAssignmentSerializer(serializers.ModelSerializer):
+    person_full_name = serializers.CharField(source="person.__str__", read_only=True)
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
+    organization_legal_name = serializers.CharField(source="organization.legal_name", read_only=True)
+    position_name = serializers.CharField(source="position.name", read_only=True)
+
+    class Meta:
+        model = OrganizationPersonAssignment
+        fields = [
+            "id",
+            "person",
+            "person_full_name",
+            "organization",
+            "organization_name",
+            "organization_legal_name",
+            "position",
+            "position_name",
+            "is_current",
         ]

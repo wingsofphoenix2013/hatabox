@@ -5,6 +5,9 @@ from .models import (
     CommercialOrganization,
     MilitaryOrganization,
     CharityOrganization,
+    Person,
+    OrganizationPosition,
+    OrganizationPersonAssignment,
 )
 
 
@@ -74,4 +77,77 @@ class CharityOrganizationAdmin(admin.ModelAdmin):
     list_filter = (
         "organization__type",
         "organization__is_active",
+    )
+    
+@admin.register(Person)
+class PersonAdmin(admin.ModelAdmin):
+    list_display = (
+        "last_name",
+        "first_name",
+        "middle_name",
+        "birth_day",
+        "birth_month",
+        "birth_year",
+        "phone_1",
+        "phone_1_type",
+        "phone_2",
+        "phone_2_type",
+        "is_active",
+    )
+    search_fields = (
+        "last_name",
+        "first_name",
+        "middle_name",
+        "phone_1",
+        "phone_2",
+        "comment",
+    )
+    list_filter = (
+        "is_active",
+        "phone_1_type",
+        "phone_2_type",
+        "birth_month",
+    )
+
+
+@admin.register(OrganizationPosition)
+class OrganizationPositionAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "is_active",
+    )
+    search_fields = (
+        "name",
+    )
+    list_filter = (
+        "is_active",
+    )
+
+
+@admin.register(OrganizationPersonAssignment)
+class OrganizationPersonAssignmentAdmin(admin.ModelAdmin):
+    list_display = (
+        "person",
+        "organization",
+        "position",
+        "is_current",
+    )
+    search_fields = (
+        "person__last_name",
+        "person__first_name",
+        "person__middle_name",
+        "organization__name",
+        "organization__legal_name",
+        "organization__edrpou",
+        "position__name",
+    )
+    list_filter = (
+        "is_current",
+        "organization",
+        "position",
+    )
+    autocomplete_fields = (
+        "person",
+        "organization",
+        "position",
     )
