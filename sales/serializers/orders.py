@@ -72,6 +72,10 @@ class SalesOrderListSerializer(serializers.ModelSerializer):
 class SalesOrderSerializer(serializers.ModelSerializer):
     components = SalesOrderComponentSerializer(many=True, read_only=True)
     can_confirm = serializers.SerializerMethodField()
+    customer_responsible_person_name = serializers.CharField(
+        source="customer_responsible_person.full_name",
+        read_only=True,
+    )
 
     class Meta:
         model = SalesOrder
@@ -86,6 +90,7 @@ class SalesOrderSerializer(serializers.ModelSerializer):
             "updated_at",
             "completed_at",
             "customer_responsible_person",
+            "customer_responsible_person_name",
             "comment",
             "components",
         ]
