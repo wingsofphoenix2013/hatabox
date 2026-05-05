@@ -27,6 +27,7 @@ def create_sales_order_components(sales_order):
                 quantity=step_item.quantity,
                 source_type=SalesOrderComponent.SourceType.STOCK,
                 source_organization=None,
+                is_required_for_start=step_item.inv_item.is_required_for_production_start,
             )
         )
 
