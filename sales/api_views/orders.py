@@ -1,4 +1,10 @@
+import logging
+import traceback
+
 from django.db import models
+
+
+logger = logging.getLogger(__name__)
 
 from rest_framework.decorators import action
 from rest_framework.permissions import DjangoModelPermissions
@@ -37,6 +43,14 @@ class SalesOrderViewSet(ModelViewSet):
         if self.action == "list":
             return SalesOrderListSerializer
         return SalesOrderSerializer
+
+    def retrieve(self, request, *args, **kwargs):
+        try:
+            return super().retrieve(request, *args, **kwargs)
+        except Exception as exc:
+            logger.error("SalesOrder retrieve failed: %s", exc)
+            logger.error(traceback.format_exc())
+            raise
 
     def get_queryset(self):
         queryset = self.queryset
