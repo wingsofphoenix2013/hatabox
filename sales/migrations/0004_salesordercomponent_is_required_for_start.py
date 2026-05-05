@@ -10,9 +10,14 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='salesordercomponent',
-            name='is_required_for_start',
-            field=models.BooleanField(default=True),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[],
+            state_operations=[
+                migrations.AddField(
+                    model_name="salesordercomponent",
+                    name="is_required_for_start",
+                    field=models.BooleanField(default=True),
+                ),
+            ],
         ),
     ]
