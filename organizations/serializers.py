@@ -261,3 +261,78 @@ class OrganizationPersonAssignmentSerializer(serializers.ModelSerializer):
             "position_name",
             "is_current",
         ]
+        
+class PeopleDirectorySerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(source="__str__", read_only=True)
+
+    phone_1_type_display = serializers.CharField(
+        source="get_phone_1_type_display",
+        read_only=True,
+    )
+    phone_2_type_display = serializers.CharField(
+        source="get_phone_2_type_display",
+        read_only=True,
+    )
+
+    rank_force_type_display = serializers.CharField(
+        source="get_rank_force_type_display",
+        read_only=True,
+    )
+    rank_display = serializers.CharField(
+        source="get_rank_display",
+        read_only=True,
+    )
+
+    current_organization_id = serializers.SerializerMethodField()
+    current_organization_name = serializers.SerializerMethodField()
+    current_position_id = serializers.SerializerMethodField()
+    current_position_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Person
+        fields = [
+            "id",
+            "last_name",
+            "first_name",
+            "middle_name",
+            "full_name",
+            "birth_day",
+            "birth_month",
+            "birth_year",
+            "rank_force_type",
+            "rank_force_type_display",
+            "rank",
+            "rank_display",
+            "phone_1_type",
+            "phone_1_type_display",
+            "phone_1",
+            "phone_2_type",
+            "phone_2_type_display",
+            "phone_2",
+            "comment",
+            "is_active",
+            "current_organization_id",
+            "current_organization_name",
+            "current_position_id",
+            "current_position_name",
+        ]
+
+    def _get_current_assignment(self, obj):
+        assignments = getattr(obj, "current_assignments", [])
+        return assignments[0] if assignments else None
+
+    def get_current_organization_id(self, obj):
+        assignment = self._get_current_assignment(obj)
+        return assignment.organization_id if assignment else None
+
+    def get_current_organization_name(self, obj):
+        assignment = self._get_current_assignment(obj)
+        return assignment.organization.name if assignment else None
+
+    def get_current_position_id(self, obj):
+        assignment = self._get_current_assignment(obj)
+        return assignment.position_id if assignment else None
+
+    def get_current_position_name(self, obj):
+        assignment = self._get_current_assignment(obj)
+        return assignment.position.name if assignment else None

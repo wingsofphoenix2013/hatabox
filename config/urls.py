@@ -67,6 +67,7 @@ from organizations.api_views import (
     PersonViewSet,
     OrganizationPositionViewSet,
     OrganizationPersonAssignmentViewSet,
+    PeopleDirectoryViewSet,
 )
 
 from accounts.views import login_view, me_view
@@ -115,6 +116,11 @@ router.register("charity-organizations", CharityOrganizationViewSet)
 router.register("people", PersonViewSet)
 router.register("organization-positions", OrganizationPositionViewSet)
 router.register("organization-person-assignments", OrganizationPersonAssignmentViewSet)
+router.register(
+    "people-directory",
+    PeopleDirectoryViewSet,
+    basename="people-directory",
+)
 
 router.register("warehouse-locations", WarehouseLocationViewSet)
 router.register("warehouse-storage-places", WarehouseStoragePlaceViewSet)

@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Prefetch
 
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import DjangoModelPermissions
@@ -22,6 +23,7 @@ from .serializers import (
     PersonSerializer,
     OrganizationPositionSerializer,
     OrganizationPersonAssignmentSerializer,
+    PeopleDirectorySerializer,
 )
 
 
@@ -285,5 +287,46 @@ class OrganizationPersonAssignmentViewSet(ModelViewSet):
                 | models.Q(organization__edrpou__icontains=search)
                 | models.Q(position__name__icontains=search)
             )
+
+        return queryset
+        
+class PeopleDirectoryViewSet(ModelViewSet):
+    http_method_names = ["get"]
+    serializer_class = PeopleDirectorySerializer
+    permission_classes = [DjangoModelPermissions]
+
+    queryset = Person.objects.prefetch_related(
+        Prefetch(
+            "organization_assignments",
+            queryset=OrganizationPersonAssignment.objects.filter(
+                is_current=True,
+            ).select_related(
+                "organization",
+                "position",
+            ),
+            to_attr="current_assignments",
+        )
+    ).order_by("last_name", "first_name", "middle_name", "id")
+
+    def get_queryset(self):
+        queryset = self.queryset
+
+        is_active = self.request.query_params.get("is_active")
+        if is_active is not None:
+            queryset = queryset.filter(is_active=(is_active.lower() == "true"))
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(last_name__icontains=search)
+                | models.Q(first_name__icontains=search)
+                | models.Q(middle_name__icontains=search)
+                | models.Q(phone_1__icontains=search)
+                | models.Q(phone_2__icontains=search)
+                | models.Q(comment__icontains=search)
+                | models.Q(rank__icontains=search)
+                | models.Q(organization_assignments__organization__name__icontains=search)
+                | models.Q(organization_assignments__position__name__icontains=search)
+            ).distinct()
 
         return queryset
