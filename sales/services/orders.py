@@ -42,6 +42,7 @@ def create_sales_order(
     organization,
     product,
     created_by,
+    customer_responsible_person=None,
     comment="",
 ):
     with transaction.atomic():
@@ -49,6 +50,7 @@ def create_sales_order(
             organization=organization,
             product=product,
             created_by=created_by,
+            customer_responsible_person=customer_responsible_person,
             comment=comment,
         )
 

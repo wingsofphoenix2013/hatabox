@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from sales.models import SalesOrder, SalesOrderComponent
 from sales.services.orders import check_sales_order_can_confirm
-from organizations.models import Organization
+from organizations.models import Organization, Person, OrganizationPersonAssignment
 from inventory.models import Product
 
 
@@ -61,6 +61,7 @@ class SalesOrderListSerializer(serializers.ModelSerializer):
             "created_by",
             "created_at",
             "completed_at",
+            "customer_responsible_person",
             "comment",
         ]
 
@@ -84,6 +85,7 @@ class SalesOrderSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "completed_at",
+            "customer_responsible_person",
             "comment",
             "components",
         ]
@@ -106,10 +108,33 @@ class CreateSalesOrderSerializer(serializers.Serializer):
     product = serializers.PrimaryKeyRelatedField(
         queryset=Product.objects.all()
     )
+    customer_responsible_person = serializers.PrimaryKeyRelatedField(
+        queryset=Person.objects.all(),
+        required=False,
+        allow_null=True,
+    )
     comment = serializers.CharField(
         required=False,
         allow_blank=True,
     )
+
+    def validate(self, attrs):
+        organization = attrs["organization"]
+        person = attrs.get("customer_responsible_person")
+
+        if person is not None:
+            exists = OrganizationPersonAssignment.objects.filter(
+                organization=organization,
+                person=person,
+                is_current=True,
+            ).exists()
+
+            if not exists:
+                raise serializers.ValidationError({
+                    "customer_responsible_person": "Особа не належить до організації або не є актуальною."
+                })
+
+        return attrs
 
 class UpdateSalesOrderComponentSourceSerializer(serializers.Serializer):
     component_id = serializers.IntegerField(min_value=1)

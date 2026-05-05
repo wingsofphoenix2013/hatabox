@@ -83,6 +83,7 @@ class SalesOrderViewSet(ModelViewSet):
             organization=serializer.validated_data["organization"],
             product=serializer.validated_data["product"],
             created_by=request.user if request.user.is_authenticated else None,
+            customer_responsible_person=serializer.validated_data.get("customer_responsible_person"),
             comment=serializer.validated_data.get("comment", ""),
         )
 

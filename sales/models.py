@@ -3,7 +3,7 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 
-from organizations.models import Organization
+from organizations.models import Organization, Person
 from inventory.models import Product, InvItem
 
 
@@ -28,6 +28,15 @@ class SalesOrder(models.Model):
         on_delete=models.PROTECT,
         related_name="sales_orders",
         verbose_name="Виріб",
+    )
+
+    customer_responsible_person = models.ForeignKey(
+        Person,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="responsible_sales_orders",
+        verbose_name="Відповідальна особа замовника",
     )
 
     status = models.CharField(
