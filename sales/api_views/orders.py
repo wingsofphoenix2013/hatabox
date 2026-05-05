@@ -25,6 +25,7 @@ class SalesOrderViewSet(ModelViewSet):
         "organization",
         "product",
         "created_by",
+        "customer_responsible_person",
     ).prefetch_related(
         "components",
         "components__inv_item",

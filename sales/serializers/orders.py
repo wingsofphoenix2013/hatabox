@@ -72,10 +72,7 @@ class SalesOrderListSerializer(serializers.ModelSerializer):
 class SalesOrderSerializer(serializers.ModelSerializer):
     components = SalesOrderComponentSerializer(many=True, read_only=True)
     can_confirm = serializers.SerializerMethodField()
-    customer_responsible_person_name = serializers.CharField(
-        source="customer_responsible_person.full_name",
-        read_only=True,
-    )
+    customer_responsible_person_name = serializers.SerializerMethodField()
 
     class Meta:
         model = SalesOrder
@@ -102,8 +99,10 @@ class SalesOrderSerializer(serializers.ModelSerializer):
             "components",
         ]
         
-    def get_can_confirm(self, obj):
-        return check_sales_order_can_confirm(obj)["can_confirm"]
+    def get_customer_responsible_person_name(self, obj):
+        if obj.customer_responsible_person is None:
+            return None
+        return str(obj.customer_responsible_person)
 
 
 class CreateSalesOrderSerializer(serializers.Serializer):
