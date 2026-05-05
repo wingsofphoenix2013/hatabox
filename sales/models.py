@@ -108,6 +108,10 @@ class SalesOrderComponent(models.Model):
         related_name="provided_sales_order_components",
     )
 
+    is_required_for_start = models.BooleanField(
+        default=True,
+    )
+
     class Meta:
         db_table = "sales_order_components"
         ordering = ["sales_order", "id"]
