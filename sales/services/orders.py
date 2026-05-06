@@ -17,16 +17,29 @@ def create_sales_order_components(sales_order):
         product_step__product_id=sales_order.product_id,
     )
 
-    components_to_create = []
+    components_by_inv_item = {}
 
     for step_item in step_items:
+        inv_item_id = step_item.inv_item_id
+
+        if inv_item_id not in components_by_inv_item:
+            components_by_inv_item[inv_item_id] = {
+                "inv_item": step_item.inv_item,
+                "quantity": Decimal("0.000"),
+            }
+
+        components_by_inv_item[inv_item_id]["quantity"] += step_item.quantity
+
+    components_to_create = []
+
+    for component_data in components_by_inv_item.values():
         components_to_create.append(
             SalesOrderComponent(
                 sales_order=sales_order,
-                inv_item=step_item.inv_item,
-                quantity=step_item.quantity,
+                inv_item=component_data["inv_item"],
+                quantity=component_data["quantity"],
                 fulfillment_mode=SalesOrderComponent.FulfillmentMode.MIXED,
-                is_required_for_start=step_item.inv_item.is_required_for_production_start,
+                is_required_for_start=component_data["inv_item"].is_required_for_production_start,
             )
         )
 

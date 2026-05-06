@@ -116,6 +116,12 @@ class SalesOrderComponent(models.Model):
     class Meta:
         db_table = "sales_order_components"
         ordering = ["sales_order", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["sales_order", "inv_item"],
+                name="uq_sales_order_component_sales_order_inv_item",
+            ),
+        ]
 
     def clean(self):
         super().clean()
