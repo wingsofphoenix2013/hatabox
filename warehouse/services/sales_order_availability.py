@@ -5,7 +5,12 @@ from django.db.models import Q
 from rest_framework.exceptions import ValidationError
 
 from sales.models import SalesOrder, SalesOrderComponent
-from warehouse.models import MovementPlan, MovementPlanItem, WarehouseUnit
+from warehouse.models import (
+    MovementPlan,
+    MovementPlanItem,
+    WarehouseProductionReservation,
+    WarehouseUnit,
+)
 
 
 ZERO = Decimal("0.000")
@@ -56,6 +61,8 @@ def build_sales_order_availability(sales_order_id: int) -> dict:
             status=WarehouseUnit.Status.ON_STOCK,
         ).exclude(
             id__in=reserved_unit_ids,
+        ).exclude(
+            production_reservations__status=WarehouseProductionReservation.Status.ACTIVE,
         ).order_by(
             "created_at",
             "id",

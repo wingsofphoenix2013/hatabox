@@ -12,6 +12,7 @@ from orders.models import (
     TollingOrderItem,
     TollingReceiptItem,
 )
+from sales.models import SalesOrder, SalesOrderComponent
 
 def storage_place_image_upload_to(instance, filename):
     ext = os.path.splitext(filename)[1].lower() or ".bin"
@@ -779,6 +780,121 @@ class MovementPlan(models.Model):
             raise ValidationError(
                 "Потрібно вказати або target_location, або target_storage_place, але не обидва одночасно."
             )
+
+
+class WarehouseProductionReservation(models.Model):
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Зарезервовано"
+        TRANSFERRED = "transferred", "Передано у виробництво"
+        CANCELLED = "cancelled", "Скасовано"
+
+    warehouse_unit = models.ForeignKey(
+        WarehouseUnit,
+        on_delete=models.PROTECT,
+        related_name="production_reservations",
+    )
+
+    sales_order = models.ForeignKey(
+        SalesOrder,
+        on_delete=models.PROTECT,
+        related_name="warehouse_production_reservations",
+    )
+
+    sales_order_component = models.ForeignKey(
+        SalesOrderComponent,
+        on_delete=models.PROTECT,
+        related_name="warehouse_production_reservations",
+    )
+
+    quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.ACTIVE,
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="warehouse_production_reservations",
+        null=True,
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    transferred_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    cancelled_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "warehouse_production_reservations"
+        ordering = ["sales_order", "sales_order_component", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["warehouse_unit"],
+                condition=models.Q(status="active"),
+                name="uq_active_production_reservation_unit",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+
+        if self.quantity <= 0:
+            raise ValidationError({
+                "quantity": "Кількість повинна бути більше 0."
+            })
+
+        if (
+            self.sales_order_component_id
+            and self.sales_order_id
+            and self.sales_order_component.sales_order_id != self.sales_order_id
+        ):
+            raise ValidationError(
+                "Компонент повинен належати вказаному SalesOrder."
+            )
+
+        if (
+            self.warehouse_unit_id
+            and self.sales_order_component_id
+            and self.warehouse_unit.inventory_item_id != self.sales_order_component.inv_item_id
+        ):
+            raise ValidationError(
+                "Номенклатура WarehouseUnit повинна збігатися з компонентом SalesOrder."
+            )
+
+        if (
+            self.status == self.Status.ACTIVE
+            and self.warehouse_unit_id
+            and self.warehouse_unit.status != WarehouseUnit.Status.BLOCKED
+        ):
+            raise ValidationError(
+                "Активний виробничий резерв повинен бути пов'язаний із WarehouseUnit у статусі blocked."
+            )
+
+        if (
+            self.status == self.Status.ACTIVE
+            and self.warehouse_unit_id
+            and self.quantity > self.warehouse_unit.quantity
+        ):
+            raise ValidationError(
+                "Кількість резерву не може перевищувати кількість WarehouseUnit."
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
 
 class MovementPlanItem(models.Model):

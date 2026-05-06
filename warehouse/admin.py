@@ -5,6 +5,7 @@ from .models import (
     MovementPlan,
     MovementPlanItem,
     WarehouseLocation,
+    WarehouseProductionReservation,
     WarehouseStoragePlace,
     WarehouseUnit,
     WarehouseUnitEvent,
@@ -198,6 +199,41 @@ class MovementPlanAdmin(admin.ModelAdmin):
     )
     inlines = (
         MovementPlanItemInline,
+    )
+
+
+@admin.register(WarehouseProductionReservation)
+class WarehouseProductionReservationAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "warehouse_unit",
+        "sales_order",
+        "sales_order_component",
+        "quantity",
+        "status",
+        "created_by",
+        "created_at",
+        "transferred_at",
+        "cancelled_at",
+    )
+    list_filter = (
+        "status",
+        "created_at",
+        "transferred_at",
+        "cancelled_at",
+    )
+    search_fields = (
+        "id",
+        "warehouse_unit__inventory_item__internal_code",
+        "warehouse_unit__inventory_item__name",
+        "sales_order__id",
+        "sales_order_component__id",
+    )
+    autocomplete_fields = (
+        "warehouse_unit",
+        "sales_order",
+        "sales_order_component",
+        "created_by",
     )
 
 
