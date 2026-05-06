@@ -14,12 +14,13 @@ from rest_framework.exceptions import ValidationError
 
 from sales.services.orders import check_sales_order_can_confirm
 
-from sales.models import SalesOrder
+from sales.models import SalesOrder, SalesOrderComponent
 from sales.serializers import (
     SalesOrderSerializer,
     SalesOrderListSerializer,
     CreateSalesOrderSerializer,
     UpdateSalesOrderComponentSourceSerializer,
+    SetCustomerComponentsSerializer,
 )
 from sales.services.orders import create_sales_order
 
@@ -133,6 +134,45 @@ class SalesOrderViewSet(ModelViewSet):
 
         return Response(self.get_serializer(sales_order).data)
         
+    @action(detail=True, methods=["post"], url_path="set-customer-components")
+    def set_customer_components(self, request, pk=None):
+        sales_order = self.get_object()
+
+        if sales_order.status != SalesOrder.Status.DRAFT:
+            raise ValidationError(
+                "Компоненти замовника можна змінювати лише для замовлення в статусі draft."
+            )
+
+        serializer = SetCustomerComponentsSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        component_ids = set(serializer.validated_data["component_ids"])
+
+        order_component_ids = set(
+            sales_order.components.values_list("id", flat=True)
+        )
+
+        invalid_ids = component_ids - order_component_ids
+
+        if invalid_ids:
+            raise ValidationError({
+                "component_ids": "Передано компоненти, які не належать до цього замовлення."
+            })
+
+        sales_order.components.update(
+            fulfillment_mode=SalesOrderComponent.FulfillmentMode.MIXED,
+        )
+
+        sales_order.components.filter(
+            id__in=component_ids,
+        ).update(
+            fulfillment_mode=SalesOrderComponent.FulfillmentMode.CUSTOMER,
+        )
+
+        sales_order = self.get_queryset().get(pk=sales_order.pk)
+
+        return Response(self.get_serializer(sales_order).data)
+
     @action(detail=True, methods=["get"], url_path="confirmation-status")
     def confirmation_status(self, request, pk=None):
         sales_order = self.get_object()

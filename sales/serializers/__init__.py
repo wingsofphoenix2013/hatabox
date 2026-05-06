@@ -3,4 +3,5 @@ from .orders import (
     SalesOrderListSerializer,
     CreateSalesOrderSerializer,
     UpdateSalesOrderComponentSourceSerializer,
+    SetCustomerComponentsSerializer,
 )

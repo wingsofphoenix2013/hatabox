@@ -148,3 +148,17 @@ class UpdateSalesOrderComponentSourceSerializer(serializers.Serializer):
     fulfillment_mode = serializers.ChoiceField(
         choices=SalesOrderComponent.FulfillmentMode.choices,
     )
+
+
+class SetCustomerComponentsSerializer(serializers.Serializer):
+    component_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        allow_empty=True,
+    )
+
+
+class SetCustomerComponentsSerializer(serializers.Serializer):
+    component_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        allow_empty=True,
+    )
