@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db import transaction
 
 from warehouse.services.sales_order_availability import build_sales_order_availability
