@@ -130,11 +130,7 @@ def build_sales_order_availability(sales_order_id: int) -> dict:
 
         can_cover = missing_quantity == ZERO
 
-        if (
-            component.fulfillment_mode == SalesOrderComponent.FulfillmentMode.CUSTOMER
-            and component.is_required_for_start
-            and not can_cover
-        ):
+        if component.is_required_for_start and not can_cover:
             can_confirm = False
 
         component_rows.append({
