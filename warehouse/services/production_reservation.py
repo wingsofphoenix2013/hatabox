@@ -27,10 +27,10 @@ def _to_decimal(value) -> Decimal:
     return Decimal(str(value))
 
 
-def _get_available_units_for_component(
+def _build_available_unit_pools(
     *,
     sales_order,
-    component,
+    item_ids,
 ):
     reserved_movement_unit_ids = set(
         MovementPlanItem.objects.filter(
@@ -39,33 +39,122 @@ def _get_available_units_for_component(
         ).values_list("warehouse_unit_id", flat=True)
     )
 
-    queryset = WarehouseUnit.objects.select_related(
-        "tolling_source_order_item",
-        "tolling_source_order_item__order",
-    ).filter(
-        inventory_item_id=component.inv_item_id,
-        status=WarehouseUnit.Status.ON_STOCK,
-    ).exclude(
-        id__in=reserved_movement_unit_ids,
-    ).exclude(
-        production_reservations__status=WarehouseProductionReservation.Status.ACTIVE,
-    ).order_by(
-        "created_at",
-        "id",
+    units = list(
+        WarehouseUnit.objects.select_related(
+            "tolling_source_order_item",
+            "tolling_source_order_item__order",
+        ).filter(
+            inventory_item_id__in=item_ids,
+            status=WarehouseUnit.Status.ON_STOCK,
+        ).exclude(
+            id__in=reserved_movement_unit_ids,
+        ).exclude(
+            production_reservations__status=WarehouseProductionReservation.Status.ACTIVE,
+        ).order_by(
+            "created_at",
+            "id",
+        )
     )
 
-    if component.fulfillment_mode == SalesOrderComponent.FulfillmentMode.CUSTOMER:
-        queryset = queryset.filter(
-            tolling_source_order_item__order__organization_id=sales_order.organization_id,
+    pools = defaultdict(lambda: {
+        "customer": [],
+        "donor": [],
+        "own": [],
+    })
+
+    for unit in units:
+        if unit.tolling_source_order_item_id:
+            organization_id = unit.tolling_source_order_item.order.organization_id
+
+            if organization_id == sales_order.organization_id:
+                pools[unit.inventory_item_id]["customer"].append(unit)
+            else:
+                pools[unit.inventory_item_id]["donor"].append(unit)
+
+            continue
+
+        if unit.source_order_item_id:
+            pools[unit.inventory_item_id]["own"].append(unit)
+
+    return pools
+
+
+def _select_units_from_pool(
+    *,
+    units,
+    required_quantity,
+    allow_larger_splittable_unit,
+):
+    remaining_quantity = required_quantity
+    selected = []
+
+    exact_match_unit = next(
+        (
+            unit
+            for unit in units
+            if _to_decimal(unit.quantity) == remaining_quantity
+        ),
+        None,
+    )
+
+    if exact_match_unit is not None:
+        return [
+            {
+                "warehouse_unit": exact_match_unit,
+                "quantity": remaining_quantity,
+            }
+        ], ZERO
+
+    collected_quantity = ZERO
+    fractional_selected = []
+
+    for unit in units:
+        unit_quantity = _to_decimal(unit.quantity)
+
+        if unit_quantity >= required_quantity:
+            continue
+
+        if collected_quantity + unit_quantity > required_quantity:
+            continue
+
+        fractional_selected.append({
+            "warehouse_unit": unit,
+            "quantity": unit_quantity,
+        })
+
+        collected_quantity += unit_quantity
+
+        if collected_quantity == required_quantity:
+            return fractional_selected, ZERO
+
+    if fractional_selected:
+        selected.extend(fractional_selected)
+        remaining_quantity -= collected_quantity
+
+    if allow_larger_splittable_unit and remaining_quantity > ZERO:
+        used_unit_ids = {
+            row["warehouse_unit"].id
+            for row in selected
+        }
+
+        larger_unit = next(
+            (
+                unit
+                for unit in units
+                if unit.id not in used_unit_ids
+                and _to_decimal(unit.quantity) > remaining_quantity
+            ),
+            None,
         )
 
-    elif component.fulfillment_mode == SalesOrderComponent.FulfillmentMode.MIXED:
-        queryset = queryset.exclude(
-            tolling_source_order_item__order__organization_id=sales_order.organization_id,
-        )
+        if larger_unit is not None:
+            selected.append({
+                "warehouse_unit": larger_unit,
+                "quantity": remaining_quantity,
+            })
+            remaining_quantity = ZERO
 
-    return list(queryset)
-
+    return selected, remaining_quantity
 
 def reserve_for_sales_order(
     *,
@@ -93,82 +182,47 @@ def reserve_for_sales_order(
         ).all()
     )
 
+    item_ids = [
+        component.inv_item_id
+        for component in components
+    ]
+
+    available_unit_pools = _build_available_unit_pools(
+        sales_order=sales_order,
+        item_ids=item_ids,
+    )
+
     reservation_plan = []
     insufficient_required_components = []
 
     for component in components:
         required_quantity = _to_decimal(component.quantity)
         remaining_quantity = required_quantity
-
-        units = _get_available_units_for_component(
-            sales_order=sales_order,
-            component=component,
-        )
-
         component_reservations = []
 
-        exact_match_unit = next(
-            (
-                unit
-                for unit in units
-                if _to_decimal(unit.quantity) == remaining_quantity
-            ),
-            None,
-        )
+        if component.fulfillment_mode == SalesOrderComponent.FulfillmentMode.CUSTOMER:
+            selected_reservations, remaining_quantity = _select_units_from_pool(
+                units=available_unit_pools[component.inv_item_id]["customer"],
+                required_quantity=required_quantity,
+                allow_larger_splittable_unit=component.inv_item.is_splittable,
+            )
+            component_reservations.extend(selected_reservations)
 
-        if exact_match_unit is not None:
-            component_reservations.append({
-                "warehouse_unit": exact_match_unit,
-                "quantity": remaining_quantity,
-            })
-            remaining_quantity = ZERO
+        elif component.fulfillment_mode == SalesOrderComponent.FulfillmentMode.MIXED:
+            donor_reservations, remaining_quantity = _select_units_from_pool(
+                units=available_unit_pools[component.inv_item_id]["donor"],
+                required_quantity=required_quantity,
+                allow_larger_splittable_unit=False,
+            )
+            component_reservations.extend(donor_reservations)
 
-        else:
-            fractional_units = [
-                unit
-                for unit in units
-                if _to_decimal(unit.quantity) < required_quantity
-            ]
-
-            collected_quantity = ZERO
-            fractional_reservations = []
-
-            for unit in fractional_units:
-                unit_quantity = _to_decimal(unit.quantity)
-
-                if collected_quantity + unit_quantity > required_quantity:
-                    continue
-
-                fractional_reservations.append({
-                    "warehouse_unit": unit,
-                    "quantity": unit_quantity,
-                })
-
-                collected_quantity += unit_quantity
-
-                if collected_quantity == required_quantity:
-                    break
-
-            if collected_quantity == required_quantity:
-                component_reservations.extend(fractional_reservations)
-                remaining_quantity = ZERO
-
-            elif component.inv_item.is_splittable:
-                larger_unit = next(
-                    (
-                        unit
-                        for unit in units
-                        if _to_decimal(unit.quantity) > remaining_quantity
-                    ),
-                    None,
+            if remaining_quantity > ZERO:
+                own_reservations, remaining_quantity = _select_units_from_pool(
+                    units=available_unit_pools[component.inv_item_id]["own"],
+                    required_quantity=remaining_quantity,
+                    allow_larger_splittable_unit=component.inv_item.is_splittable,
                 )
-
-                if larger_unit is not None:
-                    component_reservations.append({
-                        "warehouse_unit": larger_unit,
-                        "quantity": remaining_quantity,
-                    })
-                    remaining_quantity = ZERO
+                component_reservations.extend(own_reservations)
 
         reserved_quantity = required_quantity - remaining_quantity
 
