@@ -13,6 +13,7 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.exceptions import ValidationError
 
 from sales.services.orders import check_sales_order_can_confirm
+from warehouse.services.production_reservation import reserve_for_sales_order
 
 from sales.models import SalesOrder, SalesOrderComponent
 from sales.serializers import (
@@ -189,6 +190,11 @@ class SalesOrderViewSet(ModelViewSet):
 
         if not result["can_confirm"]:
             return Response(result, status=400)
+
+        reserve_for_sales_order(
+            sales_order=sales_order,
+            created_by=request.user if request.user.is_authenticated else None,
+        )
 
         sales_order.status = SalesOrder.Status.CONFIRMED
         sales_order.save(update_fields=["status"])
