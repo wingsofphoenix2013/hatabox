@@ -93,20 +93,26 @@ class SalesOrderViewSet(ModelViewSet):
     permission_classes = [DjangoModelPermissions]
 
     def create(self, request, *args, **kwargs):
-        serializer = CreateSalesOrderSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        try:
+            serializer = CreateSalesOrderSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
 
-        sales_order = create_sales_order(
-            organization=serializer.validated_data["organization"],
-            product=serializer.validated_data["product"],
-            created_by=request.user if request.user.is_authenticated else None,
-            customer_responsible_person=serializer.validated_data.get("customer_responsible_person"),
-            comment=serializer.validated_data.get("comment", ""),
-        )
+            sales_order = create_sales_order(
+                organization=serializer.validated_data["organization"],
+                product=serializer.validated_data["product"],
+                created_by=request.user if request.user.is_authenticated else None,
+                customer_responsible_person=serializer.validated_data.get("customer_responsible_person"),
+                comment=serializer.validated_data.get("comment", ""),
+            )
 
-        sales_order = self.get_queryset().get(pk=sales_order.pk)
+            sales_order = self.get_queryset().get(pk=sales_order.pk)
 
-        return Response(SalesOrderListSerializer(sales_order).data)
+            return Response(SalesOrderListSerializer(sales_order).data)
+
+        except Exception as exc:
+            logger.error("SalesOrder create failed: %s", exc)
+            logger.error(traceback.format_exc())
+            raise
         
     @action(detail=True, methods=["post"], url_path="update-component-fulfillment")
     def update_component_fulfillment(self, request, pk=None):
