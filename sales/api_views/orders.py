@@ -106,8 +106,8 @@ class SalesOrderViewSet(ModelViewSet):
 
         return Response(SalesOrderListSerializer(sales_order).data)
         
-    @action(detail=True, methods=["post"], url_path="update-component-source")
-    def update_component_source(self, request, pk=None):
+    @action(detail=True, methods=["post"], url_path="update-component-fulfillment")
+    def update_component_fulfillment(self, request, pk=None):
         sales_order = self.get_object()
 
         if sales_order.status != SalesOrder.Status.DRAFT:
@@ -125,14 +125,9 @@ class SalesOrderViewSet(ModelViewSet):
         except sales_order.components.model.DoesNotExist:
             raise ValidationError("Компонент замовлення не знайдено.")
 
-        component.source_type = serializer.validated_data["source_type"]
+        component.fulfillment_mode = serializer.validated_data["fulfillment_mode"]
 
-        if component.source_type == component.SourceType.DONATED:
-            component.source_organization = serializer.validated_data.get("source_organization")
-        else:
-            component.source_organization = None
-
-        component.save(update_fields=["source_type", "source_organization"])
+        component.save(update_fields=["fulfillment_mode"])
 
         sales_order = self.get_queryset().get(pk=sales_order.pk)
 

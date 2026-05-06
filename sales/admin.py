@@ -7,9 +7,7 @@ from sales.services.orders import create_sales_order_components
 class SalesOrderComponentInline(admin.TabularInline):
     model = SalesOrderComponent
     extra = 0
-    autocomplete_fields = (
-        "source_organization",
-    )
+    autocomplete_fields = ()
     readonly_fields = ("inv_item", "quantity")
 
     def has_add_permission(self, request, obj=None):
@@ -76,21 +74,17 @@ class SalesOrderComponentAdmin(admin.ModelAdmin):
         "sales_order",
         "inv_item",
         "quantity",
-        "source_type",
-        "source_organization",
+        "fulfillment_mode",
     )
     list_filter = (
-        "source_type",
-        "source_organization",
+        "fulfillment_mode",
     )
     search_fields = (
         "sales_order__id",
         "inv_item__internal_code",
         "inv_item__name",
-        "source_organization__name",
     )
     autocomplete_fields = (
         "sales_order",
         "inv_item",
-        "source_organization",
     )

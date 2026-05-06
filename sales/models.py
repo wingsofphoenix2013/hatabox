@@ -82,10 +82,9 @@ class SalesOrder(models.Model):
 
 
 class SalesOrderComponent(models.Model):
-    class SourceType(models.TextChoices):
-        STOCK = "stock", "Склад"
+    class FulfillmentMode(models.TextChoices):
         CUSTOMER = "customer", "Від замовника"
-        DONATED = "donated", "Донорський"
+        MIXED = "mixed", "Комбіновано"
 
     sales_order = models.ForeignKey(
         SalesOrder,
@@ -104,17 +103,10 @@ class SalesOrderComponent(models.Model):
         decimal_places=3,
     )
 
-    source_type = models.CharField(
+    fulfillment_mode = models.CharField(
         max_length=20,
-        choices=SourceType.choices,
-    )
-
-    source_organization = models.ForeignKey(
-        Organization,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="provided_sales_order_components",
+        choices=FulfillmentMode.choices,
+        default=FulfillmentMode.MIXED,
     )
 
     is_required_for_start = models.BooleanField(
@@ -127,21 +119,6 @@ class SalesOrderComponent(models.Model):
 
     def clean(self):
         super().clean()
-
-        if self.source_type == self.SourceType.CUSTOMER:
-            self.source_organization = self.sales_order.organization
-
-        if self.source_type == self.SourceType.STOCK:
-            if self.source_organization is not None:
-                raise ValidationError({
-                    "source_organization": "Для джерела 'Склад' організація не вказується."
-                })
-
-        if self.source_type == self.SourceType.DONATED:
-            if self.source_organization is None:
-                raise ValidationError({
-                    "source_organization": "Потрібно вказати організацію для цього джерела."
-                })
 
     def save(self, *args, **kwargs):
         self.full_clean()

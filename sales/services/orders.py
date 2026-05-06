@@ -25,8 +25,7 @@ def create_sales_order_components(sales_order):
                 sales_order=sales_order,
                 inv_item=step_item.inv_item,
                 quantity=step_item.quantity,
-                source_type=SalesOrderComponent.SourceType.STOCK,
-                source_organization=None,
+                fulfillment_mode=SalesOrderComponent.FulfillmentMode.MIXED,
                 is_required_for_start=step_item.inv_item.is_required_for_production_start,
             )
         )
@@ -64,12 +63,8 @@ def check_sales_order_can_confirm(sales_order):
 
     external_components = sales_order.components.select_related(
         "inv_item",
-        "source_organization",
     ).filter(
-        source_type__in=[
-            SalesOrderComponent.SourceType.CUSTOMER,
-            SalesOrderComponent.SourceType.DONATED,
-        ],
+        fulfillment_mode=SalesOrderComponent.FulfillmentMode.CUSTOMER,
         is_required_for_start=True,
     )
 
@@ -80,7 +75,7 @@ def check_sales_order_can_confirm(sales_order):
                 for unit in WarehouseUnit.objects.filter(
                     inventory_item=component.inv_item,
                     status=WarehouseUnit.Status.ON_STOCK,
-                    tolling_source_order_item__order__organization=component.source_organization,
+                    tolling_source_order_item__order__organization=sales_order.organization,
                 )
             ),
             Decimal("0.000"),
@@ -94,12 +89,7 @@ def check_sales_order_can_confirm(sales_order):
                 "inv_item_name": component.inv_item.name,
                 "required_quantity": component.quantity,
                 "available_quantity": available_quantity,
-                "source_type": component.source_type,
-                "source_organization": (
-                    component.source_organization.id
-                    if component.source_organization
-                    else None
-                ),
+                "fulfillment_mode": component.fulfillment_mode,
             })
 
     return {
