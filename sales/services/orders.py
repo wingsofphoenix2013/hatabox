@@ -1,8 +1,6 @@
 from django.db import transaction
 
-from decimal import Decimal
-
-from warehouse.models import WarehouseUnit
+from warehouse.services.sales_order_availability import build_sales_order_availability
 from inventory.models import ProductStepItem
 from sales.models import SalesOrder, SalesOrderComponent
 
@@ -72,40 +70,21 @@ def create_sales_order(
 
 
 def check_sales_order_can_confirm(sales_order):
-    missing_components = []
-
-    external_components = sales_order.components.select_related(
-        "inv_item",
-    ).filter(
-        fulfillment_mode=SalesOrderComponent.FulfillmentMode.CUSTOMER,
-        is_required_for_start=True,
+    availability = build_sales_order_availability(
+        sales_order_id=sales_order.id,
     )
 
-    for component in external_components:
-        available_quantity = sum(
-            (
-                unit.quantity
-                for unit in WarehouseUnit.objects.filter(
-                    inventory_item=component.inv_item,
-                    status=WarehouseUnit.Status.ON_STOCK,
-                    tolling_source_order_item__order__organization=sales_order.organization,
-                )
-            ),
-            Decimal("0.000"),
+    missing_components = [
+        component
+        for component in availability["components"]
+        if (
+            component["fulfillment_mode"] == SalesOrderComponent.FulfillmentMode.CUSTOMER
+            and component["is_required_for_start"]
+            and not component["can_cover"]
         )
-
-        if available_quantity < component.quantity:
-            missing_components.append({
-                "component_id": component.id,
-                "inv_item": component.inv_item.id,
-                "inv_item_code": component.inv_item.internal_code,
-                "inv_item_name": component.inv_item.name,
-                "required_quantity": component.quantity,
-                "available_quantity": available_quantity,
-                "fulfillment_mode": component.fulfillment_mode,
-            })
+    ]
 
     return {
-        "can_confirm": len(missing_components) == 0,
+        "can_confirm": availability["can_confirm"],
         "missing_components": missing_components,
     }
