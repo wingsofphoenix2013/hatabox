@@ -8,3 +8,5 @@ from .stock import (
     WarehouseStockOverviewViewSet,
     WarehouseStockDetailViewSet,
 )
+
+from .sales_order_availability import WarehouseSalesOrderAvailabilityViewSet

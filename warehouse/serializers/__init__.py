@@ -41,3 +41,7 @@ from .stock import (
     WarehouseStockDetailIncomingRowSerializer,
     WarehouseStockDetailSerializer,
 )
+
+from .sales_order_availability import (
+    WarehouseSalesOrderAvailabilitySerializer,
+)
