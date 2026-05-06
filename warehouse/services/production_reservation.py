@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
 
+from organizations.models import Organization
 from sales.models import SalesOrder, SalesOrderComponent
 
 from warehouse.models import (
@@ -64,11 +65,11 @@ def _build_available_unit_pools(
 
     for unit in units:
         if unit.tolling_source_order_item_id:
-            organization_id = unit.tolling_source_order_item.order.organization_id
+            organization = unit.tolling_source_order_item.order.organization
 
-            if organization_id == sales_order.organization_id:
+            if organization.id == sales_order.organization_id:
                 pools[unit.inventory_item_id]["customer"].append(unit)
-            else:
+            elif organization.type == Organization.Type.CHARITY:
                 pools[unit.inventory_item_id]["donor"].append(unit)
 
             continue
