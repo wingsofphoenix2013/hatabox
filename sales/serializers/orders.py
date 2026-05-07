@@ -63,6 +63,26 @@ class SalesOrderListSerializer(serializers.ModelSerializer):
         ]
 
 class SalesOrderSerializer(serializers.ModelSerializer):
+    organization_name = serializers.CharField(
+        source="organization.name",
+        read_only=True,
+    )
+    product_code = serializers.CharField(
+        source="product.code",
+        read_only=True,
+    )
+    product_family_name = serializers.CharField(
+        source="product.product_family.name",
+        read_only=True,
+    )
+    status_display = serializers.CharField(
+        source="get_status_display",
+        read_only=True,
+    )
+    created_by_username = serializers.CharField(
+        source="created_by.username",
+        read_only=True,
+    )
     customer_responsible_person_name = serializers.SerializerMethodField()
     can_try_confirm = serializers.SerializerMethodField()
     has_warehouse_shortages = serializers.SerializerMethodField()
@@ -74,9 +94,14 @@ class SalesOrderSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "organization",
+            "organization_name",
             "product",
+            "product_code",
+            "product_family_name",
             "status",
+            "status_display",
             "created_by",
+            "created_by_username",
             "created_at",
             "updated_at",
             "completed_at",
