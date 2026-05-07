@@ -50,6 +50,7 @@ from warehouse.api_views import (
     WarehouseStockDetailViewSet,
     MovementPlanViewSet,
     WarehouseSalesOrderAvailabilityViewSet,
+    WarehouseShortageOverviewViewSet,
 )
 
 from reference.api_views import (
@@ -152,6 +153,12 @@ router.register(
     "warehouse-sales-order-availability",
     WarehouseSalesOrderAvailabilityViewSet,
     basename="warehouse-sales-order-availability",
+)
+
+router.register(
+    "warehouse-shortage-overview",
+    WarehouseShortageOverviewViewSet,
+    basename="warehouse-shortage-overview",
 )
 router.register("order-statuses", ExternalOrderStatusViewSet)
 router.register("payment-statuses", ExternalOrderPaymentStatusViewSet)

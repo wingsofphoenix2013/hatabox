@@ -10,3 +10,4 @@ from .stock import (
 )
 
 from .sales_order_availability import WarehouseSalesOrderAvailabilityViewSet
+from .shortage_overview import WarehouseShortageOverviewViewSet
