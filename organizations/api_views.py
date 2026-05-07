@@ -56,7 +56,7 @@ class OrganizationViewSet(ModelViewSet):
         return self._paginator
 
     def get_queryset(self):
-        queryset = self.queryset
+        queryset = self.queryset.all()
 
         org_type = self.request.query_params.getlist("type")
         if org_type:
