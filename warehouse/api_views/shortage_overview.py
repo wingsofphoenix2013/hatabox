@@ -17,7 +17,24 @@ class WarehouseShortageOverviewViewSet(ReadOnlyModelViewSet):
     permission_classes = [DjangoModelPermissions]
 
     def list(self, request, *args, **kwargs):
-        rows = build_shortage_overview()
+        search = request.query_params.get("search")
+
+        fulfillment_mode = request.query_params.get("fulfillment_mode")
+
+        is_required_for_start = request.query_params.get(
+            "is_required_for_start"
+        )
+
+        if is_required_for_start is not None:
+            is_required_for_start = (
+                is_required_for_start.lower() == "true"
+            )
+
+        rows = build_shortage_overview(
+            search=search,
+            fulfillment_mode=fulfillment_mode,
+            is_required_for_start=is_required_for_start,
+        )
 
         page = self.paginate_queryset(rows)
 

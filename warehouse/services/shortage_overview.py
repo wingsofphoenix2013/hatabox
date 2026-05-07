@@ -27,12 +27,35 @@ def _to_decimal(value) -> Decimal:
     return Decimal(str(value))
 
 
-def build_shortage_overview():
+def build_shortage_overview(
+    *,
+    search=None,
+    fulfillment_mode=None,
+    is_required_for_start=None,
+):
+    shortage_queryset = WarehouseSalesOrderShortage.objects.select_related(
+        "inv_item",
+        "inv_item__unit",
+    )
+
+    if search:
+        shortage_queryset = shortage_queryset.filter(
+            Q(inv_item__name__icontains=search)
+            | Q(inv_item__internal_code__icontains=search)
+        )
+
+    if fulfillment_mode:
+        shortage_queryset = shortage_queryset.filter(
+            fulfillment_mode=fulfillment_mode,
+        )
+
+    if is_required_for_start is not None:
+        shortage_queryset = shortage_queryset.filter(
+            is_required_for_start=is_required_for_start,
+        )
+
     shortage_rows = list(
-        WarehouseSalesOrderShortage.objects.select_related(
-            "inv_item",
-            "inv_item__unit",
-        ).values(
+        shortage_queryset.values(
             "inv_item_id",
             "inv_item__internal_code",
             "inv_item__name",
