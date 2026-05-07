@@ -32,8 +32,6 @@ class SalesOrderComponentSerializer(serializers.ModelSerializer):
 
 
 class SalesOrderListSerializer(serializers.ModelSerializer):
-    can_confirm = serializers.SerializerMethodField()
-
     organization_name = serializers.CharField(
         source="organization.name",
         read_only=True,
@@ -57,17 +55,12 @@ class SalesOrderListSerializer(serializers.ModelSerializer):
             "product_code",
             "product_family_name",
             "status",
-            "can_confirm",
             "created_by",
             "created_at",
             "completed_at",
             "customer_responsible_person",
             "comment",
         ]
-
-    def get_can_confirm(self, obj):
-        return check_sales_order_can_confirm(obj)["can_confirm"]
-
 
 class SalesOrderSerializer(serializers.ModelSerializer):
     components = SalesOrderComponentSerializer(many=True, read_only=True)
