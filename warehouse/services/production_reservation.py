@@ -2,6 +2,7 @@ from collections import defaultdict
 from decimal import Decimal
 
 from django.db import transaction
+from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from organizations.models import Organization
@@ -11,6 +12,7 @@ from warehouse.models import (
     MovementPlan,
     MovementPlanItem,
     WarehouseProductionReservation,
+    WarehouseSalesOrderShortage,
     WarehouseUnit,
 )
 
@@ -156,6 +158,66 @@ def _select_units_from_pool(
             remaining_quantity = ZERO
 
     return selected, remaining_quantity
+
+def cancel_sales_order_warehouse_state(
+    *,
+    sales_order,
+):
+    transferred_exists = WarehouseProductionReservation.objects.filter(
+        sales_order=sales_order,
+        status=WarehouseProductionReservation.Status.TRANSFERRED,
+    ).exists()
+
+    if transferred_exists:
+        raise ValidationError(
+            "Неможливо скасувати SalesOrder: частина резервів вже передана у виробництво."
+        )
+
+    with transaction.atomic():
+        active_reservations = list(
+            WarehouseProductionReservation.objects.select_related(
+                "warehouse_unit",
+            ).filter(
+                sales_order=sales_order,
+                status=WarehouseProductionReservation.Status.ACTIVE,
+            )
+        )
+
+        units_to_restore = []
+        now = timezone.now()
+
+        for reservation in active_reservations:
+            unit = reservation.warehouse_unit
+
+            if unit.status == WarehouseUnit.Status.BLOCKED:
+                unit.status = WarehouseUnit.Status.ON_STOCK
+                units_to_restore.append(unit)
+
+            reservation.status = WarehouseProductionReservation.Status.CANCELLED
+            reservation.cancelled_at = now
+
+        if units_to_restore:
+            WarehouseUnit.objects.bulk_update(
+                units_to_restore,
+                ["status"],
+            )
+
+        if active_reservations:
+            WarehouseProductionReservation.objects.bulk_update(
+                active_reservations,
+                ["status", "cancelled_at"],
+            )
+
+        WarehouseSalesOrderShortage.objects.filter(
+            sales_order=sales_order,
+        ).delete()
+
+    return {
+        "sales_order_id": sales_order.id,
+        "cancelled_reservations": len(active_reservations),
+        "restored_units": len(units_to_restore),
+    }
+
 
 def reserve_for_sales_order(
     *,
