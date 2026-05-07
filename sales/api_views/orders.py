@@ -1,7 +1,8 @@
 import logging
 import traceback
 
-from django.db import models
+from django.db import models, transaction
+from django.shortcuts import get_object_or_404
 
 
 logger = logging.getLogger(__name__)
@@ -14,6 +15,7 @@ from rest_framework.exceptions import ValidationError
 
 from sales.services.orders import check_sales_order_can_confirm
 from warehouse.services.production_reservation import reserve_for_sales_order
+from warehouse.models import WarehouseSalesOrderShortage
 
 from sales.models import SalesOrder, SalesOrderComponent
 from sales.serializers import (
@@ -175,6 +177,31 @@ class SalesOrderViewSet(ModelViewSet):
         ).update(
             fulfillment_mode=SalesOrderComponent.FulfillmentMode.CUSTOMER,
         )
+
+        sales_order = self.get_queryset().get(pk=sales_order.pk)
+
+        return Response(self.get_serializer(sales_order).data)
+
+    @action(detail=True, methods=["post"], url_path="cancel")
+    def cancel(self, request, pk=None):
+        with transaction.atomic():
+            sales_order = get_object_or_404(
+                self.get_queryset().select_for_update(),
+                pk=pk,
+            )
+            self.check_object_permissions(request, sales_order)
+
+            if sales_order.status != SalesOrder.Status.DRAFT:
+                raise ValidationError(
+                    "Скасувати можна лише SalesOrder у статусі draft."
+                )
+
+            WarehouseSalesOrderShortage.objects.filter(
+                sales_order=sales_order,
+            ).delete()
+
+            sales_order.status = SalesOrder.Status.CANCELLED
+            sales_order.save(update_fields=["status", "updated_at"])
 
         sales_order = self.get_queryset().get(pk=sales_order.pk)
 
