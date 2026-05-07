@@ -40,8 +40,8 @@ class SalesOrderViewSet(ModelViewSet):
         "created_by",
         "customer_responsible_person",
     ).prefetch_related(
-        "components",
-        "components__inv_item",
+        "warehouse_shortages",
+        "warehouse_shortages__inv_item",
     ).order_by("-created_at", "-id")
 
     serializer_class = SalesOrderSerializer
