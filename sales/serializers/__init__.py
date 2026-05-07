@@ -1,4 +1,5 @@
 from .orders import (
+    SalesOrderComponentSerializer,
     SalesOrderSerializer,
     SalesOrderListSerializer,
     CreateSalesOrderSerializer,

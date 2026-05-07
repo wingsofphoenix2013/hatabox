@@ -22,6 +22,7 @@ from warehouse.models import WarehouseSalesOrderShortage
 
 from sales.models import SalesOrder, SalesOrderComponent
 from sales.serializers import (
+    SalesOrderComponentSerializer,
     SalesOrderSerializer,
     SalesOrderListSerializer,
     CreateSalesOrderSerializer,
@@ -146,6 +147,24 @@ class SalesOrderViewSet(ModelViewSet):
 
         return Response(self.get_serializer(sales_order).data)
         
+    @action(detail=True, methods=["get"], url_path="components")
+    def components(self, request, pk=None):
+        sales_order = self.get_object()
+
+        components = sales_order.components.select_related(
+            "inv_item",
+        ).order_by(
+            "inv_item__name",
+            "id",
+        )
+
+        serializer = SalesOrderComponentSerializer(
+            components,
+            many=True,
+        )
+
+        return Response(serializer.data)
+
     @action(detail=True, methods=["post"], url_path="set-customer-components")
     def set_customer_components(self, request, pk=None):
         sales_order = self.get_object()
