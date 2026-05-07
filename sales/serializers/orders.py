@@ -16,6 +16,10 @@ class SalesOrderComponentSerializer(serializers.ModelSerializer):
         source="inv_item.name",
         read_only=True,
     )
+    inv_item_unit_symbol = serializers.CharField(
+        source="inv_item.unit.symbol",
+        read_only=True,
+    )
 
     class Meta:
         model = SalesOrderComponent
@@ -24,7 +28,7 @@ class SalesOrderComponentSerializer(serializers.ModelSerializer):
             "inv_item",
             "inv_item_code",
             "inv_item_name",
-            "quantity",
+            "inv_item_unit_symbol",
             "quantity",
             "fulfillment_mode",
             "is_required_for_start",
