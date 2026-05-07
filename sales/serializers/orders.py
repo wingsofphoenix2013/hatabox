@@ -214,8 +214,32 @@ class SetCustomerComponentsSerializer(serializers.Serializer):
     )
 
 
-class SetCustomerComponentsSerializer(serializers.Serializer):
-    component_ids = serializers.ListField(
-        child=serializers.IntegerField(min_value=1),
-        allow_empty=True,
+class UpdateSalesOrderDetailsSerializer(serializers.Serializer):
+    comment = serializers.CharField(
+        required=False,
+        allow_blank=True,
     )
+    customer_responsible_person = serializers.PrimaryKeyRelatedField(
+        queryset=Person.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+
+    def validate(self, attrs):
+        sales_order = self.context["sales_order"]
+        person = attrs.get("customer_responsible_person")
+
+        if person is not None:
+            exists = OrganizationPersonAssignment.objects.filter(
+                organization=sales_order.organization,
+                person=person,
+                is_current=True,
+            ).exists()
+
+            if not exists:
+                raise serializers.ValidationError({
+                    "customer_responsible_person": "Особа не належить до організації або не є актуальною."
+                })
+
+        return attrs
+    

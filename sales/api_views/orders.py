@@ -28,6 +28,7 @@ from sales.serializers import (
     CreateSalesOrderSerializer,
     UpdateSalesOrderComponentSourceSerializer,
     SetCustomerComponentsSerializer,
+    UpdateSalesOrderDetailsSerializer,
 )
 from sales.services.orders import create_sales_order
 
@@ -147,6 +148,46 @@ class SalesOrderViewSet(ModelViewSet):
 
         return Response(self.get_serializer(sales_order).data)
         
+    @action(detail=True, methods=["post"], url_path="update-details")
+    def update_details(self, request, pk=None):
+        sales_order = self.get_object()
+
+        if sales_order.status in [
+            SalesOrder.Status.COMPLETED,
+            SalesOrder.Status.CANCELLED,
+        ]:
+            raise ValidationError(
+                "Неможливо змінювати деталі завершеного або скасованого замовлення."
+            )
+
+        serializer = UpdateSalesOrderDetailsSerializer(
+            data=request.data,
+            context={
+                "sales_order": sales_order,
+            },
+        )
+        serializer.is_valid(raise_exception=True)
+
+        if "comment" in serializer.validated_data:
+            sales_order.comment = serializer.validated_data["comment"]
+
+        if "customer_responsible_person" in serializer.validated_data:
+            sales_order.customer_responsible_person = serializer.validated_data[
+                "customer_responsible_person"
+            ]
+
+        sales_order.save(
+            update_fields=[
+                "comment",
+                "customer_responsible_person",
+                "updated_at",
+            ]
+        )
+
+        sales_order = self.get_queryset().get(pk=sales_order.pk)
+
+        return Response(self.get_serializer(sales_order).data)
+
     @action(detail=True, methods=["get"], url_path="components")
     def components(self, request, pk=None):
         sales_order = self.get_object()

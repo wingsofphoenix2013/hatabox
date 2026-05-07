@@ -5,4 +5,5 @@ from .orders import (
     CreateSalesOrderSerializer,
     UpdateSalesOrderComponentSourceSerializer,
     SetCustomerComponentsSerializer,
+    UpdateSalesOrderDetailsSerializer,
 )
