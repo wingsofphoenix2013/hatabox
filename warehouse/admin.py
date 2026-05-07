@@ -6,6 +6,7 @@ from .models import (
     MovementPlanItem,
     WarehouseLocation,
     WarehouseProductionReservation,
+    WarehouseSalesOrderShortage,
     WarehouseStoragePlace,
     WarehouseUnit,
     WarehouseUnitEvent,
@@ -199,6 +200,39 @@ class MovementPlanAdmin(admin.ModelAdmin):
     )
     inlines = (
         MovementPlanItemInline,
+    )
+
+
+@admin.register(WarehouseSalesOrderShortage)
+class WarehouseSalesOrderShortageAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "sales_order",
+        "sales_order_component",
+        "inv_item",
+        "fulfillment_mode",
+        "organization",
+        "missing_quantity",
+        "is_required_for_start",
+        "last_checked_at",
+        "updated_at",
+    )
+    list_filter = (
+        "fulfillment_mode",
+        "is_required_for_start",
+        "updated_at",
+    )
+    search_fields = (
+        "sales_order__id",
+        "sales_order_component__id",
+        "inv_item__internal_code",
+        "inv_item__name",
+    )
+    autocomplete_fields = (
+        "sales_order",
+        "sales_order_component",
+        "inv_item",
+        "organization",
     )
 
 

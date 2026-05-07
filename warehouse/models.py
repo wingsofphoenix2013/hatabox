@@ -782,6 +782,110 @@ class MovementPlan(models.Model):
             )
 
 
+class WarehouseSalesOrderShortage(models.Model):
+    sales_order = models.ForeignKey(
+        SalesOrder,
+        on_delete=models.CASCADE,
+        related_name="warehouse_shortages",
+    )
+
+    sales_order_component = models.ForeignKey(
+        SalesOrderComponent,
+        on_delete=models.CASCADE,
+        related_name="warehouse_shortages",
+    )
+
+    inv_item = models.ForeignKey(
+        InvItem,
+        on_delete=models.PROTECT,
+        related_name="warehouse_sales_order_shortages",
+    )
+
+    fulfillment_mode = models.CharField(
+        max_length=20,
+        choices=SalesOrderComponent.FulfillmentMode.choices,
+    )
+
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.PROTECT,
+        related_name="warehouse_sales_order_shortages",
+        null=True,
+        blank=True,
+    )
+
+    missing_quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+    )
+
+    is_required_for_start = models.BooleanField()
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    last_checked_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "warehouse_sales_order_shortages"
+        ordering = ["sales_order", "sales_order_component", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["sales_order_component"],
+                name="uq_warehouse_sales_order_shortage_component",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+
+        if self.missing_quantity <= 0:
+            raise ValidationError({
+                "missing_quantity": "Кількість дефіциту повинна бути більше 0."
+            })
+
+        if (
+            self.sales_order_component_id
+            and self.sales_order_id
+            and self.sales_order_component.sales_order_id != self.sales_order_id
+        ):
+            raise ValidationError(
+                "Компонент повинен належати вказаному SalesOrder."
+            )
+
+        if (
+            self.sales_order_component_id
+            and self.inv_item_id
+            and self.sales_order_component.inv_item_id != self.inv_item_id
+        ):
+            raise ValidationError(
+                "Номенклатура дефіциту повинна збігатися з компонентом SalesOrder."
+            )
+
+        if (
+            self.fulfillment_mode == SalesOrderComponent.FulfillmentMode.CUSTOMER
+            and self.organization_id is None
+        ):
+            raise ValidationError({
+                "organization": "Для customer-дефіциту потрібно вказати організацію."
+            })
+
+        if (
+            self.fulfillment_mode == SalesOrderComponent.FulfillmentMode.MIXED
+            and self.organization_id is not None
+        ):
+            raise ValidationError({
+                "organization": "Для mixed-дефіциту організація не вказується."
+            })
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
 class WarehouseProductionReservation(models.Model):
     class Status(models.TextChoices):
         ACTIVE = "active", "Зарезервовано"
