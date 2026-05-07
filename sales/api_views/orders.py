@@ -247,34 +247,47 @@ class SalesOrderViewSet(ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="cancel")
     def cancel(self, request, pk=None):
-        with transaction.atomic():
-            sales_order = get_object_or_404(
-                self.get_queryset().select_for_update(),
-                pk=pk,
-            )
-            self.check_object_permissions(request, sales_order)
+        try:
+            with transaction.atomic():
+                sales_order = get_object_or_404(
+                    self.get_queryset().select_for_update(),
+                    pk=pk,
+                )
+                self.check_object_permissions(request, sales_order)
 
-            if sales_order.status == SalesOrder.Status.DRAFT:
-                WarehouseSalesOrderShortage.objects.filter(
-                    sales_order=sales_order,
-                ).delete()
-
-            elif sales_order.status == SalesOrder.Status.CONFIRMED:
-                cancel_sales_order_warehouse_state(
-                    sales_order=sales_order,
+                logger.info(
+                    "SalesOrder cancel request: id=%s status=%s user=%s",
+                    sales_order.id,
+                    sales_order.status,
+                    request.user,
                 )
 
-            else:
-                raise ValidationError(
-                    "Скасувати можна лише SalesOrder у статусі draft або confirmed."
-                )
+                if sales_order.status == SalesOrder.Status.DRAFT:
+                    WarehouseSalesOrderShortage.objects.filter(
+                        sales_order=sales_order,
+                    ).delete()
 
-            sales_order.status = SalesOrder.Status.CANCELLED
-            sales_order.save(update_fields=["status", "updated_at"])
+                elif sales_order.status == SalesOrder.Status.CONFIRMED:
+                    cancel_sales_order_warehouse_state(
+                        sales_order=sales_order,
+                    )
 
-        sales_order = self.get_queryset().get(pk=sales_order.pk)
+                else:
+                    raise ValidationError(
+                        "Скасувати можна лише SalesOrder у статусі draft або confirmed."
+                    )
 
-        return Response(self.get_serializer(sales_order).data)
+                sales_order.status = SalesOrder.Status.CANCELLED
+                sales_order.save(update_fields=["status", "updated_at"])
+
+            sales_order = self.get_queryset().get(pk=sales_order.pk)
+
+            return Response(self.get_serializer(sales_order).data)
+
+        except Exception as exc:
+            logger.error("SalesOrder cancel failed: %s", exc)
+            logger.error(traceback.format_exc())
+            raise
 
     @action(detail=True, methods=["get"], url_path="confirmation-status")
     def confirmation_status(self, request, pk=None):
