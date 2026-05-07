@@ -103,7 +103,7 @@ class CommercialOrganizationViewSet(ModelViewSet):
     permission_classes = [DjangoModelPermissions]
 
     def get_queryset(self):
-        queryset = self.queryset
+        queryset = self.queryset.all()
 
         organization = self.request.query_params.getlist("organization")
         if organization:
@@ -135,7 +135,7 @@ class MilitaryOrganizationViewSet(ModelViewSet):
     permission_classes = [DjangoModelPermissions]
 
     def get_queryset(self):
-        queryset = self.queryset
+        queryset = self.queryset.all()
 
         organization = self.request.query_params.getlist("organization")
         if organization:
@@ -173,7 +173,7 @@ class CharityOrganizationViewSet(ModelViewSet):
     permission_classes = [DjangoModelPermissions]
 
     def get_queryset(self):
-        queryset = self.queryset
+        queryset = self.queryset.all()
 
         organization = self.request.query_params.getlist("organization")
         if organization:
@@ -196,7 +196,7 @@ class PersonViewSet(ModelViewSet):
     permission_classes = [DjangoModelPermissions]
 
     def get_queryset(self):
-        queryset = self.queryset
+        queryset = self.queryset.all()
 
         is_active = self.request.query_params.get("is_active")
         if is_active is not None:
@@ -226,7 +226,7 @@ class OrganizationPositionViewSet(ModelViewSet):
     permission_classes = [DjangoModelPermissions]
 
     def get_queryset(self):
-        queryset = self.queryset
+        queryset = self.queryset.all()
 
         is_active = self.request.query_params.get("is_active")
         if is_active is not None:
@@ -258,7 +258,7 @@ class OrganizationPersonAssignmentViewSet(ModelViewSet):
     permission_classes = [DjangoModelPermissions]
 
     def get_queryset(self):
-        queryset = self.queryset
+        queryset = self.queryset.all()
 
         person = self.request.query_params.getlist("person")
         if person:
@@ -309,7 +309,7 @@ class PeopleDirectoryViewSet(ModelViewSet):
     ).order_by("last_name", "first_name", "middle_name", "id")
 
     def get_queryset(self):
-        queryset = self.queryset
+        queryset = self.queryset.all()
 
         is_active = self.request.query_params.get("is_active")
         if is_active is not None:
