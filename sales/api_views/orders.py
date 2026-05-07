@@ -250,7 +250,7 @@ class SalesOrderViewSet(ModelViewSet):
         try:
             with transaction.atomic():
                 sales_order = get_object_or_404(
-                    self.get_queryset().select_for_update(),
+                    SalesOrder.objects.select_for_update(),
                     pk=pk,
                 )
                 self.check_object_permissions(request, sales_order)
