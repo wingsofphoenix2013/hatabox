@@ -49,3 +49,7 @@ from .sales_order_availability import (
 from .shortage_overview import (
     WarehouseShortageOverviewRowSerializer,
 )
+
+from .shortage_detail import (
+    WarehouseShortageDetailSerializer,
+)
