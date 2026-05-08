@@ -28,6 +28,7 @@ def build_shortage_detail(
             "sales_order",
             "sales_order__organization",
             "sales_order__product",
+            "sales_order__product__product_family",
             "sales_order_component",
             "inv_item",
             "inv_item__unit",
@@ -101,7 +102,7 @@ def build_shortage_detail(
 
                 "product": row.sales_order.product.id,
                 "product_code": row.sales_order.product.code,
-                "product_name": str(row.sales_order.product),
+                "product_name": row.sales_order.product.product_family.name,
 
                 "component_id": row.sales_order_component.id,
 
