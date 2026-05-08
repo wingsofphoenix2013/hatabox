@@ -10,3 +10,5 @@ djangorestframework
 django-cors-headers
 reportlab
 weasyprint
+celery
+redis
