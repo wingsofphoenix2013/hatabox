@@ -29,6 +29,10 @@ class WarehouseShortageDetailRowSerializer(serializers.Serializer):
     sales_order = serializers.IntegerField(read_only=True)
     sales_order_status = serializers.CharField(read_only=True)
 
+    sales_order_created_at = serializers.DateTimeField(
+        read_only=True,
+    )
+
     organization = serializers.IntegerField(read_only=True)
     organization_name = serializers.CharField(read_only=True)
 

@@ -94,6 +94,7 @@ def build_shortage_detail(
 
                 "sales_order": row.sales_order.id,
                 "sales_order_status": row.sales_order.status,
+                "sales_order_created_at": row.sales_order.created_at,
 
                 "organization": row.sales_order.organization.id,
                 "organization_name": row.sales_order.organization.name,
