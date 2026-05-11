@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.db import transaction
+from django.utils import timezone
 
 from inventory.models import ProductStepItem
 from sales.models import SalesOrder, SalesOrderComponent, SalesOrderIssue
