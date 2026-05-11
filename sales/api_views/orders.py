@@ -19,7 +19,7 @@ from warehouse.services.production_reservation import (
     cancel_sales_order_warehouse_state,
 )
 
-from sales.models import SalesOrder, SalesOrderComponent
+from sales.models import SalesOrder, SalesOrderComponent, SalesOrderIssue
 from sales.serializers import (
     SalesOrderComponentSerializer,
     SalesOrderSerializer,
@@ -40,6 +40,22 @@ class SalesOrderViewSet(ModelViewSet):
         "product",
         "created_by",
         "customer_responsible_person",
+    ).annotate(
+        open_confirmation_issues_count=models.Count(
+            "issues",
+            filter=models.Q(
+                issues__stage=SalesOrderIssue.Stage.CONFIRMATION,
+                issues__status=SalesOrderIssue.Status.OPEN,
+            ),
+        ),
+        open_critical_confirmation_issues_count=models.Count(
+            "issues",
+            filter=models.Q(
+                issues__stage=SalesOrderIssue.Stage.CONFIRMATION,
+                issues__status=SalesOrderIssue.Status.OPEN,
+                issues__severity=SalesOrderIssue.Severity.CRITICAL,
+            ),
+        ),
     ).order_by("-created_at", "-id")
 
     serializer_class = SalesOrderSerializer

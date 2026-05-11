@@ -49,6 +49,18 @@ class SalesOrderListSerializer(serializers.ModelSerializer):
         read_only=True,
     )
 
+    open_confirmation_issues_count = serializers.IntegerField(
+        read_only=True,
+    )
+
+    open_critical_confirmation_issues_count = serializers.IntegerField(
+        read_only=True,
+    )
+
+    has_open_confirmation_issues = serializers.SerializerMethodField()
+
+    can_confirm_now = serializers.SerializerMethodField()
+
     class Meta:
         model = SalesOrder
         fields = [
@@ -64,7 +76,18 @@ class SalesOrderListSerializer(serializers.ModelSerializer):
             "completed_at",
             "customer_responsible_person",
             "comment",
+            "open_confirmation_issues_count",
+            "open_critical_confirmation_issues_count",
+            "has_open_confirmation_issues",
+            "can_confirm_now",
         ]
+
+    def get_has_open_confirmation_issues(self, obj):
+        return obj.open_confirmation_issues_count > 0
+
+    def get_can_confirm_now(self, obj):
+        return obj.open_critical_confirmation_issues_count == 0
+
 
 class SalesOrderSerializer(serializers.ModelSerializer):
     organization_name = serializers.CharField(
