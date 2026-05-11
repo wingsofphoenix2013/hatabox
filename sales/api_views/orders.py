@@ -15,10 +15,9 @@ from rest_framework.exceptions import ValidationError
 
 from sales.services.orders import check_sales_order_can_confirm
 from warehouse.services.production_reservation import (
-    reserve_for_sales_order,
+    reserve_customer_components_for_confirmation,
     cancel_sales_order_warehouse_state,
 )
-from warehouse.models import WarehouseSalesOrderShortage
 
 from sales.models import SalesOrder, SalesOrderComponent
 from sales.serializers import (
@@ -41,9 +40,6 @@ class SalesOrderViewSet(ModelViewSet):
         "product",
         "created_by",
         "customer_responsible_person",
-    ).prefetch_related(
-        "warehouse_shortages",
-        "warehouse_shortages__inv_item",
     ).order_by("-created_at", "-id")
 
     serializer_class = SalesOrderSerializer
@@ -262,17 +258,12 @@ class SalesOrderViewSet(ModelViewSet):
                     request.user,
                 )
 
-                if sales_order.status == SalesOrder.Status.DRAFT:
-                    WarehouseSalesOrderShortage.objects.filter(
-                        sales_order=sales_order,
-                    ).delete()
-
-                elif sales_order.status == SalesOrder.Status.CONFIRMED:
+                if sales_order.status == SalesOrder.Status.CONFIRMED:
                     cancel_sales_order_warehouse_state(
                         sales_order=sales_order,
                     )
 
-                else:
+                elif sales_order.status != SalesOrder.Status.DRAFT:
                     raise ValidationError(
                         "Скасувати можна лише SalesOrder у статусі draft або confirmed."
                     )
@@ -299,20 +290,30 @@ class SalesOrderViewSet(ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="confirm")
     def confirm(self, request, pk=None):
-        sales_order = self.get_object()
+        with transaction.atomic():
+            sales_order = get_object_or_404(
+                SalesOrder.objects.select_for_update(),
+                pk=pk,
+            )
+            self.check_object_permissions(request, sales_order)
 
-        result = check_sales_order_can_confirm(sales_order)
+            if sales_order.status != SalesOrder.Status.DRAFT:
+                raise ValidationError(
+                    "Підтвердити можна лише SalesOrder у статусі draft."
+                )
 
-        if not result["can_confirm"]:
-            return Response(result, status=400)
+            result = check_sales_order_can_confirm(sales_order)
 
-        reserve_for_sales_order(
-            sales_order=sales_order,
-            created_by=request.user if request.user.is_authenticated else None,
-        )
+            if not result["can_confirm"]:
+                return Response(result, status=400)
 
-        sales_order.status = SalesOrder.Status.CONFIRMED
-        sales_order.save(update_fields=["status"])
+            reserve_customer_components_for_confirmation(
+                sales_order=sales_order,
+                created_by=request.user if request.user.is_authenticated else None,
+            )
+
+            sales_order.status = SalesOrder.Status.CONFIRMED
+            sales_order.save(update_fields=["status", "updated_at"])
 
         sales_order = self.get_queryset().get(pk=sales_order.pk)
 

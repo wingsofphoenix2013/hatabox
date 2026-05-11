@@ -12,7 +12,6 @@ from warehouse.models import (
     MovementPlan,
     MovementPlanItem,
     WarehouseProductionReservation,
-    WarehouseSalesOrderShortage,
     WarehouseUnit,
 )
 
@@ -42,7 +41,7 @@ def _build_available_unit_pools(
         ).values_list("warehouse_unit_id", flat=True)
     )
 
-    units = list(
+    units_queryset = (
         WarehouseUnit.objects.select_related(
             "tolling_source_order_item",
             "tolling_source_order_item__order",
@@ -58,6 +57,11 @@ def _build_available_unit_pools(
             "id",
         )
     )
+
+    if transaction.get_connection().in_atomic_block:
+        units_queryset = units_queryset.select_for_update()
+
+    units = list(units_queryset)
 
     pools = defaultdict(lambda: {
         "customer": [],
@@ -159,6 +163,129 @@ def _select_units_from_pool(
 
     return selected, remaining_quantity
 
+def reserve_customer_components_for_confirmation(
+    *,
+    sales_order,
+    created_by=None,
+):
+    existing_active_reservations = WarehouseProductionReservation.objects.filter(
+        sales_order=sales_order,
+        status=WarehouseProductionReservation.Status.ACTIVE,
+    ).exists()
+
+    if existing_active_reservations:
+        raise ValidationError(
+            "Для цього SalesOrder вже існують активні резервування."
+        )
+
+    customer_components = list(
+        sales_order.components.select_related(
+            "inv_item",
+        ).filter(
+            fulfillment_mode=SalesOrderComponent.FulfillmentMode.CUSTOMER,
+        )
+    )
+
+    if not customer_components:
+        return {
+            "sales_order_id": sales_order.id,
+            "components": [],
+        }
+
+    item_ids = [
+        component.inv_item_id
+        for component in customer_components
+    ]
+
+    available_unit_pools = _build_available_unit_pools(
+        sales_order=sales_order,
+        item_ids=item_ids,
+    )
+
+    reservation_plan = []
+    insufficient_components = []
+
+    for component in customer_components:
+        required_quantity = _to_decimal(component.quantity)
+
+        selected_reservations, remaining_quantity = _select_units_from_pool(
+            units=available_unit_pools[component.inv_item_id]["customer"],
+            required_quantity=required_quantity,
+            allow_larger_splittable_unit=component.inv_item.is_splittable,
+        )
+
+        reserved_quantity = required_quantity - remaining_quantity
+
+        if reserved_quantity < required_quantity:
+            insufficient_components.append({
+                "component_id": component.id,
+                "required_quantity": required_quantity,
+                "reserved_quantity": reserved_quantity,
+                "missing_quantity": required_quantity - reserved_quantity,
+            })
+
+        reservation_plan.append({
+            "component": component,
+            "required_quantity": required_quantity,
+            "reserved_quantity": reserved_quantity,
+            "missing_quantity": required_quantity - reserved_quantity,
+            "reservations": selected_reservations,
+        })
+
+    if insufficient_components:
+        raise ValidationError({
+            "customer_components": insufficient_components,
+        })
+
+    with transaction.atomic():
+        reservations_to_create = []
+        units_to_update = []
+
+        for row in reservation_plan:
+            component = row["component"]
+
+            for reservation_data in row["reservations"]:
+                warehouse_unit = reservation_data["warehouse_unit"]
+
+                warehouse_unit.status = WarehouseUnit.Status.BLOCKED
+                units_to_update.append(warehouse_unit)
+
+                reservations_to_create.append(
+                    WarehouseProductionReservation(
+                        warehouse_unit=warehouse_unit,
+                        sales_order=sales_order,
+                        sales_order_component=component,
+                        quantity=reservation_data["quantity"],
+                        status=WarehouseProductionReservation.Status.ACTIVE,
+                        created_by=created_by,
+                    )
+                )
+
+        if units_to_update:
+            WarehouseUnit.objects.bulk_update(
+                units_to_update,
+                ["status"],
+            )
+
+        if reservations_to_create:
+            WarehouseProductionReservation.objects.bulk_create(
+                reservations_to_create,
+            )
+
+    return {
+        "sales_order_id": sales_order.id,
+        "components": [
+            {
+                "component_id": row["component"].id,
+                "required_quantity": row["required_quantity"],
+                "reserved_quantity": row["reserved_quantity"],
+                "missing_quantity": row["missing_quantity"],
+            }
+            for row in reservation_plan
+        ],
+    }
+
+
 def cancel_sales_order_warehouse_state(
     *,
     sales_order,
@@ -207,10 +334,6 @@ def cancel_sales_order_warehouse_state(
                 active_reservations,
                 ["status", "cancelled_at"],
             )
-
-        WarehouseSalesOrderShortage.objects.filter(
-            sales_order=sales_order,
-        ).delete()
 
     return {
         "sales_order_id": sales_order.id,

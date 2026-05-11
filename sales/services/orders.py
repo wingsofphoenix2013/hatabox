@@ -2,7 +2,6 @@ from decimal import Decimal
 
 from django.db import transaction
 
-from warehouse.services.sales_order_availability import build_sales_order_availability
 from inventory.models import ProductStepItem
 from sales.models import SalesOrder, SalesOrderComponent
 
@@ -72,21 +71,61 @@ def create_sales_order(
 
 
 def check_sales_order_can_confirm(sales_order):
-    availability = build_sales_order_availability(
-        sales_order_id=sales_order.id,
+    customer_components = list(
+        sales_order.components.select_related(
+            "inv_item",
+        ).filter(
+            fulfillment_mode=SalesOrderComponent.FulfillmentMode.CUSTOMER,
+        )
     )
 
-    missing_components = [
-        component
-        for component in availability["components"]
-        if (
-            component["fulfillment_mode"] == SalesOrderComponent.FulfillmentMode.CUSTOMER
-            and component["is_required_for_start"]
-            and not component["can_cover"]
-        )
+    if not customer_components:
+        return {
+            "can_confirm": True,
+            "missing_components": [],
+        }
+
+    from warehouse.services.production_reservation import (
+        _build_available_unit_pools,
+        _select_units_from_pool,
+        _to_decimal,
+    )
+
+    item_ids = [
+        component.inv_item_id
+        for component in customer_components
     ]
 
+    available_unit_pools = _build_available_unit_pools(
+        sales_order=sales_order,
+        item_ids=item_ids,
+    )
+
+    missing_components = []
+
+    for component in customer_components:
+        required_quantity = _to_decimal(component.quantity)
+
+        selected_reservations, remaining_quantity = _select_units_from_pool(
+            units=available_unit_pools[component.inv_item_id]["customer"],
+            required_quantity=required_quantity,
+            allow_larger_splittable_unit=component.inv_item.is_splittable,
+        )
+
+        reserved_quantity = required_quantity - remaining_quantity
+
+        if remaining_quantity > Decimal("0.000"):
+            missing_components.append({
+                "component_id": component.id,
+                "inv_item": component.inv_item_id,
+                "inv_item_code": component.inv_item.internal_code,
+                "inv_item_name": component.inv_item.name,
+                "required_quantity": required_quantity,
+                "available_quantity": reserved_quantity,
+                "missing_quantity": remaining_quantity,
+            })
+
     return {
-        "can_confirm": availability["can_confirm"],
+        "can_confirm": len(missing_components) == 0,
         "missing_components": missing_components,
     }

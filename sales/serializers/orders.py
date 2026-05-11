@@ -89,9 +89,6 @@ class SalesOrderSerializer(serializers.ModelSerializer):
     )
     customer_responsible_person_name = serializers.SerializerMethodField()
     can_try_confirm = serializers.SerializerMethodField()
-    has_warehouse_shortages = serializers.SerializerMethodField()
-    warehouse_shortages_last_checked_at = serializers.SerializerMethodField()
-    warehouse_shortages = serializers.SerializerMethodField()
 
     class Meta:
         model = SalesOrder
@@ -113,9 +110,6 @@ class SalesOrderSerializer(serializers.ModelSerializer):
             "customer_responsible_person_name",
             "comment",
             "can_try_confirm",
-            "has_warehouse_shortages",
-            "warehouse_shortages_last_checked_at",
-            "warehouse_shortages",
         ]
         read_only_fields = [
             "status",
@@ -130,40 +124,8 @@ class SalesOrderSerializer(serializers.ModelSerializer):
         return str(obj.customer_responsible_person)
 
     def get_can_try_confirm(self, obj):
-        return not obj.warehouse_shortages.filter(
-            is_required_for_start=True,
-        ).exists()
-
-    def get_has_warehouse_shortages(self, obj):
-        return obj.warehouse_shortages.exists()
-
-    def get_warehouse_shortages_last_checked_at(self, obj):
-        shortage = obj.warehouse_shortages.order_by(
-            "-last_checked_at",
-            "-updated_at",
-        ).first()
-
-        if shortage is None:
-            return None
-
-        return shortage.last_checked_at or shortage.updated_at
-
-    def get_warehouse_shortages(self, obj):
-        return [
-            {
-                "id": shortage.id,
-                "sales_order_component": shortage.sales_order_component_id,
-                "inv_item": shortage.inv_item_id,
-                "inv_item_code": shortage.inv_item.internal_code,
-                "inv_item_name": shortage.inv_item.name,
-                "fulfillment_mode": shortage.fulfillment_mode,
-                "organization": shortage.organization_id,
-                "missing_quantity": shortage.missing_quantity,
-                "is_required_for_start": shortage.is_required_for_start,
-                "last_checked_at": shortage.last_checked_at,
-            }
-            for shortage in obj.warehouse_shortages.select_related("inv_item").all()
-        ]
+        result = check_sales_order_can_confirm(obj)
+        return result["can_confirm"]
         
 class CreateSalesOrderSerializer(serializers.Serializer):
     organization = serializers.PrimaryKeyRelatedField(
