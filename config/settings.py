@@ -85,7 +85,8 @@ else:
 
 # LOCALE
 LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
+TIME_ZONE = "Europe/Kyiv"
+USE_TZ = True
 
 # STATIC
 STATIC_URL = "/static/"
