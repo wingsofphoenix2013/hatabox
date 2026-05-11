@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.db import transaction
 
 from inventory.models import ProductStepItem
-from sales.models import SalesOrder, SalesOrderComponent
+from sales.models import SalesOrder, SalesOrderComponent, SalesOrderIssue
 
 
 def create_sales_order_components(sales_order):
@@ -102,6 +102,7 @@ def check_sales_order_can_confirm(sales_order):
     )
 
     missing_components = []
+    missing_component_ids = set()
 
     for component in customer_components:
         required_quantity = _to_decimal(component.quantity)
@@ -115,6 +116,8 @@ def check_sales_order_can_confirm(sales_order):
         reserved_quantity = required_quantity - remaining_quantity
 
         if remaining_quantity > Decimal("0.000"):
+            missing_component_ids.add(component.id)
+
             missing_components.append({
                 "component_id": component.id,
                 "inv_item": component.inv_item_id,
@@ -124,6 +127,47 @@ def check_sales_order_can_confirm(sales_order):
                 "available_quantity": reserved_quantity,
                 "missing_quantity": remaining_quantity,
             })
+
+            SalesOrderIssue.objects.update_or_create(
+                sales_order=sales_order,
+                stage=SalesOrderIssue.Stage.CONFIRMATION,
+                issue_type=SalesOrderIssue.IssueType.CUSTOMER_COMPONENT_MISSING,
+                related_component=component,
+                defaults={
+                    "status": SalesOrderIssue.Status.OPEN,
+                    "severity": SalesOrderIssue.Severity.CRITICAL,
+                    "message": (
+                        f"Не вистачає товару замовника: "
+                        f"{component.inv_item.internal_code} — {component.inv_item.name}"
+                    ),
+                    "related_inv_item": component.inv_item,
+                    "missing_quantity": remaining_quantity,
+                    "last_checked_at": timezone.now(),
+                    "resolved_at": None,
+                },
+            )
+
+    resolved_now = timezone.now()
+
+    open_confirmation_issues = SalesOrderIssue.objects.filter(
+        sales_order=sales_order,
+        stage=SalesOrderIssue.Stage.CONFIRMATION,
+        issue_type=SalesOrderIssue.IssueType.CUSTOMER_COMPONENT_MISSING,
+        status=SalesOrderIssue.Status.OPEN,
+    ).exclude(
+        related_component_id__in=missing_component_ids,
+    )
+
+    for issue in open_confirmation_issues:
+        issue.status = SalesOrderIssue.Status.RESOLVED
+        issue.resolved_at = resolved_now
+        issue.last_checked_at = resolved_now
+
+    if open_confirmation_issues:
+        SalesOrderIssue.objects.bulk_update(
+            open_confirmation_issues,
+            ["status", "resolved_at", "last_checked_at"],
+        )
 
     return {
         "can_confirm": len(missing_components) == 0,

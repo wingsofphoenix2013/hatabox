@@ -81,6 +81,117 @@ class SalesOrder(models.Model):
         return f"{self.id} — {self.product}"
 
 
+class SalesOrderIssue(models.Model):
+    class Stage(models.TextChoices):
+        CONFIRMATION = "confirmation", "Підтвердження"
+        PRODUCTION_START = "production_start", "Запуск виробництва"
+        PRODUCTION_EXECUTION = "production_execution", "Виконання виробництва"
+
+    class IssueType(models.TextChoices):
+        CUSTOMER_COMPONENT_MISSING = (
+            "customer_component_missing",
+            "Відсутній товар замовника",
+        )
+        MIXED_COMPONENT_MISSING = (
+            "mixed_component_missing",
+            "Відсутній mixed-компонент",
+        )
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Відкрита"
+        RESOLVED = "resolved", "Вирішена"
+        IGNORED = "ignored", "Проігнорована"
+
+    class Severity(models.TextChoices):
+        CRITICAL = "critical", "Критична"
+        NON_CRITICAL = "non_critical", "Некритична"
+
+    sales_order = models.ForeignKey(
+        SalesOrder,
+        on_delete=models.CASCADE,
+        related_name="issues",
+    )
+
+    stage = models.CharField(
+        max_length=32,
+        choices=Stage.choices,
+    )
+
+    issue_type = models.CharField(
+        max_length=64,
+        choices=IssueType.choices,
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.OPEN,
+    )
+
+    severity = models.CharField(
+        max_length=20,
+        choices=Severity.choices,
+    )
+
+    message = models.TextField(
+        blank=True,
+    )
+
+    related_inv_item = models.ForeignKey(
+        InvItem,
+        on_delete=models.PROTECT,
+        related_name="sales_order_issues",
+        null=True,
+        blank=True,
+    )
+
+    related_component = models.ForeignKey(
+        "sales.SalesOrderComponent",
+        on_delete=models.PROTECT,
+        related_name="issues",
+        null=True,
+        blank=True,
+    )
+
+    missing_quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        null=True,
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    resolved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    last_checked_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "sales_order_issues"
+        ordering = ["sales_order", "stage", "id"]
+
+    def clean(self):
+        super().clean()
+
+        if (
+            self.status == self.Status.IGNORED
+            and self.severity == self.Severity.CRITICAL
+        ):
+            raise ValidationError(
+                "Критичну проблему не можна проігнорувати."
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
 class SalesOrderComponent(models.Model):
     class FulfillmentMode(models.TextChoices):
         CUSTOMER = "customer", "Від замовника"
