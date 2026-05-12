@@ -15,7 +15,6 @@ class WarehouseSalesOrderAvailabilityComponentSerializer(serializers.Serializer)
     )
 
     fulfillment_mode = serializers.CharField(read_only=True)
-    is_required_for_start = serializers.BooleanField(read_only=True)
 
     customer_available_quantity = serializers.DecimalField(
         max_digits=12,

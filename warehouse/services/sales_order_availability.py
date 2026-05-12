@@ -139,8 +139,6 @@ def build_sales_order_availability(sales_order_id: int) -> dict:
 
         can_cover = missing_quantity == ZERO
 
-        if component.is_required_for_start and not can_cover:
-            can_confirm = False
 
         if missing_quantity > ZERO:
             shortage_rows_to_create.append(
@@ -155,7 +153,6 @@ def build_sales_order_availability(sales_order_id: int) -> dict:
                         else None
                     ),
                     missing_quantity=missing_quantity,
-                    is_required_for_start=component.is_required_for_start,
                     last_checked_at=timezone.now(),
                 )
             )
@@ -167,7 +164,6 @@ def build_sales_order_availability(sales_order_id: int) -> dict:
             "inv_item_name": component.inv_item.name,
             "required_quantity": required_quantity,
             "fulfillment_mode": component.fulfillment_mode,
-            "is_required_for_start": component.is_required_for_start,
             "customer_available_quantity": customer_available_quantity,
             "donor_available_quantity": donor_available_quantity,
             "own_available_quantity": own_available_quantity,

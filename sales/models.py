@@ -220,10 +220,6 @@ class SalesOrderComponent(models.Model):
         default=FulfillmentMode.MIXED,
     )
 
-    is_required_for_start = models.BooleanField(
-        default=True,
-    )
-
     class Meta:
         db_table = "sales_order_components"
         ordering = ["sales_order", "id"]

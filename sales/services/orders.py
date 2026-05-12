@@ -39,7 +39,6 @@ def create_sales_order_components(sales_order):
                 inv_item=component_data["inv_item"],
                 quantity=component_data["quantity"],
                 fulfillment_mode=SalesOrderComponent.FulfillmentMode.MIXED,
-                is_required_for_start=component_data["inv_item"].is_required_for_production_start,
             )
         )
 

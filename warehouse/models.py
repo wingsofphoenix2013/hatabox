@@ -819,8 +819,6 @@ class WarehouseSalesOrderShortage(models.Model):
         decimal_places=3,
     )
 
-    is_required_for_start = models.BooleanField()
-
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

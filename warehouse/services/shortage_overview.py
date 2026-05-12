@@ -31,7 +31,6 @@ def build_shortage_overview(
     *,
     search=None,
     fulfillment_mode=None,
-    is_required_for_start=None,
 ):
     shortage_queryset = WarehouseSalesOrderShortage.objects.select_related(
         "inv_item",
@@ -49,10 +48,6 @@ def build_shortage_overview(
             fulfillment_mode=fulfillment_mode,
         )
 
-    if is_required_for_start is not None:
-        shortage_queryset = shortage_queryset.filter(
-            is_required_for_start=is_required_for_start,
-        )
 
     shortage_rows = list(
         shortage_queryset.values(
@@ -61,7 +56,6 @@ def build_shortage_overview(
             "inv_item__name",
             "inv_item__unit__symbol",
             "fulfillment_mode",
-            "is_required_for_start",
         ).annotate(
             missing_quantity=Coalesce(
                 Sum("missing_quantity"),
@@ -78,7 +72,6 @@ def build_shortage_overview(
         ).order_by(
             "inv_item__name",
             "fulfillment_mode",
-            "-is_required_for_start",
         )
     )
 
@@ -207,14 +200,12 @@ def build_shortage_overview(
             "inv_item_name": row["inv_item__name"],
             "inventory_item_unit_symbol": row["inv_item__unit__symbol"],
             "fulfillment_mode": fulfillment_mode,
-            "is_required_for_start": row["is_required_for_start"],
             "missing_quantity": row["missing_quantity"],
             "forecast_quantity": forecast_quantity,
             "has_unconverted_incoming": has_unconverted_incoming,
             "net_missing_quantity": net_missing_quantity,
             "sales_orders_count": row["sales_orders_count"],
             "components_count": row["components_count"],
-            "blocks_confirmation": row["is_required_for_start"],
         })
 
     return result

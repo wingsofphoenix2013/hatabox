@@ -61,8 +61,6 @@ class WarehouseShortageDetailSerializer(serializers.Serializer):
 
     inventory_item_unit_symbol = serializers.CharField(read_only=True)
 
-    is_required_for_start = serializers.BooleanField(read_only=True)
-
     summary = WarehouseShortageDetailSummarySerializer(
         read_only=True,
     )

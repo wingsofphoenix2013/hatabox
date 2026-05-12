@@ -11,8 +11,6 @@ class WarehouseShortageOverviewRowSerializer(serializers.Serializer):
 
     fulfillment_mode = serializers.CharField(read_only=True)
 
-    is_required_for_start = serializers.BooleanField(read_only=True)
-
     missing_quantity = serializers.DecimalField(
         max_digits=12,
         decimal_places=3,
@@ -36,5 +34,3 @@ class WarehouseShortageOverviewRowSerializer(serializers.Serializer):
     sales_orders_count = serializers.IntegerField(read_only=True)
 
     components_count = serializers.IntegerField(read_only=True)
-
-    blocks_confirmation = serializers.BooleanField(read_only=True)

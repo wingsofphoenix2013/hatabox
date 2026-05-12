@@ -80,7 +80,6 @@ def build_shortage_detail(
         "inv_item_code": inv_item.internal_code,
         "inv_item_name": inv_item.name,
         "inventory_item_unit_symbol": inv_item.unit.symbol,
-        "is_required_for_start": first_row.is_required_for_start,
 
         "summary": {
             "total_missing_quantity": total_missing_quantity,

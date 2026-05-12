@@ -412,10 +412,7 @@ def reserve_for_sales_order(
 
         reserved_quantity = required_quantity - remaining_quantity
 
-        if (
-            component.is_required_for_start
-            and reserved_quantity < required_quantity
-        ):
+        if reserved_quantity < required_quantity:
             insufficient_required_components.append({
                 "component_id": component.id,
                 "required_quantity": required_quantity,

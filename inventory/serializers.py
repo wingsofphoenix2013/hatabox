@@ -47,7 +47,6 @@ class InvItemSerializer(serializers.ModelSerializer):
             "qr_item",
             "requires_storage_place",
             "is_splittable",
-            "is_required_for_production_start",
             "is_required_for_step_start",
             "is_active",
             "created_at",

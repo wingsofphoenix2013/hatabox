@@ -213,13 +213,11 @@ class WarehouseSalesOrderShortageAdmin(admin.ModelAdmin):
         "fulfillment_mode",
         "organization",
         "missing_quantity",
-        "is_required_for_start",
         "last_checked_at",
         "updated_at",
     )
     list_filter = (
         "fulfillment_mode",
-        "is_required_for_start",
         "updated_at",
     )
     search_fields = (
