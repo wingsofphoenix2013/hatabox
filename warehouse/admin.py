@@ -207,32 +207,23 @@ class MovementPlanAdmin(admin.ModelAdmin):
 class WarehouseSalesOrderShortageAdmin(admin.ModelAdmin):
     list_display = (
         "id",
-        "sales_order",
-        "sales_order_component",
         "inv_item",
-        "fulfillment_mode",
-        "organization",
+        "required_quantity",
+        "available_quantity",
         "missing_quantity",
-        "last_checked_at",
+        "last_recalculated_at",
         "updated_at",
     )
     list_filter = (
-        "fulfillment_mode",
         "updated_at",
     )
     search_fields = (
-        "sales_order__id",
-        "sales_order_component__id",
         "inv_item__internal_code",
         "inv_item__name",
     )
     autocomplete_fields = (
-        "sales_order",
-        "sales_order_component",
         "inv_item",
-        "organization",
     )
-
 
 @admin.register(WarehouseProductionReservation)
 class WarehouseProductionReservationAdmin(admin.ModelAdmin):

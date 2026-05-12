@@ -9,7 +9,17 @@ class WarehouseShortageOverviewRowSerializer(serializers.Serializer):
 
     inventory_item_unit_symbol = serializers.CharField(read_only=True)
 
-    fulfillment_mode = serializers.CharField(read_only=True)
+    required_quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
+
+    available_quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
 
     missing_quantity = serializers.DecimalField(
         max_digits=12,
@@ -17,20 +27,6 @@ class WarehouseShortageOverviewRowSerializer(serializers.Serializer):
         read_only=True,
     )
 
-    forecast_quantity = serializers.DecimalField(
-        max_digits=12,
-        decimal_places=3,
+    last_recalculated_at = serializers.DateTimeField(
         read_only=True,
     )
-
-    has_unconverted_incoming = serializers.BooleanField(read_only=True)
-
-    net_missing_quantity = serializers.DecimalField(
-        max_digits=12,
-        decimal_places=3,
-        read_only=True,
-    )
-
-    sales_orders_count = serializers.IntegerField(read_only=True)
-
-    components_count = serializers.IntegerField(read_only=True)

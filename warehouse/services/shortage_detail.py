@@ -1,78 +1,44 @@
-from decimal import Decimal
-
-from django.db.models import Sum
-from django.db.models.functions import Coalesce
+from sales.models import SalesOrder, SalesOrderComponent
 
 from warehouse.models import WarehouseSalesOrderShortage
-
-
-ZERO = Decimal("0.000")
-
-
-def _to_decimal(value) -> Decimal:
-    if value is None:
-        return ZERO
-
-    if isinstance(value, Decimal):
-        return value
-
-    return Decimal(str(value))
 
 
 def build_shortage_detail(
     *,
     inv_item_id,
 ):
-    shortage_rows = list(
-        WarehouseSalesOrderShortage.objects.select_related(
+    try:
+        shortage = WarehouseSalesOrderShortage.objects.select_related(
+            "inv_item",
+            "inv_item__unit",
+        ).get(
+            inv_item_id=inv_item_id,
+        )
+    except WarehouseSalesOrderShortage.DoesNotExist:
+        return None
+
+    inv_item = shortage.inv_item
+
+    components = list(
+        SalesOrderComponent.objects.select_related(
             "sales_order",
             "sales_order__organization",
             "sales_order__product",
             "sales_order__product__product_family",
-            "sales_order_component",
-            "inv_item",
-            "inv_item__unit",
         ).filter(
+            sales_order__status=SalesOrder.Status.CONFIRMED,
+            fulfillment_mode=SalesOrderComponent.FulfillmentMode.MIXED,
             inv_item_id=inv_item_id,
         ).order_by(
             "sales_order__created_at",
             "sales_order_id",
-            "sales_order_component_id",
+            "id",
         )
     )
 
-    if not shortage_rows:
-        return None
-
-    first_row = shortage_rows[0]
-    inv_item = first_row.inv_item
-
-    total_missing_quantity = sum(
-        (_to_decimal(row.missing_quantity) for row in shortage_rows),
-        ZERO,
-    )
-
-    customer_missing_quantity = sum(
-        (
-            _to_decimal(row.missing_quantity)
-            for row in shortage_rows
-            if row.fulfillment_mode == "customer"
-        ),
-        ZERO,
-    )
-
-    mixed_missing_quantity = sum(
-        (
-            _to_decimal(row.missing_quantity)
-            for row in shortage_rows
-            if row.fulfillment_mode == "mixed"
-        ),
-        ZERO,
-    )
-
     sales_order_ids = {
-        row.sales_order_id
-        for row in shortage_rows
+        component.sales_order_id
+        for component in components
     }
 
     return {
@@ -82,35 +48,30 @@ def build_shortage_detail(
         "inventory_item_unit_symbol": inv_item.unit.symbol,
 
         "summary": {
-            "total_missing_quantity": total_missing_quantity,
-            "customer_missing_quantity": customer_missing_quantity,
-            "mixed_missing_quantity": mixed_missing_quantity,
+            "required_quantity": shortage.required_quantity,
+            "available_quantity": shortage.available_quantity,
+            "missing_quantity": shortage.missing_quantity,
             "sales_orders_count": len(sales_order_ids),
+            "last_recalculated_at": shortage.last_recalculated_at,
         },
 
         "rows": [
             {
-                "shortage_id": row.id,
+                "sales_order": component.sales_order.id,
+                "sales_order_status": component.sales_order.status,
+                "sales_order_created_at": component.sales_order.created_at,
 
-                "sales_order": row.sales_order.id,
-                "sales_order_status": row.sales_order.status,
-                "sales_order_created_at": row.sales_order.created_at,
+                "organization": component.sales_order.organization.id,
+                "organization_name": component.sales_order.organization.name,
 
-                "organization": row.sales_order.organization.id,
-                "organization_name": row.sales_order.organization.name,
+                "product": component.sales_order.product.id,
+                "product_code": component.sales_order.product.code,
+                "product_name": component.sales_order.product.product_family.name,
 
-                "product": row.sales_order.product.id,
-                "product_code": row.sales_order.product.code,
-                "product_name": row.sales_order.product.product_family.name,
+                "component_id": component.id,
 
-                "component_id": row.sales_order_component.id,
-
-                "fulfillment_mode": row.fulfillment_mode,
-
-                "missing_quantity": row.missing_quantity,
-
-                "last_checked_at": row.last_checked_at,
+                "required_quantity": component.quantity,
             }
-            for row in shortage_rows
+            for component in components
         ],
     }

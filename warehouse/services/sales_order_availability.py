@@ -4,15 +4,12 @@ from decimal import Decimal
 from django.db.models import Q
 from rest_framework.exceptions import ValidationError
 
-from django.utils import timezone
-
 from organizations.models import Organization
 from sales.models import SalesOrder, SalesOrderComponent
 from warehouse.models import (
     MovementPlan,
     MovementPlanItem,
     WarehouseProductionReservation,
-    WarehouseSalesOrderShortage,
     WarehouseUnit,
 )
 
@@ -93,12 +90,7 @@ def build_sales_order_availability(sales_order_id: int) -> dict:
         if unit.source_order_item_id:
             own_quantities[unit.inventory_item_id] += quantity
 
-    WarehouseSalesOrderShortage.objects.filter(
-        sales_order=sales_order,
-    ).delete()
-
     component_rows = []
-    shortage_rows_to_create = []
 
     can_confirm = True
 
@@ -140,23 +132,6 @@ def build_sales_order_availability(sales_order_id: int) -> dict:
         can_cover = missing_quantity == ZERO
 
 
-        if missing_quantity > ZERO:
-            shortage_rows_to_create.append(
-                WarehouseSalesOrderShortage(
-                    sales_order=sales_order,
-                    sales_order_component=component,
-                    inv_item=component.inv_item,
-                    fulfillment_mode=component.fulfillment_mode,
-                    organization=(
-                        sales_order.organization
-                        if component.fulfillment_mode == SalesOrderComponent.FulfillmentMode.CUSTOMER
-                        else None
-                    ),
-                    missing_quantity=missing_quantity,
-                    last_checked_at=timezone.now(),
-                )
-            )
-
         component_rows.append({
             "component_id": component.id,
             "inv_item": component.inv_item_id,
@@ -171,11 +146,6 @@ def build_sales_order_availability(sales_order_id: int) -> dict:
             "missing_quantity": missing_quantity,
             "can_cover": can_cover,
         })
-
-    if shortage_rows_to_create:
-        WarehouseSalesOrderShortage.objects.bulk_create(
-            shortage_rows_to_create,
-        )
 
     return {
         "sales_order": sales_order.id,

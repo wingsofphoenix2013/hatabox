@@ -1,10 +1,33 @@
+import logging
+
 from celery import shared_task
+
+from warehouse.services.shortage_recalculation import (
+    recalculate_warehouse_shortages,
+)
+
+
+logger = logging.getLogger(__name__)
 
 
 @shared_task
-def test_task():
-    print("CELERY TASK WORKS")
+def recalculate_warehouse_shortages_task():
+    logger.info(
+        "Warehouse shortage recalculation started",
+    )
 
-    return {
-        "status": "ok",
-    }
+    try:
+        result = recalculate_warehouse_shortages()
+    except Exception:
+        logger.exception(
+            "Warehouse shortage recalculation failed",
+        )
+        raise
+
+    logger.info(
+        "Warehouse shortage recalculation finished: shortages=%s recalculated_at=%s",
+        result["shortages"],
+        result["recalculated_at"],
+    )
+
+    return result

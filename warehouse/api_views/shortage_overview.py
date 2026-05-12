@@ -19,11 +19,8 @@ class WarehouseShortageOverviewViewSet(ReadOnlyModelViewSet):
     def list(self, request, *args, **kwargs):
         search = request.query_params.get("search")
 
-        fulfillment_mode = request.query_params.get("fulfillment_mode")
-
         rows = build_shortage_overview(
             search=search,
-            fulfillment_mode=fulfillment_mode,
         )
 
         page = self.paginate_queryset(rows)

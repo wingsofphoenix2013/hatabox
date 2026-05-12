@@ -2,19 +2,19 @@ from rest_framework import serializers
 
 
 class WarehouseShortageDetailSummarySerializer(serializers.Serializer):
-    total_missing_quantity = serializers.DecimalField(
+    required_quantity = serializers.DecimalField(
         max_digits=12,
         decimal_places=3,
         read_only=True,
     )
 
-    customer_missing_quantity = serializers.DecimalField(
+    available_quantity = serializers.DecimalField(
         max_digits=12,
         decimal_places=3,
         read_only=True,
     )
 
-    mixed_missing_quantity = serializers.DecimalField(
+    missing_quantity = serializers.DecimalField(
         max_digits=12,
         decimal_places=3,
         read_only=True,
@@ -22,10 +22,10 @@ class WarehouseShortageDetailSummarySerializer(serializers.Serializer):
 
     sales_orders_count = serializers.IntegerField(read_only=True)
 
+    last_recalculated_at = serializers.DateTimeField(read_only=True)
+
 
 class WarehouseShortageDetailRowSerializer(serializers.Serializer):
-    shortage_id = serializers.IntegerField(read_only=True)
-
     sales_order = serializers.IntegerField(read_only=True)
     sales_order_status = serializers.CharField(read_only=True)
 
@@ -42,15 +42,11 @@ class WarehouseShortageDetailRowSerializer(serializers.Serializer):
 
     component_id = serializers.IntegerField(read_only=True)
 
-    fulfillment_mode = serializers.CharField(read_only=True)
-
-    missing_quantity = serializers.DecimalField(
+    required_quantity = serializers.DecimalField(
         max_digits=12,
         decimal_places=3,
         read_only=True,
     )
-
-    last_checked_at = serializers.DateTimeField(read_only=True)
 
 
 class WarehouseShortageDetailSerializer(serializers.Serializer):

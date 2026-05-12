@@ -24,6 +24,7 @@ from warehouse.services.production_reservation import (
     reserve_customer_components_for_confirmation,
     cancel_sales_order_warehouse_state,
 )
+from warehouse.tasks import recalculate_warehouse_shortages_task
 from sales.services.issues import (
     recalculate_customer_component_confirmation_issues,
 )
@@ -462,6 +463,10 @@ class SalesOrderViewSet(ModelViewSet):
                         sales_order.id,
                         inv_item_id,
                     )
+
+                transaction.on_commit(
+                    lambda: recalculate_warehouse_shortages_task.delay()
+                )
 
             sales_order = self.get_queryset().get(pk=sales_order.pk)
 
