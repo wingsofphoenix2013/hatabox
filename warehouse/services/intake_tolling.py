@@ -2,8 +2,11 @@ from decimal import Decimal
 
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
-
 from warehouse.models import WarehouseUnit, WarehouseUnitEvent
+
+from sales.tasks import (
+    recalculate_customer_component_confirmation_issues_task,
+)
 from warehouse.services.intake_marking import (
     mark_tolling_receipt_document_sent_by_id_if_fully_processed,
     mark_tolling_receipt_document_sent_if_fully_processed,
@@ -89,6 +92,11 @@ def accept_tolling_receipt_item_to_location(
         WarehouseUnitEvent.objects.bulk_create(events_to_create)
 
         mark_tolling_receipt_document_sent_if_fully_processed(receipt_document)
+
+    recalculate_customer_component_confirmation_issues_task.delay(
+        organization_id=receipt_document.order.organization_id,
+        inv_item_id=order_item.inv_item_id,
+    )
 
     return {
         "status": "ok",
@@ -214,6 +222,20 @@ def bulk_accept_tolling_receipt_items_to_location(
             mark_tolling_receipt_document_sent_by_id_if_fully_processed(
                 receipt_document_id
             )
+
+    affected_pairs = {
+        (
+            receipt_item.receipt_document.order.organization_id,
+            receipt_item.order_item.inv_item_id,
+        )
+        for receipt_item in receipt_items
+    }
+
+    for organization_id, inv_item_id in affected_pairs:
+        recalculate_customer_component_confirmation_issues_task.delay(
+            organization_id=organization_id,
+            inv_item_id=inv_item_id,
+        )
 
     return {
         "status": "ok",
