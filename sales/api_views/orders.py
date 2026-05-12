@@ -18,8 +18,8 @@ from warehouse.services.production_reservation import (
     reserve_customer_components_for_confirmation,
     cancel_sales_order_warehouse_state,
 )
-from sales.tasks import (
-    recalculate_customer_component_confirmation_issues_task,
+from sales.services.issues import (
+    recalculate_customer_component_confirmation_issues,
 )
 
 from sales.models import SalesOrder, SalesOrderComponent, SalesOrderIssue
@@ -263,7 +263,7 @@ class SalesOrderViewSet(ModelViewSet):
         )
 
         for inv_item_id in affected_inv_item_ids:
-            recalculate_customer_component_confirmation_issues_task.delay(
+            recalculate_customer_component_confirmation_issues(
                 organization_id=sales_order.organization_id,
                 inv_item_id=inv_item_id,
             )
