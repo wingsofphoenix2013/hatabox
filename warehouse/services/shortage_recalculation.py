@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
 
+from organizations.models import Organization
 from sales.models import SalesOrder, SalesOrderComponent
 
 from warehouse.models import (
@@ -36,9 +37,11 @@ def recalculate_warehouse_shortages():
         ).values_list("warehouse_unit_id", flat=True)
     )
 
-    available_units = WarehouseUnit.objects.filter(
+    available_units = WarehouseUnit.objects.select_related(
+        "tolling_source_order_item",
+        "tolling_source_order_item__order",
+    ).filter(
         status=WarehouseUnit.Status.ON_STOCK,
-        source_order_item_id__isnull=False,
     ).exclude(
         id__in=reserved_movement_unit_ids,
     ).exclude(
@@ -48,9 +51,19 @@ def recalculate_warehouse_shortages():
     available_quantity_by_item = defaultdict(lambda: ZERO)
 
     for unit in available_units:
-        available_quantity_by_item[unit.inventory_item_id] += _to_decimal(
-            unit.quantity
-        )
+        if unit.source_order_item_id:
+            available_quantity_by_item[unit.inventory_item_id] += _to_decimal(
+                unit.quantity
+            )
+            continue
+
+        if (
+            unit.tolling_source_order_item_id
+            and unit.tolling_source_order_item.order.organization.type == Organization.Type.CHARITY
+        ):
+            available_quantity_by_item[unit.inventory_item_id] += _to_decimal(
+                unit.quantity
+            )
 
     required_quantity_by_item = defaultdict(lambda: ZERO)
 
