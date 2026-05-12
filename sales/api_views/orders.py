@@ -350,43 +350,101 @@ class SalesOrderViewSet(ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="confirm")
     def confirm(self, request, pk=None):
-        with transaction.atomic():
-            sales_order = get_object_or_404(
-                SalesOrder.objects.select_for_update(),
-                pk=pk,
+        try:
+            logger.info(
+                "SalesOrder confirm started: id=%s user=%s",
+                pk,
+                request.user,
             )
-            self.check_object_permissions(request, sales_order)
 
-            if sales_order.status != SalesOrder.Status.DRAFT:
-                raise ValidationError(
-                    "Підтвердити можна лише SalesOrder у статусі draft."
+            with transaction.atomic():
+                sales_order = get_object_or_404(
+                    SalesOrder.objects.select_for_update(),
+                    pk=pk,
+                )
+                self.check_object_permissions(request, sales_order)
+
+                logger.info(
+                    "SalesOrder confirm locked: id=%s status=%s organization_id=%s",
+                    sales_order.id,
+                    sales_order.status,
+                    sales_order.organization_id,
                 )
 
-            result = check_sales_order_can_confirm(sales_order)
+                if sales_order.status != SalesOrder.Status.DRAFT:
+                    raise ValidationError(
+                        "Підтвердити можна лише SalesOrder у статусі draft."
+                    )
 
-            if not result["can_confirm"]:
-                return Response(result, status=400)
+                result = check_sales_order_can_confirm(sales_order)
 
-            affected_inv_item_ids = set(
-                sales_order.components.filter(
-                    fulfillment_mode=SalesOrderComponent.FulfillmentMode.CUSTOMER,
-                ).values_list("inv_item_id", flat=True)
-            )
-
-            reserve_customer_components_for_confirmation(
-                sales_order=sales_order,
-                created_by=request.user if request.user.is_authenticated else None,
-            )
-
-            sales_order.status = SalesOrder.Status.CONFIRMED
-            sales_order.save(update_fields=["status", "updated_at"])
-
-            for inv_item_id in affected_inv_item_ids:
-                recalculate_customer_component_confirmation_issues(
-                    organization_id=sales_order.organization_id,
-                    inv_item_id=inv_item_id,
+                logger.info(
+                    "SalesOrder confirm check result: id=%s can_confirm=%s missing_components=%s",
+                    sales_order.id,
+                    result["can_confirm"],
+                    len(result.get("missing_components", [])),
                 )
 
-        sales_order = self.get_queryset().get(pk=sales_order.pk)
+                if not result["can_confirm"]:
+                    return Response(result, status=400)
 
-        return Response(self.get_serializer(sales_order).data)
+                affected_inv_item_ids = set(
+                    sales_order.components.filter(
+                        fulfillment_mode=SalesOrderComponent.FulfillmentMode.CUSTOMER,
+                    ).values_list("inv_item_id", flat=True)
+                )
+
+                logger.info(
+                    "SalesOrder confirm affected customer items: id=%s inv_item_ids=%s",
+                    sales_order.id,
+                    sorted(affected_inv_item_ids),
+                )
+
+                reserve_customer_components_for_confirmation(
+                    sales_order=sales_order,
+                    created_by=request.user if request.user.is_authenticated else None,
+                )
+
+                logger.info(
+                    "SalesOrder confirm reservation completed: id=%s",
+                    sales_order.id,
+                )
+
+                sales_order.status = SalesOrder.Status.CONFIRMED
+                sales_order.save(update_fields=["status", "updated_at"])
+
+                logger.info(
+                    "SalesOrder confirm status updated: id=%s status=%s",
+                    sales_order.id,
+                    sales_order.status,
+                )
+
+                for inv_item_id in affected_inv_item_ids:
+                    logger.info(
+                        "SalesOrder confirm recalculation started: id=%s inv_item_id=%s",
+                        sales_order.id,
+                        inv_item_id,
+                    )
+                    recalculate_customer_component_confirmation_issues(
+                        organization_id=sales_order.organization_id,
+                        inv_item_id=inv_item_id,
+                    )
+                    logger.info(
+                        "SalesOrder confirm recalculation finished: id=%s inv_item_id=%s",
+                        sales_order.id,
+                        inv_item_id,
+                    )
+
+            sales_order = self.get_queryset().get(pk=sales_order.pk)
+
+            logger.info(
+                "SalesOrder confirm finished: id=%s",
+                sales_order.id,
+            )
+
+            return Response(self.get_serializer(sales_order).data)
+
+        except Exception as exc:
+            logger.error("SalesOrder confirm failed: %s", exc)
+            logger.error(traceback.format_exc())
+            raise
