@@ -13,7 +13,13 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.exceptions import ValidationError
 
-from sales.services.orders import check_sales_order_can_confirm
+from sales.services.orders import (
+    create_sales_order,
+    check_sales_order_can_confirm,
+)
+from production.services.orders import (
+    create_production_order_from_sales_order,
+)
 from warehouse.services.production_reservation import (
     reserve_customer_components_for_confirmation,
     cancel_sales_order_warehouse_state,
@@ -429,6 +435,16 @@ class SalesOrderViewSet(ModelViewSet):
                     "SalesOrder confirm status updated: id=%s status=%s",
                     sales_order.id,
                     sales_order.status,
+                )
+
+                production_order = create_production_order_from_sales_order(
+                    sales_order=sales_order,
+                )
+
+                logger.info(
+                    "ProductionOrder created: id=%s sales_order_id=%s",
+                    production_order.id,
+                    sales_order.id,
                 )
 
                 for inv_item_id in affected_inv_item_ids:

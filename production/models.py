@@ -149,6 +149,10 @@ class ProductionOrderStepComponent(models.Model):
         decimal_places=3,
     )
 
+    is_required_for_step_start = models.BooleanField(
+        default=True,
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
