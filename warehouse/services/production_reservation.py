@@ -59,7 +59,7 @@ def _build_available_unit_pools(
     )
 
     if transaction.get_connection().in_atomic_block:
-        units_queryset = units_queryset.select_for_update()
+        units_queryset = units_queryset.select_for_update(of=("self",))
 
     units = list(units_queryset)
 
