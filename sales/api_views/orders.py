@@ -367,6 +367,12 @@ class SalesOrderViewSet(ModelViewSet):
             if not result["can_confirm"]:
                 return Response(result, status=400)
 
+            affected_inv_item_ids = set(
+                sales_order.components.filter(
+                    fulfillment_mode=SalesOrderComponent.FulfillmentMode.CUSTOMER,
+                ).values_list("inv_item_id", flat=True)
+            )
+
             reserve_customer_components_for_confirmation(
                 sales_order=sales_order,
                 created_by=request.user if request.user.is_authenticated else None,
@@ -374,6 +380,12 @@ class SalesOrderViewSet(ModelViewSet):
 
             sales_order.status = SalesOrder.Status.CONFIRMED
             sales_order.save(update_fields=["status", "updated_at"])
+
+            for inv_item_id in affected_inv_item_ids:
+                recalculate_customer_component_confirmation_issues(
+                    organization_id=sales_order.organization_id,
+                    inv_item_id=inv_item_id,
+                )
 
         sales_order = self.get_queryset().get(pk=sales_order.pk)
 
