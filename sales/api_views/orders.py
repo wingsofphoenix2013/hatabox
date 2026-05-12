@@ -300,9 +300,38 @@ class SalesOrderViewSet(ModelViewSet):
     def confirmation_status(self, request, pk=None):
         sales_order = self.get_object()
 
-        result = check_sales_order_can_confirm(sales_order)
+        open_issues = sales_order.issues.filter(
+            stage=SalesOrderIssue.Stage.CONFIRMATION,
+            status=SalesOrderIssue.Status.OPEN,
+            severity=SalesOrderIssue.Severity.CRITICAL,
+        ).select_related(
+            "related_inv_item",
+            "related_component",
+        )
 
-        return Response(result)
+        missing_components = [
+            {
+                "component_id": issue.related_component_id,
+                "inv_item": issue.related_inv_item_id,
+                "inv_item_code": (
+                    issue.related_inv_item.internal_code
+                    if issue.related_inv_item
+                    else None
+                ),
+                "inv_item_name": (
+                    issue.related_inv_item.name
+                    if issue.related_inv_item
+                    else None
+                ),
+                "missing_quantity": issue.missing_quantity,
+            }
+            for issue in open_issues
+        ]
+
+        return Response({
+            "can_confirm": len(missing_components) == 0,
+            "missing_components": missing_components,
+        })
 
     @action(detail=True, methods=["post"], url_path="confirm")
     def confirm(self, request, pk=None):

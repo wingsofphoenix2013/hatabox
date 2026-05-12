@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from sales.models import SalesOrder, SalesOrderComponent
+from sales.models import SalesOrder, SalesOrderComponent, SalesOrderIssue
 from sales.services.orders import check_sales_order_can_confirm
 from organizations.models import Organization, Person, OrganizationPersonAssignment
 from inventory.models import Product
@@ -147,8 +147,11 @@ class SalesOrderSerializer(serializers.ModelSerializer):
         return str(obj.customer_responsible_person)
 
     def get_can_try_confirm(self, obj):
-        result = check_sales_order_can_confirm(obj)
-        return result["can_confirm"]
+        return not obj.issues.filter(
+            stage=SalesOrderIssue.Stage.CONFIRMATION,
+            status=SalesOrderIssue.Status.OPEN,
+            severity=SalesOrderIssue.Severity.CRITICAL,
+        ).exists()
         
 class CreateSalesOrderSerializer(serializers.Serializer):
     organization = serializers.PrimaryKeyRelatedField(
