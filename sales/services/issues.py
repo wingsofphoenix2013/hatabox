@@ -35,6 +35,8 @@ def recalculate_customer_component_confirmation_issues(
             "organization_id": organization_id,
             "inv_item_id": inv_item_id,
             "checked_orders": 0,
+            "resolved_issues": 0,
+            "opened_issues": 0,
         }
 
     available_unit_pools = _build_available_unit_pools(
