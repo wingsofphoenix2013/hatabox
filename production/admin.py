@@ -1,10 +1,20 @@
 from django.contrib import admin
 
 from .models import (
+    ProductionDiaryAttachment,
+    ProductionDiaryEntry,
     ProductionOrder,
     ProductionOrderStep,
     ProductionOrderStepComponent,
 )
+
+
+class ProductionDiaryAttachmentInline(admin.TabularInline):
+    model = ProductionDiaryAttachment
+    extra = 0
+    readonly_fields = (
+        "created_at",
+    )
 
 
 class ProductionOrderStepComponentInline(admin.TabularInline):
@@ -99,6 +109,66 @@ class ProductionOrderStepAdmin(admin.ModelAdmin):
     )
     inlines = (
         ProductionOrderStepComponentInline,
+    )
+
+
+@admin.register(ProductionDiaryEntry)
+class ProductionDiaryEntryAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "production_order",
+        "production_order_step",
+        "author",
+        "created_at",
+    )
+    list_filter = (
+        "created_at",
+        "author",
+    )
+    search_fields = (
+        "id",
+        "production_order__id",
+        "production_order__sales_order__id",
+        "production_order_step__name",
+        "comment",
+    )
+    autocomplete_fields = (
+        "production_order",
+        "production_order_step",
+        "author",
+    )
+    readonly_fields = (
+        "created_at",
+    )
+    inlines = (
+        ProductionDiaryAttachmentInline,
+    )
+
+
+@admin.register(ProductionDiaryAttachment)
+class ProductionDiaryAttachmentAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "entry",
+        "attachment_type",
+        "file",
+        "created_at",
+    )
+    list_filter = (
+        "attachment_type",
+        "created_at",
+    )
+    search_fields = (
+        "id",
+        "entry__id",
+        "entry__production_order__id",
+        "entry__production_order__sales_order__id",
+    )
+    autocomplete_fields = (
+        "entry",
+    )
+    readonly_fields = (
+        "created_at",
     )
 
 

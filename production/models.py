@@ -1,7 +1,15 @@
+import os
+import uuid
+
 from django.db import models
 
 from inventory.models import InvItem, ProductStep, ProductStepItem
 from sales.models import SalesOrder, SalesOrderComponent
+
+
+def production_diary_attachment_upload_to(instance, filename):
+    ext = os.path.splitext(filename)[1].lower() or ".bin"
+    return f"production/diary/{uuid.uuid4().hex}{ext}"
 
 
 class ProductionOrder(models.Model):
@@ -117,6 +125,72 @@ class ProductionOrderStep(models.Model):
 
     def __str__(self):
         return f"{self.production_order_id} — {self.sequence_number}. {self.name}"
+
+
+class ProductionDiaryEntry(models.Model):
+    production_order = models.ForeignKey(
+        ProductionOrder,
+        on_delete=models.CASCADE,
+        related_name="diary_entries",
+    )
+
+    production_order_step = models.ForeignKey(
+        ProductionOrderStep,
+        on_delete=models.SET_NULL,
+        related_name="diary_entries",
+        null=True,
+        blank=True,
+    )
+
+    author = models.ForeignKey(
+        "auth.User",
+        on_delete=models.PROTECT,
+        related_name="production_diary_entries",
+    )
+
+    comment = models.TextField(
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "production_diary_entries"
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return f"ProductionOrder #{self.production_order_id} — diary #{self.id}"
+
+
+class ProductionDiaryAttachment(models.Model):
+    class AttachmentType(models.TextChoices):
+        PHOTO = "photo", "Фото"
+        VIDEO = "video", "Відео"
+        OTHER = "other", "Інше"
+
+    entry = models.ForeignKey(
+        ProductionDiaryEntry,
+        on_delete=models.CASCADE,
+        related_name="attachments",
+    )
+
+    file = models.FileField(
+        upload_to=production_diary_attachment_upload_to,
+    )
+
+    attachment_type = models.CharField(
+        max_length=20,
+        choices=AttachmentType.choices,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "production_diary_attachments"
+        ordering = ["entry", "id"]
+
+    def __str__(self):
+        return f"DiaryEntry #{self.entry_id} — {self.attachment_type}"
 
 
 class ProductionOrderStepComponent(models.Model):
