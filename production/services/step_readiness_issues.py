@@ -160,6 +160,22 @@ def recalculate_production_step_readiness_issues(
     missing_component_ids = set()
 
     with transaction.atomic():
+        resolved_issues += SalesOrderIssue.objects.filter(
+            production_order_step_component__inv_item_id__in=inv_item_ids,
+            stage=SalesOrderIssue.Stage.PRODUCTION_STEP_CONFIRMATION,
+            issue_type=SalesOrderIssue.IssueType.STEP_COMPONENT_MISSING,
+            status=SalesOrderIssue.Status.OPEN,
+        ).exclude(
+            production_order_step__status__in=[
+                ProductionOrderStep.Status.DRAFT,
+                ProductionOrderStep.Status.CONFIRMED,
+            ],
+        ).update(
+            status=SalesOrderIssue.Status.RESOLVED,
+            resolved_at=now,
+            last_checked_at=now,
+        )
+
         for component in step_components:
             required_quantity = _to_decimal(component.required_quantity)
 

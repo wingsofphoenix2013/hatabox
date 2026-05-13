@@ -17,6 +17,7 @@ from sales.services.orders import (
     create_sales_order,
     check_sales_order_can_confirm,
 )
+from production.models import ProductionOrder, ProductionOrderStep
 from production.services.orders import (
     create_production_order_from_sales_order,
 )
@@ -325,6 +326,18 @@ class SalesOrderViewSet(ModelViewSet):
 
                 sales_order.status = SalesOrder.Status.CANCELLED
                 sales_order.save(update_fields=["status", "updated_at"])
+
+                ProductionOrder.objects.filter(
+                    sales_order=sales_order,
+                ).update(
+                    status=ProductionOrder.Status.CANCELLED,
+                )
+
+                ProductionOrderStep.objects.filter(
+                    production_order__sales_order=sales_order,
+                ).update(
+                    status=ProductionOrderStep.Status.CANCELLED,
+                )
 
                 for inv_item_id in affected_inv_item_ids:
                     recalculate_customer_component_confirmation_issues(
