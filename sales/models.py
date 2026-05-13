@@ -85,6 +85,7 @@ class SalesOrderIssue(models.Model):
     class Stage(models.TextChoices):
         CONFIRMATION = "confirmation", "Підтвердження"
         PRODUCTION_START = "production_start", "Запуск виробництва"
+        PRODUCTION_STEP_CONFIRMATION = "production_step_confirmation", "Підтвердження етапу"
         PRODUCTION_EXECUTION = "production_execution", "Виконання виробництва"
 
     class IssueType(models.TextChoices):
@@ -95,6 +96,10 @@ class SalesOrderIssue(models.Model):
         MIXED_COMPONENT_MISSING = (
             "mixed_component_missing",
             "Відсутній mixed-компонент",
+        )
+        STEP_COMPONENT_MISSING = (
+            "step_component_missing",
+            "Відсутній компонент етапу",
         )
 
     class Status(models.TextChoices):
@@ -110,6 +115,30 @@ class SalesOrderIssue(models.Model):
         SalesOrder,
         on_delete=models.CASCADE,
         related_name="issues",
+    )
+
+    production_order = models.ForeignKey(
+        "production.ProductionOrder",
+        on_delete=models.CASCADE,
+        related_name="issues",
+        null=True,
+        blank=True,
+    )
+
+    production_order_step = models.ForeignKey(
+        "production.ProductionOrderStep",
+        on_delete=models.CASCADE,
+        related_name="issues",
+        null=True,
+        blank=True,
+    )
+
+    production_order_step_component = models.ForeignKey(
+        "production.ProductionOrderStepComponent",
+        on_delete=models.CASCADE,
+        related_name="issues",
+        null=True,
+        blank=True,
     )
 
     stage = models.CharField(
