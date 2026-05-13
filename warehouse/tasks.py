@@ -11,13 +11,18 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task
-def recalculate_warehouse_shortages_task():
+def recalculate_warehouse_shortages_task(
+    *,
+    inv_item_ids,
+):
     logger.info(
         "Warehouse shortage recalculation started",
     )
 
     try:
-        result = recalculate_warehouse_shortages()
+        result = recalculate_warehouse_shortages(
+            inv_item_ids=inv_item_ids,
+        )
     except Exception:
         logger.exception(
             "Warehouse shortage recalculation failed",

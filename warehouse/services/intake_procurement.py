@@ -12,7 +12,9 @@ from warehouse.services.intake_marking import (
     mark_external_receipt_document_sent_by_id_if_fully_processed,
     mark_external_receipt_document_sent_if_fully_processed,
 )
-
+from warehouse.tasks import (
+    recalculate_warehouse_shortages_task,
+)
 
 def accept_procurement_receipt_item_to_location(
     *,
@@ -94,6 +96,10 @@ def accept_procurement_receipt_item_to_location(
         WarehouseUnitEvent.objects.bulk_create(events_to_create)
 
         mark_external_receipt_document_sent_if_fully_processed(receipt_document)
+
+    recalculate_warehouse_shortages_task.delay(
+        inv_item_ids=[order_item.vendor_item.item_id],
+    )
 
     return {
         "status": "ok",
@@ -194,6 +200,10 @@ def accept_procurement_receipt_item_with_conversion(
         WarehouseUnitEvent.objects.bulk_create(events_to_create)
 
         mark_external_receipt_document_sent_if_fully_processed(receipt_document)
+
+    recalculate_warehouse_shortages_task.delay(
+        inv_item_ids=[order_item.vendor_item.item_id],
+    )
 
     return {
         "status": "ok",
@@ -321,6 +331,16 @@ def bulk_accept_procurement_receipt_items_to_location(
             mark_external_receipt_document_sent_by_id_if_fully_processed(
                 receipt_document_id
             )
+
+    affected_inv_item_ids = list({
+        receipt_item.order_item.vendor_item.item_id
+        for receipt_item in receipt_items
+    })
+
+    if affected_inv_item_ids:
+        recalculate_warehouse_shortages_task.delay(
+            inv_item_ids=affected_inv_item_ids,
+        )
 
     return {
         "status": "ok",

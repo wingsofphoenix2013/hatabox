@@ -2,6 +2,9 @@ from decimal import Decimal
 
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
+
+from organizations.models import Organization
+
 from warehouse.models import WarehouseUnit, WarehouseUnitEvent
 
 from sales.tasks import (
@@ -10,6 +13,9 @@ from sales.tasks import (
 from warehouse.services.intake_marking import (
     mark_tolling_receipt_document_sent_by_id_if_fully_processed,
     mark_tolling_receipt_document_sent_if_fully_processed,
+)
+from warehouse.tasks import (
+    recalculate_warehouse_shortages_task,
 )
 
 def accept_tolling_receipt_item_to_location(
@@ -97,6 +103,11 @@ def accept_tolling_receipt_item_to_location(
         organization_id=receipt_document.order.organization_id,
         inv_item_id=order_item.inv_item_id,
     )
+
+    if receipt_document.order.organization.type == Organization.Type.CHARITY:
+        recalculate_warehouse_shortages_task.delay(
+            inv_item_ids=[order_item.inv_item_id],
+        )
 
     return {
         "status": "ok",
@@ -231,10 +242,26 @@ def bulk_accept_tolling_receipt_items_to_location(
         for receipt_item in receipt_items
     }
 
+    affected_shortage_item_ids = set()
+
+    for receipt_item in receipt_items:
+        if (
+            receipt_item.receipt_document.order.organization.type
+            == Organization.Type.CHARITY
+        ):
+            affected_shortage_item_ids.add(
+                receipt_item.order_item.inv_item_id
+            )
+
     for organization_id, inv_item_id in affected_pairs:
         recalculate_customer_component_confirmation_issues_task.delay(
             organization_id=organization_id,
             inv_item_id=inv_item_id,
+        )
+
+    if affected_shortage_item_ids:
+        recalculate_warehouse_shortages_task.delay(
+            inv_item_ids=list(affected_shortage_item_ids),
         )
 
     return {

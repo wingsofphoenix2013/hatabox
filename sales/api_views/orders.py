@@ -464,8 +464,19 @@ class SalesOrderViewSet(ModelViewSet):
                         inv_item_id,
                     )
 
+                mixed_inv_item_ids = list(
+                    sales_order.components.filter(
+                        fulfillment_mode=SalesOrderComponent.FulfillmentMode.MIXED,
+                    ).values_list(
+                        "inv_item_id",
+                        flat=True,
+                    ).distinct()
+                )
+
                 transaction.on_commit(
-                    lambda: recalculate_warehouse_shortages_task.delay()
+                    lambda: recalculate_warehouse_shortages_task.delay(
+                        inv_item_ids=mixed_inv_item_ids,
+                    )
                 )
 
             sales_order = self.get_queryset().get(pk=sales_order.pk)

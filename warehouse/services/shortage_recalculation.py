@@ -29,7 +29,10 @@ def _to_decimal(value) -> Decimal:
     return Decimal(str(value))
 
 
-def recalculate_warehouse_shortages():
+def recalculate_warehouse_shortages(
+    *,
+    inv_item_ids,
+):
     reserved_movement_unit_ids = set(
         MovementPlanItem.objects.filter(
             plan__status=MovementPlan.Status.ACTIVE,
@@ -42,6 +45,7 @@ def recalculate_warehouse_shortages():
         "tolling_source_order_item__order",
     ).filter(
         status=WarehouseUnit.Status.ON_STOCK,
+        inventory_item_id__in=inv_item_ids,
     ).exclude(
         id__in=reserved_movement_unit_ids,
     ).exclude(
@@ -73,6 +77,7 @@ def recalculate_warehouse_shortages():
         ).filter(
             sales_order__status=SalesOrder.Status.CONFIRMED,
             fulfillment_mode=SalesOrderComponent.FulfillmentMode.MIXED,
+            inv_item_id__in=inv_item_ids,
         )
     )
 
@@ -104,7 +109,9 @@ def recalculate_warehouse_shortages():
         )
 
     with transaction.atomic():
-        WarehouseSalesOrderShortage.objects.all().delete()
+        WarehouseSalesOrderShortage.objects.filter(
+            inv_item_id__in=inv_item_ids,
+        ).delete()
 
         if shortages_to_create:
             WarehouseSalesOrderShortage.objects.bulk_create(
