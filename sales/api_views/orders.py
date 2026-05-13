@@ -302,7 +302,18 @@ class SalesOrderViewSet(ModelViewSet):
                     ).values_list("inv_item_id", flat=True)
                 )
 
+                mixed_inv_item_ids = []
+
                 if sales_order.status == SalesOrder.Status.CONFIRMED:
+                    mixed_inv_item_ids = list(
+                        sales_order.components.filter(
+                            fulfillment_mode=SalesOrderComponent.FulfillmentMode.MIXED,
+                        ).values_list(
+                            "inv_item_id",
+                            flat=True,
+                        ).distinct()
+                    )
+
                     cancel_sales_order_warehouse_state(
                         sales_order=sales_order,
                     )
@@ -319,6 +330,13 @@ class SalesOrderViewSet(ModelViewSet):
                     recalculate_customer_component_confirmation_issues(
                         organization_id=sales_order.organization_id,
                         inv_item_id=inv_item_id,
+                    )
+
+                if mixed_inv_item_ids:
+                    transaction.on_commit(
+                        lambda: recalculate_warehouse_shortages_task.delay(
+                            inv_item_ids=mixed_inv_item_ids,
+                        )
                     )
 
             sales_order = self.get_queryset().get(pk=sales_order.pk)
