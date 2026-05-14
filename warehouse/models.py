@@ -171,8 +171,14 @@ class WarehouseStoragePlace(models.Model):
             return self.name or "Нове місце зберігання"
 
         ancestors = []
+        visited_ids = {self.id} if self.id else set()
         current = self.parent
         while current is not None:
+            if current.id in visited_ids:
+                raise ValidationError("Виявлено циклічну вкладеність місць зберігання.")
+
+            visited_ids.add(current.id)
+
             if current.code and current.place_type:
                 ancestors.append((current.place_type, current.code))
             current = current.parent
@@ -196,9 +202,15 @@ class WarehouseStoragePlace(models.Model):
 
     def get_display_name_verbose(self):
         chain = []
+        visited_ids = set()
         current = self
 
         while current is not None:
+            if current.id in visited_ids:
+                raise ValidationError("Виявлено циклічну вкладеність місць зберігання.")
+
+            visited_ids.add(current.id)
+
             chain.append(f"{current.get_place_type_display()} {current.code}")
             current = current.parent
 
@@ -241,6 +253,19 @@ class WarehouseStoragePlace(models.Model):
 
         if self.parent is not None and self.parent.location_id != self.location_id:
             raise ValidationError("Батьківське місце зберігання повинно бути в тій же локації.")
+
+        if self.parent_id and self.parent_id == self.id:
+            raise ValidationError("Місце зберігання не може бути власним батьком.")
+
+        visited_ids = {self.id} if self.id else set()
+        current = self.parent
+
+        while current is not None:
+            if current.id in visited_ids:
+                raise ValidationError("Виявлено циклічну вкладеність місць зберігання.")
+
+            visited_ids.add(current.id)
+            current = current.parent
 
         if self.place_type == self.PlaceType.CONTAINER:
             if self.parent is not None:
