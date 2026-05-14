@@ -30,11 +30,6 @@ class WarehouseShortageDetailViewSet(ReadOnlyModelViewSet):
             inv_item_id=inv_item_id,
         )
 
-        if data is None:
-            raise ValidationError(
-                "Дефіцит для цієї номенклатури не знайдено."
-            )
-
         serializer = self.get_serializer(data)
 
         return Response(serializer.data)

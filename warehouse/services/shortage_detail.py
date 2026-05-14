@@ -1,6 +1,12 @@
+from decimal import Decimal
+
+from inventory.models import InvItem
 from sales.models import SalesOrder, SalesOrderComponent
 
 from warehouse.models import WarehouseSalesOrderShortage
+
+
+ZERO = Decimal("0.000")
 
 
 def build_shortage_detail(
@@ -15,7 +21,28 @@ def build_shortage_detail(
             inv_item_id=inv_item_id,
         )
     except WarehouseSalesOrderShortage.DoesNotExist:
-        return None
+        inv_item = InvItem.objects.select_related(
+            "unit",
+        ).get(
+            pk=inv_item_id,
+        )
+
+        return {
+            "inv_item": inv_item.id,
+            "inv_item_code": inv_item.internal_code,
+            "inv_item_name": inv_item.name,
+            "inventory_item_unit_symbol": inv_item.unit.symbol,
+
+            "summary": {
+                "required_quantity": ZERO,
+                "available_quantity": ZERO,
+                "missing_quantity": ZERO,
+                "sales_orders_count": 0,
+                "last_recalculated_at": None,
+            },
+
+            "rows": [],
+        }
 
     inv_item = shortage.inv_item
 
