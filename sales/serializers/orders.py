@@ -251,7 +251,18 @@ class SalesOrderProductionReadinessSerializer(serializers.Serializer):
     sales_order = serializers.IntegerField(read_only=True)
     production_order = serializers.IntegerField(read_only=True, allow_null=True)
 
-    summary = SalesOrderProductionReadinessSummarySerializer(read_only=True)
+    readiness_status = serializers.CharField(read_only=True)
+    is_ready = serializers.BooleanField(read_only=True)
+
+    message = serializers.CharField(
+        read_only=True,
+        allow_null=True,
+    )
+
+    summary = SalesOrderProductionReadinessSummarySerializer(
+        read_only=True,
+        allow_null=True,
+    )
 
     steps = SalesOrderProductionReadinessStepSerializer(
         many=True,

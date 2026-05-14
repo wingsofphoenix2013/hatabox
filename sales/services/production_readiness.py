@@ -14,13 +14,10 @@ def build_sales_order_production_readiness(
         return {
             "sales_order": sales_order.id,
             "production_order": None,
-            "summary": {
-                "next_step": None,
-                "next_step_name": None,
-                "can_confirm_next_step": False,
-                "open_critical_issues_count": 0,
-                "open_non_critical_issues_count": 0,
-            },
+            "readiness_status": "pending",
+            "is_ready": False,
+            "message": "Виробничі етапи ще формуються.",
+            "summary": None,
             "steps": [],
         }
 
@@ -139,6 +136,9 @@ def build_sales_order_production_readiness(
     return {
         "sales_order": sales_order.id,
         "production_order": production_order.id,
+        "readiness_status": "ready",
+        "is_ready": True,
+        "message": None,
         "summary": {
             "next_step": (
                 next_step_payload["production_order_step"]
