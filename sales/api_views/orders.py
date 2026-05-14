@@ -41,6 +41,15 @@ from sales.serializers import (
     UpdateSalesOrderDetailsSerializer,
     SalesOrderProductionReadinessSerializer,
 )
+from sales.models import (
+    SalesOrder,
+    SalesOrderComponent,
+    SalesOrderIssue,
+    SalesOrderEvent,
+)
+from sales.services.events import (
+    create_sales_order_event,
+)
 from sales.services.orders import create_sales_order
 from sales.services.production_readiness import (
     build_sales_order_production_readiness,
@@ -195,13 +204,39 @@ class SalesOrderViewSet(ModelViewSet):
         )
         serializer.is_valid(raise_exception=True)
 
+        changed_fields = {}
+
         if "comment" in serializer.validated_data:
-            sales_order.comment = serializer.validated_data["comment"]
+            old_comment = sales_order.comment
+            new_comment = serializer.validated_data["comment"]
+
+            if old_comment != new_comment:
+                changed_fields["comment"] = {
+                    "old": old_comment,
+                    "new": new_comment,
+                }
+
+            sales_order.comment = new_comment
 
         if "customer_responsible_person" in serializer.validated_data:
-            sales_order.customer_responsible_person = serializer.validated_data[
+            old_person_id = sales_order.customer_responsible_person_id
+            new_person = serializer.validated_data[
                 "customer_responsible_person"
             ]
+
+            if old_person_id != (
+                new_person.id if new_person else None
+            ):
+                changed_fields["customer_responsible_person"] = {
+                    "old": old_person_id,
+                    "new": (
+                        new_person.id
+                        if new_person
+                        else None
+                    ),
+                }
+
+            sales_order.customer_responsible_person = new_person
 
         sales_order.save(
             update_fields=[
@@ -210,6 +245,17 @@ class SalesOrderViewSet(ModelViewSet):
                 "updated_at",
             ]
         )
+
+        if changed_fields:
+            create_sales_order_event(
+                sales_order=sales_order,
+                event_type=SalesOrderEvent.EventType.SALES_ORDER_DETAILS_UPDATED,
+                title="Оновлено деталі SalesOrder",
+                payload={
+                    "changed_fields": changed_fields,
+                },
+                created_by=request.user,
+            )
 
         sales_order = self.get_queryset().get(pk=sales_order.pk)
 
@@ -331,22 +377,53 @@ class SalesOrderViewSet(ModelViewSet):
                 sales_order.status = SalesOrder.Status.CANCELLED
                 sales_order.save(update_fields=["status", "updated_at"])
 
-                ProductionOrder.objects.filter(
+                production_order = ProductionOrder.objects.filter(
                     sales_order=sales_order,
-                ).update(
-                    status=ProductionOrder.Status.CANCELLED,
-                )
+                ).first()
 
-                ProductionOrderStep.objects.filter(
-                    production_order__sales_order=sales_order,
-                ).update(
-                    status=ProductionOrderStep.Status.CANCELLED,
-                )
+                cancelled_steps_count = 0
+
+                if production_order is not None:
+                    production_order.status = ProductionOrder.Status.CANCELLED
+                    production_order.save(update_fields=["status"])
+
+                    cancelled_steps_count = ProductionOrderStep.objects.filter(
+                        production_order=production_order,
+                    ).update(
+                        status=ProductionOrderStep.Status.CANCELLED,
+                    )
 
                 for inv_item_id in affected_inv_item_ids:
                     recalculate_customer_component_confirmation_issues(
                         organization_id=sales_order.organization_id,
                         inv_item_id=inv_item_id,
+                    )
+
+                create_sales_order_event(
+                    sales_order=sales_order,
+                    event_type=SalesOrderEvent.EventType.SALES_ORDER_CANCELLED,
+                    title="SalesOrder скасовано",
+                    payload={
+                        "from_status": (
+                            SalesOrder.Status.CONFIRMED
+                            if mixed_inv_item_ids
+                            else SalesOrder.Status.DRAFT
+                        ),
+                        "to_status": SalesOrder.Status.CANCELLED,
+                    },
+                    created_by=request.user,
+                )
+
+                if production_order is not None:
+                    create_sales_order_event(
+                        sales_order=sales_order,
+                        event_type=SalesOrderEvent.EventType.PRODUCTION_ORDER_CANCELLED,
+                        title="ProductionOrder скасовано",
+                        payload={
+                            "production_order_id": production_order.id,
+                            "cancelled_steps_count": cancelled_steps_count,
+                        },
+                        created_by=request.user,
                     )
 
                 if mixed_inv_item_ids:
@@ -487,6 +564,27 @@ class SalesOrderViewSet(ModelViewSet):
 
                 production_order = create_production_order_from_sales_order(
                     sales_order=sales_order,
+                )
+
+                create_sales_order_event(
+                    sales_order=sales_order,
+                    event_type=SalesOrderEvent.EventType.SALES_ORDER_CONFIRMED,
+                    title="SalesOrder підтверджено",
+                    payload={
+                        "from_status": SalesOrder.Status.DRAFT,
+                        "to_status": SalesOrder.Status.CONFIRMED,
+                    },
+                    created_by=request.user,
+                )
+
+                create_sales_order_event(
+                    sales_order=sales_order,
+                    event_type=SalesOrderEvent.EventType.PRODUCTION_ORDER_CREATED,
+                    title="Створено ProductionOrder",
+                    payload={
+                        "production_order_id": production_order.id,
+                    },
+                    created_by=request.user,
                 )
 
                 logger.info(

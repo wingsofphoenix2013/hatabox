@@ -1,6 +1,10 @@
 from django.contrib import admin
 
-from sales.models import SalesOrder, SalesOrderComponent
+from sales.models import (
+    SalesOrder,
+    SalesOrderComponent,
+    SalesOrderEvent,
+)
 from sales.services.orders import create_sales_order_components
 
 
@@ -87,4 +91,35 @@ class SalesOrderComponentAdmin(admin.ModelAdmin):
     autocomplete_fields = (
         "sales_order",
         "inv_item",
+    )
+    
+@admin.register(SalesOrderEvent)
+class SalesOrderEventAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "sales_order",
+        "event_type",
+        "title",
+        "created_by",
+        "created_at",
+    )
+
+    list_filter = (
+        "event_type",
+        "created_at",
+    )
+
+    search_fields = (
+        "sales_order__id",
+        "title",
+        "message",
+    )
+
+    autocomplete_fields = (
+        "sales_order",
+        "created_by",
+    )
+
+    readonly_fields = (
+        "created_at",
     )

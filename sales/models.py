@@ -265,3 +265,76 @@ class SalesOrderComponent(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
+        
+class SalesOrderEvent(models.Model):
+    class EventType(models.TextChoices):
+        SALES_ORDER_CREATED = (
+            "sales_order_created",
+            "SalesOrder створено",
+        )
+
+        SALES_ORDER_DETAILS_UPDATED = (
+            "sales_order_details_updated",
+            "Оновлено деталі SalesOrder",
+        )
+
+        SALES_ORDER_CONFIRMED = (
+            "sales_order_confirmed",
+            "SalesOrder підтверджено",
+        )
+
+        PRODUCTION_ORDER_CREATED = (
+            "production_order_created",
+            "Створено ProductionOrder",
+        )
+
+        SALES_ORDER_CANCELLED = (
+            "sales_order_cancelled",
+            "SalesOrder скасовано",
+        )
+
+        PRODUCTION_ORDER_CANCELLED = (
+            "production_order_cancelled",
+            "ProductionOrder скасовано",
+        )
+
+    sales_order = models.ForeignKey(
+        SalesOrder,
+        on_delete=models.CASCADE,
+        related_name="events",
+    )
+
+    event_type = models.CharField(
+        max_length=64,
+        choices=EventType.choices,
+    )
+
+    title = models.CharField(
+        max_length=255,
+    )
+
+    message = models.TextField(
+        blank=True,
+    )
+
+    payload = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="sales_order_events",
+        null=True,
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "sales_order_events"
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return f"{self.sales_order_id} — {self.event_type}"

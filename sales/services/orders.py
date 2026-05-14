@@ -4,7 +4,15 @@ from django.db import transaction
 from django.utils import timezone
 
 from inventory.models import ProductStepItem
-from sales.models import SalesOrder, SalesOrderComponent, SalesOrderIssue
+from sales.models import (
+    SalesOrder,
+    SalesOrderComponent,
+    SalesOrderIssue,
+    SalesOrderEvent,
+)
+from sales.services.events import (
+    create_sales_order_event,
+)
 
 
 def create_sales_order_components(sales_order):
@@ -66,6 +74,20 @@ def create_sales_order(
         )
 
         create_sales_order_components(sales_order)
+
+        create_sales_order_event(
+            sales_order=sales_order,
+            event_type=SalesOrderEvent.EventType.SALES_ORDER_CREATED,
+            title="SalesOrder створено",
+            payload={
+                "organization_id": sales_order.organization_id,
+                "product_id": sales_order.product_id,
+                "customer_responsible_person_id": (
+                    sales_order.customer_responsible_person_id
+                ),
+            },
+            created_by=created_by,
+        )
 
     return sales_order
 
