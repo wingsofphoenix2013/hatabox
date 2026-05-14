@@ -267,6 +267,12 @@ class SalesOrderComponent(models.Model):
         super().save(*args, **kwargs)
         
 class SalesOrderEvent(models.Model):
+    class Source(models.TextChoices):
+        SALES = "sales", "Продажі"
+        PRODUCTION = "production", "Виробництво"
+        WAREHOUSE = "warehouse", "Склад"
+        SYSTEM = "system", "Система"
+
     class EventType(models.TextChoices):
         SALES_ORDER_CREATED = (
             "sales_order_created",
@@ -307,6 +313,11 @@ class SalesOrderEvent(models.Model):
     event_type = models.CharField(
         max_length=64,
         choices=EventType.choices,
+    )
+
+    source = models.CharField(
+        max_length=20,
+        choices=Source.choices,
     )
 
     title = models.CharField(

@@ -5,6 +5,7 @@ def create_sales_order_event(
     *,
     sales_order,
     event_type,
+    source,
     title,
     message="",
     payload=None,
@@ -13,6 +14,7 @@ def create_sales_order_event(
     return SalesOrderEvent.objects.create(
         sales_order=sales_order,
         event_type=event_type,
+        source=source,
         title=title,
         message=message,
         payload=payload or {},

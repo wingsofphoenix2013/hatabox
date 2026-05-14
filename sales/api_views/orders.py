@@ -250,7 +250,9 @@ class SalesOrderViewSet(ModelViewSet):
             create_sales_order_event(
                 sales_order=sales_order,
                 event_type=SalesOrderEvent.EventType.SALES_ORDER_DETAILS_UPDATED,
+                source=SalesOrderEvent.Source.SALES,
                 title="Оновлено деталі SalesOrder",
+                message="Оновлено деталі замовлення.",
                 payload={
                     "changed_fields": changed_fields,
                 },
@@ -402,7 +404,9 @@ class SalesOrderViewSet(ModelViewSet):
                 create_sales_order_event(
                     sales_order=sales_order,
                     event_type=SalesOrderEvent.EventType.SALES_ORDER_CANCELLED,
+                    source=SalesOrderEvent.Source.SALES,
                     title="SalesOrder скасовано",
+                    message="Замовлення скасовано.",
                     payload={
                         "from_status": (
                             SalesOrder.Status.CONFIRMED
@@ -418,7 +422,9 @@ class SalesOrderViewSet(ModelViewSet):
                     create_sales_order_event(
                         sales_order=sales_order,
                         event_type=SalesOrderEvent.EventType.PRODUCTION_ORDER_CANCELLED,
+                        source=SalesOrderEvent.Source.PRODUCTION,
                         title="ProductionOrder скасовано",
+                        message="Карту виробничого процесу скасовано.",
                         payload={
                             "production_order_id": production_order.id,
                             "cancelled_steps_count": cancelled_steps_count,
@@ -569,7 +575,9 @@ class SalesOrderViewSet(ModelViewSet):
                 create_sales_order_event(
                     sales_order=sales_order,
                     event_type=SalesOrderEvent.EventType.SALES_ORDER_CONFIRMED,
+                    source=SalesOrderEvent.Source.SALES,
                     title="SalesOrder підтверджено",
+                    message="Замовлення підтверджено та підготовлено до виробництва.",
                     payload={
                         "from_status": SalesOrder.Status.DRAFT,
                         "to_status": SalesOrder.Status.CONFIRMED,
@@ -580,7 +588,9 @@ class SalesOrderViewSet(ModelViewSet):
                 create_sales_order_event(
                     sales_order=sales_order,
                     event_type=SalesOrderEvent.EventType.PRODUCTION_ORDER_CREATED,
+                    source=SalesOrderEvent.Source.PRODUCTION,
                     title="Створено ProductionOrder",
+                    message="Для замовлення автоматично створено карту виробничого процесу.",
                     payload={
                         "production_order_id": production_order.id,
                     },

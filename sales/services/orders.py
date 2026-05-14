@@ -78,7 +78,9 @@ def create_sales_order(
         create_sales_order_event(
             sales_order=sales_order,
             event_type=SalesOrderEvent.EventType.SALES_ORDER_CREATED,
+            source=SalesOrderEvent.Source.SALES,
             title="SalesOrder створено",
+            message="Створено нове замовлення на виробництво.",
             payload={
                 "organization_id": sales_order.organization_id,
                 "product_id": sales_order.product_id,
