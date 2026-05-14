@@ -39,8 +39,12 @@ from sales.serializers import (
     UpdateSalesOrderComponentSourceSerializer,
     SetCustomerComponentsSerializer,
     UpdateSalesOrderDetailsSerializer,
+    SalesOrderProductionReadinessSerializer,
 )
 from sales.services.orders import create_sales_order
+from sales.services.production_readiness import (
+    build_sales_order_production_readiness,
+)
 
 
 class SalesOrderViewSet(ModelViewSet):
@@ -397,6 +401,18 @@ class SalesOrderViewSet(ModelViewSet):
             "can_confirm": len(missing_components) == 0,
             "missing_components": missing_components,
         })
+        
+    @action(detail=True, methods=["get"], url_path="production-readiness")
+    def production_readiness(self, request, pk=None):
+        sales_order = self.get_object()
+
+        data = build_sales_order_production_readiness(
+            sales_order=sales_order,
+        )
+
+        serializer = SalesOrderProductionReadinessSerializer(data)
+
+        return Response(serializer.data)
 
     @action(detail=True, methods=["post"], url_path="confirm")
     def confirm(self, request, pk=None):

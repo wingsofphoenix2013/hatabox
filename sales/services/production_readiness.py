@@ -1,0 +1,162 @@
+from collections import defaultdict
+
+from production.models import ProductionOrder, ProductionOrderStep
+from sales.models import SalesOrderIssue
+
+
+def build_sales_order_production_readiness(
+    *,
+    sales_order,
+):
+    try:
+        production_order = sales_order.production_order
+    except ProductionOrder.DoesNotExist:
+        return {
+            "sales_order": sales_order.id,
+            "production_order": None,
+            "summary": {
+                "next_step": None,
+                "next_step_name": None,
+                "can_confirm_next_step": False,
+                "open_critical_issues_count": 0,
+                "open_non_critical_issues_count": 0,
+            },
+            "steps": [],
+        }
+
+    steps = list(
+        production_order.steps.order_by(
+            "sequence_number",
+            "id",
+        )
+    )
+
+    step_ids = [
+        step.id
+        for step in steps
+    ]
+
+    open_issues = list(
+        SalesOrderIssue.objects.select_related(
+            "related_inv_item",
+            "related_inv_item__unit",
+            "production_order_step",
+            "production_order_step_component",
+        ).filter(
+            sales_order=sales_order,
+            production_order=production_order,
+            production_order_step_id__in=step_ids,
+            stage=SalesOrderIssue.Stage.PRODUCTION_STEP_CONFIRMATION,
+            issue_type=SalesOrderIssue.IssueType.STEP_COMPONENT_MISSING,
+            status=SalesOrderIssue.Status.OPEN,
+        ).order_by(
+            "production_order_step__sequence_number",
+            "severity",
+            "id",
+        )
+    )
+
+    issues_by_step_id = defaultdict(list)
+
+    for issue in open_issues:
+        issues_by_step_id[issue.production_order_step_id].append(issue)
+
+    steps_payload = []
+
+    total_open_critical_issues_count = 0
+    total_open_non_critical_issues_count = 0
+
+    for step in steps:
+        step_issues = issues_by_step_id.get(step.id, [])
+
+        open_critical_issues_count = sum(
+            1
+            for issue in step_issues
+            if issue.severity == SalesOrderIssue.Severity.CRITICAL
+        )
+        open_non_critical_issues_count = sum(
+            1
+            for issue in step_issues
+            if issue.severity == SalesOrderIssue.Severity.NON_CRITICAL
+        )
+
+        total_open_critical_issues_count += open_critical_issues_count
+        total_open_non_critical_issues_count += open_non_critical_issues_count
+
+        steps_payload.append({
+            "production_order_step": step.id,
+            "sequence_number": step.sequence_number,
+            "name": step.name,
+            "status": step.status,
+            "can_be_confirmed": open_critical_issues_count == 0,
+            "open_critical_issues_count": open_critical_issues_count,
+            "open_non_critical_issues_count": open_non_critical_issues_count,
+            "issues": [
+                {
+                    "issue": issue.id,
+                    "severity": issue.severity,
+                    "inv_item": issue.related_inv_item_id,
+                    "inv_item_code": (
+                        issue.related_inv_item.internal_code
+                        if issue.related_inv_item
+                        else None
+                    ),
+                    "inv_item_name": (
+                        issue.related_inv_item.name
+                        if issue.related_inv_item
+                        else None
+                    ),
+                    "missing_quantity": issue.missing_quantity,
+                    "unit_symbol": (
+                        issue.related_inv_item.unit.symbol
+                        if issue.related_inv_item
+                        else None
+                    ),
+                    "is_required_for_step_start": (
+                        issue.production_order_step_component.is_required_for_step_start
+                        if issue.production_order_step_component
+                        else None
+                    ),
+                    "message": issue.message,
+                    "last_checked_at": issue.last_checked_at,
+                }
+                for issue in step_issues
+            ],
+        })
+
+    next_step_payload = next(
+        (
+            step
+            for step in steps_payload
+            if step["status"] in [
+                ProductionOrderStep.Status.DRAFT,
+                ProductionOrderStep.Status.CONFIRMED,
+            ]
+        ),
+        None,
+    )
+
+    return {
+        "sales_order": sales_order.id,
+        "production_order": production_order.id,
+        "summary": {
+            "next_step": (
+                next_step_payload["production_order_step"]
+                if next_step_payload
+                else None
+            ),
+            "next_step_name": (
+                next_step_payload["name"]
+                if next_step_payload
+                else None
+            ),
+            "can_confirm_next_step": (
+                next_step_payload["can_be_confirmed"]
+                if next_step_payload
+                else False
+            ),
+            "open_critical_issues_count": total_open_critical_issues_count,
+            "open_non_critical_issues_count": total_open_non_critical_issues_count,
+        },
+        "steps": steps_payload,
+    }

@@ -200,6 +200,65 @@ class SetCustomerComponentsSerializer(serializers.Serializer):
     )
 
 
+class SalesOrderProductionReadinessIssueSerializer(serializers.Serializer):
+    issue = serializers.IntegerField(read_only=True)
+    severity = serializers.CharField(read_only=True)
+
+    inv_item = serializers.IntegerField(read_only=True)
+    inv_item_code = serializers.CharField(read_only=True)
+    inv_item_name = serializers.CharField(read_only=True)
+
+    missing_quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
+    unit_symbol = serializers.CharField(read_only=True)
+
+    is_required_for_step_start = serializers.BooleanField(read_only=True)
+
+    message = serializers.CharField(read_only=True)
+    last_checked_at = serializers.DateTimeField(read_only=True)
+
+
+class SalesOrderProductionReadinessStepSerializer(serializers.Serializer):
+    production_order_step = serializers.IntegerField(read_only=True)
+    sequence_number = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    status = serializers.CharField(read_only=True)
+
+    can_be_confirmed = serializers.BooleanField(read_only=True)
+
+    open_critical_issues_count = serializers.IntegerField(read_only=True)
+    open_non_critical_issues_count = serializers.IntegerField(read_only=True)
+
+    issues = SalesOrderProductionReadinessIssueSerializer(
+        many=True,
+        read_only=True,
+    )
+
+
+class SalesOrderProductionReadinessSummarySerializer(serializers.Serializer):
+    next_step = serializers.IntegerField(read_only=True, allow_null=True)
+    next_step_name = serializers.CharField(read_only=True, allow_null=True)
+    can_confirm_next_step = serializers.BooleanField(read_only=True)
+
+    open_critical_issues_count = serializers.IntegerField(read_only=True)
+    open_non_critical_issues_count = serializers.IntegerField(read_only=True)
+
+
+class SalesOrderProductionReadinessSerializer(serializers.Serializer):
+    sales_order = serializers.IntegerField(read_only=True)
+    production_order = serializers.IntegerField(read_only=True, allow_null=True)
+
+    summary = SalesOrderProductionReadinessSummarySerializer(read_only=True)
+
+    steps = SalesOrderProductionReadinessStepSerializer(
+        many=True,
+        read_only=True,
+    )
+
+
 class UpdateSalesOrderDetailsSerializer(serializers.Serializer):
     comment = serializers.CharField(
         required=False,
