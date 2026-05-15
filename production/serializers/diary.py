@@ -76,10 +76,15 @@ class ProductionDiaryEntrySerializer(serializers.ModelSerializer):
 
 class CreateProductionDiaryEntrySerializer(serializers.Serializer):
     def to_internal_value(self, data):
-        data = data.copy()
-
         if "attachments[]" in data and "attachments" not in data:
+            mutable = getattr(data, "_mutable", None)
+            if mutable is not None:
+                data._mutable = True
+
             data.setlist("attachments", data.getlist("attachments[]"))
+
+            if mutable is not None:
+                data._mutable = mutable
 
         return super().to_internal_value(data)
 
@@ -139,10 +144,15 @@ class CreateProductionDiaryEntrySerializer(serializers.Serializer):
 
 class UpdateProductionDiaryEntrySerializer(serializers.Serializer):
     def to_internal_value(self, data):
-        data = data.copy()
-
         if "attachments[]" in data and "attachments" not in data:
+            mutable = getattr(data, "_mutable", None)
+            if mutable is not None:
+                data._mutable = True
+
             data.setlist("attachments", data.getlist("attachments[]"))
+
+            if mutable is not None:
+                data._mutable = mutable
 
         return super().to_internal_value(data)
 
