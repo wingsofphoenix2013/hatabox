@@ -1,4 +1,6 @@
+import logging
 import os
+import traceback
 
 from django.db import transaction
 
@@ -23,6 +25,8 @@ from production.serializers import (
 from sales.models import SalesOrderEvent
 from sales.services.events import create_sales_order_event
 
+
+logger = logging.getLogger(__name__)
 
 class ProductionDiaryEntryViewSet(ModelViewSet):
     http_method_names = [
@@ -91,52 +95,58 @@ class ProductionDiaryEntryViewSet(ModelViewSet):
         return ProductionDiaryAttachment.AttachmentType.OTHER
 
     def create(self, request, *args, **kwargs):
-        serializer = CreateProductionDiaryEntrySerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        try:
+            serializer = CreateProductionDiaryEntrySerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
 
-        with transaction.atomic():
-            entry = ProductionDiaryEntry.objects.create(
-                production_order=serializer.validated_data[
-                    "production_order"
-                ],
-                production_order_step=serializer.validated_data.get(
-                    "production_order_step"
-                ),
-                author=request.user,
-                comment=serializer.validated_data.get("comment", ""),
-            )
-
-            for uploaded_file in serializer.validated_data.get(
-                "attachments",
-                [],
-            ):
-                ProductionDiaryAttachment.objects.create(
-                    entry=entry,
-                    file=uploaded_file,
-                    attachment_type=self._get_attachment_type(uploaded_file),
+            with transaction.atomic():
+                entry = ProductionDiaryEntry.objects.create(
+                    production_order=serializer.validated_data[
+                        "production_order"
+                    ],
+                    production_order_step=serializer.validated_data.get(
+                        "production_order_step"
+                    ),
+                    author=request.user,
+                    comment=serializer.validated_data.get("comment", ""),
                 )
 
-        create_sales_order_event(
-            sales_order=entry.production_order.sales_order,
-            event_type=SalesOrderEvent.EventType.PRODUCTION_DIARY_ENTRY_CREATED,
-            source=SalesOrderEvent.Source.PRODUCTION,
-            title="Додано запис у щоденник",
-            message="Додано новий запис виробничого щоденника.",
-            payload={
-                "diary_entry_id": entry.id,
-                "production_order_id": entry.production_order_id,
-                "production_order_step_id": entry.production_order_step_id,
-                "attachments_count": entry.attachments.count(),
-            },
-            created_by=request.user,
-        )
+                for uploaded_file in serializer.validated_data.get(
+                    "attachments",
+                    [],
+                ):
+                    ProductionDiaryAttachment.objects.create(
+                        entry=entry,
+                        file=uploaded_file,
+                        attachment_type=self._get_attachment_type(uploaded_file),
+                    )
 
-        entry = self.get_queryset().get(pk=entry.pk)
+                create_sales_order_event(
+                    sales_order=entry.production_order.sales_order,
+                    event_type=SalesOrderEvent.EventType.PRODUCTION_DIARY_ENTRY_CREATED,
+                    source=SalesOrderEvent.Source.PRODUCTION,
+                    title="Додано запис у щоденник",
+                    message="Додано новий запис виробничого щоденника.",
+                    payload={
+                        "diary_entry_id": entry.id,
+                        "production_order_id": entry.production_order_id,
+                        "production_order_step_id": entry.production_order_step_id,
+                        "attachments_count": entry.attachments.count(),
+                    },
+                    created_by=request.user,
+                )
 
-        return Response(
-            self.get_serializer(entry).data,
-            status=status.HTTP_201_CREATED,
-        )
+            entry = self.get_queryset().get(pk=entry.pk)
+
+            return Response(
+                self.get_serializer(entry).data,
+                status=status.HTTP_201_CREATED,
+            )
+
+        except Exception as exc:
+            logger.error("ProductionDiaryEntry create failed: %s", exc)
+            logger.error(traceback.format_exc())
+            raise
 
     def update(self, request, *args, **kwargs):
         raise ValidationError("PATCH/PUT не підтримуються для цього endpoint.")
