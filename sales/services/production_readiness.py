@@ -14,6 +14,8 @@ def build_sales_order_production_readiness(
         return {
             "sales_order": sales_order.id,
             "production_order": None,
+            "production_order_status": None,
+            "can_edit_production_diary": False,
             "readiness_status": "pending",
             "is_ready": False,
             "message": "Виробничі етапи ще формуються.",
@@ -136,6 +138,11 @@ def build_sales_order_production_readiness(
     return {
         "sales_order": sales_order.id,
         "production_order": production_order.id,
+        "production_order_status": production_order.status,
+        "can_edit_production_diary": production_order.status not in [
+            ProductionOrder.Status.READY,
+            ProductionOrder.Status.CANCELLED,
+        ],
         "readiness_status": "ready",
         "is_ready": True,
         "message": None,
