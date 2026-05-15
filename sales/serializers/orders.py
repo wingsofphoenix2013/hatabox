@@ -199,6 +199,23 @@ class SetCustomerComponentsSerializer(serializers.Serializer):
         allow_empty=True,
     )
 
+class SalesOrderEventSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+
+    event_type = serializers.CharField(read_only=True)
+
+    source = serializers.CharField(read_only=True)
+    source_display = serializers.CharField(read_only=True)
+
+    title = serializers.CharField(read_only=True)
+    message = serializers.CharField(read_only=True)
+
+    payload = serializers.JSONField(read_only=True)
+
+    created_by = serializers.IntegerField(read_only=True, allow_null=True)
+    created_by_username = serializers.CharField(read_only=True, allow_null=True)
+
+    created_at = serializers.DateTimeField(read_only=True)
 
 class SalesOrderProductionReadinessIssueSerializer(serializers.Serializer):
     issue = serializers.IntegerField(read_only=True)

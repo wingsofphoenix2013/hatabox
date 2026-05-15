@@ -7,4 +7,5 @@ from .orders import (
     SetCustomerComponentsSerializer,
     UpdateSalesOrderDetailsSerializer,
     SalesOrderProductionReadinessSerializer,
+    SalesOrderEventSerializer,
 )

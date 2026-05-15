@@ -40,6 +40,7 @@ from sales.serializers import (
     SetCustomerComponentsSerializer,
     UpdateSalesOrderDetailsSerializer,
     SalesOrderProductionReadinessSerializer,
+    SalesOrderEventSerializer,
 )
 from sales.models import (
     SalesOrder,
@@ -49,6 +50,7 @@ from sales.models import (
 )
 from sales.services.events import (
     create_sales_order_event,
+    build_sales_order_events,
 )
 from sales.services.orders import create_sales_order
 from sales.services.production_readiness import (
@@ -494,6 +496,30 @@ class SalesOrderViewSet(ModelViewSet):
         )
 
         serializer = SalesOrderProductionReadinessSerializer(data)
+
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["get"], url_path="events")
+    def events(self, request, pk=None):
+        sales_order = self.get_object()
+
+        rows = build_sales_order_events(
+            sales_order=sales_order,
+        )
+
+        page = self.paginate_queryset(rows)
+
+        if page is not None:
+            serializer = SalesOrderEventSerializer(
+                page,
+                many=True,
+            )
+            return self.get_paginated_response(serializer.data)
+
+        serializer = SalesOrderEventSerializer(
+            rows,
+            many=True,
+        )
 
         return Response(serializer.data)
 
