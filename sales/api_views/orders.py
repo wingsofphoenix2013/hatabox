@@ -477,6 +477,16 @@ class SalesOrderViewSet(ModelViewSet):
                     if issue.related_inv_item
                     else None
                 ),
+                "required_quantity": (
+                    issue.related_component.quantity
+                    if issue.related_component
+                    else None
+                ),
+                "available_quantity": (
+                    issue.related_component.quantity - issue.missing_quantity
+                    if issue.related_component and issue.missing_quantity is not None
+                    else None
+                ),
                 "missing_quantity": issue.missing_quantity,
             }
             for issue in open_issues
