@@ -304,6 +304,21 @@ class SalesOrderEvent(models.Model):
             "ProductionOrder скасовано",
         )
 
+        PRODUCTION_DIARY_ENTRY_CREATED = (
+            "production_diary_entry_created",
+            "Додано запис у щоденник",
+        )
+
+        PRODUCTION_DIARY_ENTRY_UPDATED = (
+            "production_diary_entry_updated",
+            "Оновлено запис щоденника",
+        )
+
+        PRODUCTION_DIARY_ENTRY_DELETED = (
+            "production_diary_entry_deleted",
+            "Видалено запис щоденника",
+        )
+
     sales_order = models.ForeignKey(
         SalesOrder,
         on_delete=models.CASCADE,
