@@ -39,6 +39,7 @@ class ExternalOrderRegisterLightSerializer(serializers.ModelSerializer):
             "vendor_name",
             "status",
             "status_name",
+            "created_at",
             "comment",
             "order_total_amount",
             "payment_percent",
