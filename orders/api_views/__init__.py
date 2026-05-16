@@ -1,4 +1,5 @@
 from .external_orders import (
+    ExternalOrderRegisterLightViewSet,
     ExternalOrderRegistryViewSet,
     ExternalOrderViewSet,
     recalculate_order_vat_amount,

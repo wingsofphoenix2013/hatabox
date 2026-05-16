@@ -30,6 +30,7 @@ from vendors.api_views import (
 from orders.api_views import (
     ExternalOrderViewSet,
     ExternalOrderRegistryViewSet,
+    ExternalOrderRegisterLightViewSet,
     ExternalOrderItemViewSet,
     ExternalPaymentDocumentViewSet,
     ExternalReceiptDocumentViewSet,
@@ -101,6 +102,7 @@ router.register("vendor-payment-details", VendorPaymentDetailsViewSet)
 router.register("vendor-items", VendorItemViewSet)
 router.register("orders", ExternalOrderViewSet)
 router.register("orders-registry", ExternalOrderRegistryViewSet, basename="orders-registry")
+router.register("orders-register", ExternalOrderRegisterLightViewSet, basename="orders-register")
 router.register("order-items", ExternalOrderItemViewSet)
 router.register("payment-documents", ExternalPaymentDocumentViewSet)
 router.register("receipt-documents", ExternalReceiptDocumentViewSet)

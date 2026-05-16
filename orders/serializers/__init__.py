@@ -15,6 +15,7 @@ from .external_receipts import (
 )
 
 from .external_orders import (
+    ExternalOrderRegisterLightSerializer,
     ExternalOrderRegistrySerializer,
     ExternalOrderSerializer,
 )

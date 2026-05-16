@@ -13,6 +13,58 @@ from .external_payments import ExternalPaymentDocumentShortSerializer
 
 PAYMENT_COMPLETION_TOLERANCE = Decimal("0.01")
 
+class ExternalOrderRegisterLightSerializer(serializers.ModelSerializer):
+    vendor_name = serializers.CharField(source="vendor.name", read_only=True)
+
+    status_name = serializers.CharField(source="get_status_display", read_only=True)
+
+    order_total_amount = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=4,
+        read_only=True,
+    )
+    payment_percent = serializers.IntegerField(read_only=True)
+    receipt_percent = serializers.IntegerField(read_only=True)
+    is_receipt_overdue = serializers.BooleanField(read_only=True)
+
+    receipt_overdue_days = serializers.SerializerMethodField()
+    receipt_expected_days = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ExternalOrder
+        fields = [
+            "id",
+            "order_no",
+            "vendor",
+            "vendor_name",
+            "status",
+            "status_name",
+            "comment",
+            "order_total_amount",
+            "payment_percent",
+            "receipt_percent",
+            "is_receipt_overdue",
+            "receipt_overdue_days",
+            "receipt_expected_days",
+        ]
+        read_only_fields = fields
+
+    def get_receipt_overdue_days(self, obj):
+        if not obj.is_receipt_overdue or obj.expected_delivery_date_min is None:
+            return 0
+
+        return (date.today() - obj.expected_delivery_date_min).days
+
+    def get_receipt_expected_days(self, obj):
+        if obj.receipt_percent >= 100 or obj.expected_delivery_date_min is None:
+            return 0
+
+        if date.today() > obj.expected_delivery_date_min:
+            return 0
+
+        return (obj.expected_delivery_date_min - date.today()).days
+
+
 class ExternalOrderRegistrySerializer(serializers.ModelSerializer):
     vendor_code = serializers.CharField(source="vendor.code", read_only=True)
     vendor_name = serializers.CharField(source="vendor.name", read_only=True)

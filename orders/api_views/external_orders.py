@@ -35,7 +35,9 @@ from orders.models import (
 from orders.serializers import (
     ExternalOrderSerializer,
     ExternalOrderRegistrySerializer,
+    ExternalOrderRegisterLightSerializer,
 )
+
 
 VAT_RATE = Decimal("0.20")
 VAT_DIVISOR = Decimal("1.20")
@@ -104,6 +106,92 @@ def try_complete_order(order):
         order.status = ExternalOrder.StatusChoices.COMPLETED
         order.save(update_fields=["status"])
         
+
+class ExternalOrderRegisterLightViewSet(ModelViewSet):
+    queryset = ExternalOrder.objects.select_related(
+        "vendor",
+    ).order_by("-created_at", "-id")
+    serializer_class = ExternalOrderRegisterLightSerializer
+    permission_classes = [DjangoModelPermissions]
+
+    def _with_registry_annotations(self, queryset):
+        return ExternalOrderViewSet()._with_registry_annotations(queryset)
+
+    def get_queryset(self):
+        queryset = self._with_registry_annotations(self.queryset)
+
+        status = self.request.query_params.getlist("status")
+        if status:
+            queryset = queryset.filter(status__in=status)
+
+        payment_ranges = self.request.query_params.getlist("payment_range")
+        if payment_ranges:
+            payment_q = Q()
+            valid_payment_filter = False
+
+            for value in payment_ranges:
+                if value == "0":
+                    payment_q |= Q(payment_percent=0)
+                    valid_payment_filter = True
+                elif value == "1-49":
+                    payment_q |= Q(payment_percent__gte=1, payment_percent__lte=49)
+                    valid_payment_filter = True
+                elif value == "50-99":
+                    payment_q |= Q(payment_percent__gte=50, payment_percent__lte=99)
+                    valid_payment_filter = True
+                elif value == "100":
+                    payment_q |= Q(payment_percent=100)
+                    valid_payment_filter = True
+
+            if valid_payment_filter:
+                queryset = queryset.filter(payment_q)
+
+        receipt_ranges = self.request.query_params.getlist("receipt_range")
+        if receipt_ranges:
+            receipt_q = Q()
+            valid_receipt_filter = False
+
+            for value in receipt_ranges:
+                if value == "overdue":
+                    receipt_q |= Q(is_receipt_overdue=True)
+                    valid_receipt_filter = True
+                elif value == "0":
+                    receipt_q |= Q(receipt_percent=0)
+                    valid_receipt_filter = True
+                elif value == "1-49":
+                    receipt_q |= Q(receipt_percent__gte=1, receipt_percent__lte=49)
+                    valid_receipt_filter = True
+                elif value == "50-99":
+                    receipt_q |= Q(receipt_percent__gte=50, receipt_percent__lte=99)
+                    valid_receipt_filter = True
+                elif value == "100":
+                    receipt_q |= Q(receipt_percent=100)
+                    valid_receipt_filter = True
+
+            if valid_receipt_filter:
+                queryset = queryset.filter(receipt_q)
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(vendor__name__icontains=search)
+            )
+
+        ordering = self.request.query_params.get("ordering")
+        allowed_ordering = {
+            "order_total_amount",
+            "-order_total_amount",
+            "payment_percent",
+            "-payment_percent",
+            "receipt_percent",
+            "-receipt_percent",
+        }
+
+        if ordering in allowed_ordering:
+            queryset = queryset.order_by(ordering, "-id")
+
+        return queryset
+
 
 class ExternalOrderRegistryViewSet(ModelViewSet):
     queryset = ExternalOrder.objects.select_related(
