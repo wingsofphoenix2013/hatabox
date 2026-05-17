@@ -28,6 +28,7 @@ from .external_receipts import (
 )
 
 from .tolling_orders import (
+    TollingOrderRegisterLightViewSet,
     TollingOrderViewSet,
     try_complete_tolling_order,
     generate_tolling_order_no,

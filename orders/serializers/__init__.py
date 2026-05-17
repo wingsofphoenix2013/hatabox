@@ -38,5 +38,6 @@ from .tolling_receipts import (
 )
 
 from .tolling_orders import (
+    TollingOrderRegisterLightSerializer,
     TollingOrderSerializer,
 )

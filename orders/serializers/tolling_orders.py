@@ -8,6 +8,38 @@ from orders.models import TollingOrder
 from .tolling_order_items import TollingOrderItemSerializer
 
 
+class TollingOrderRegisterLightSerializer(serializers.ModelSerializer):
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
+    organization_type = serializers.CharField(source="organization.type", read_only=True)
+    organization_type_name = serializers.CharField(source="organization.get_type_display", read_only=True)
+
+    is_overdue = serializers.SerializerMethodField()
+    overdue_days = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TollingOrder
+        fields = [
+            "id",
+            "order_no",
+            "organization",
+            "organization_name",
+            "organization_type",
+            "organization_type_name",
+            "status",
+            "created_at",
+            "comment",
+            "is_overdue",
+            "overdue_days",
+        ]
+        read_only_fields = fields
+
+    def get_is_overdue(self, obj):
+        return TollingOrderSerializer().get_is_overdue(obj)
+
+    def get_overdue_days(self, obj):
+        return TollingOrderSerializer().get_overdue_days(obj)
+
+
 class TollingOrderSerializer(serializers.ModelSerializer):
     clear_image = serializers.BooleanField(write_only=True, required=False, default=False)
 

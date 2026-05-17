@@ -16,7 +16,10 @@ from orders.models import (
     TollingReceiptItem,
 )
 
-from orders.serializers import TollingOrderSerializer
+from orders.serializers import (
+    TollingOrderRegisterLightSerializer,
+    TollingOrderSerializer,
+)
 
 def try_complete_tolling_order(order):
     if order.status == TollingOrder.StatusChoices.DRAFT:
@@ -154,6 +157,66 @@ def create_next_tolling_receipt_draft_from_remainders(order, created_by):
     ])
 
     return receipt_document
+
+class TollingOrderRegisterLightViewSet(ModelViewSet):
+    queryset = TollingOrder.objects.select_related(
+        "organization",
+        "created_by",
+    ).prefetch_related(
+        Prefetch(
+            "items",
+            queryset=TollingOrderItem.objects.select_related(
+                "inv_item",
+                "inv_item__category",
+                "inv_item__unit",
+            ).prefetch_related(
+                Prefetch(
+                    "receipt_items",
+                    queryset=TollingReceiptItem.objects.select_related("receipt_document"),
+                    to_attr="prefetched_receipt_items",
+                )
+            ),
+            to_attr="prefetched_items",
+        )
+    ).order_by("-created_at", "-id")
+    serializer_class = TollingOrderRegisterLightSerializer
+    permission_classes = [DjangoModelPermissions]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_queryset(self):
+        queryset = self.queryset
+
+        organization = self.request.query_params.getlist("organization")
+        if organization:
+            queryset = queryset.filter(organization_id__in=organization)
+
+        organization_type = self.request.query_params.get("organization_type")
+        if organization_type in ["military", "commercial", "charity"]:
+            queryset = queryset.filter(organization__type=organization_type)
+
+        status = self.request.query_params.getlist("status")
+        if status:
+            queryset = queryset.filter(status__in=status)
+
+        created_at_from = self.request.query_params.get("created_at_from")
+        if created_at_from:
+            queryset = queryset.filter(created_at__date__gte=created_at_from)
+
+        created_at_to = self.request.query_params.get("created_at_to")
+        if created_at_to:
+            queryset = queryset.filter(created_at__date__lte=created_at_to)
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(order_no__icontains=search)
+                | models.Q(comment__icontains=search)
+                | models.Q(organization__name__icontains=search)
+                | models.Q(created_by__username__icontains=search)
+            )
+
+        return queryset
+
 
 class TollingOrderViewSet(ModelViewSet):
     queryset = TollingOrder.objects.select_related(
