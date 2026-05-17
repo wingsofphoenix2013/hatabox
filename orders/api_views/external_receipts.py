@@ -8,6 +8,7 @@ from rest_framework.exceptions import ValidationError
 
 from orders.models import (
     ExternalOrder,
+    ExternalOrderEvent,
     ExternalReceiptDocument,
     ExternalReceiptItem,
 )
@@ -18,6 +19,8 @@ from orders.serializers import (
 )
 
 from .external_orders import try_complete_order
+
+from orders.services.external_order_events import create_external_order_event
 
 class ExternalReceiptDocumentViewSet(ModelViewSet):
     queryset = ExternalReceiptDocument.objects.select_related(
@@ -65,7 +68,20 @@ class ExternalReceiptDocumentViewSet(ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        receipt_document = serializer.save(created_by=self.request.user)
+
+        create_external_order_event(
+            order=receipt_document.order,
+            event_type=ExternalOrderEvent.EventType.RECEIPT_DOCUMENT_CREATED,
+            source=ExternalOrderEvent.Source.LOGISTICS,
+            title="Створено документ приходу",
+            payload={
+                "receipt_document_id": receipt_document.id,
+                "receipt_no": receipt_document.receipt_no,
+                "receipt_date": str(receipt_document.receipt_date),
+            },
+            created_by=self.request.user,
+        )
 
     def perform_update(self, serializer):
         instance = serializer.instance
@@ -88,9 +104,48 @@ class ExternalReceiptDocumentViewSet(ModelViewSet):
                     "Після завершення документа приходу можна змінювати лише прапорець передачі на склад, коментар або файл."
                 )
 
+        old_completed = instance.completed
+        old_sent_to_warehouse = instance.sent_to_warehouse
+
         with transaction.atomic():
             receipt_document = serializer.save()
-            try_complete_order(receipt_document.order)
+
+            if (
+                not old_completed
+                and receipt_document.completed
+            ):
+                create_external_order_event(
+                    order=receipt_document.order,
+                    event_type=ExternalOrderEvent.EventType.RECEIPT_DOCUMENT_COMPLETED,
+                    source=ExternalOrderEvent.Source.LOGISTICS,
+                    title="Документ приходу завершено",
+                    payload={
+                        "receipt_document_id": receipt_document.id,
+                        "receipt_no": receipt_document.receipt_no,
+                    },
+                    created_by=self.request.user,
+                )
+
+            if (
+                not old_sent_to_warehouse
+                and receipt_document.sent_to_warehouse
+            ):
+                create_external_order_event(
+                    order=receipt_document.order,
+                    event_type=ExternalOrderEvent.EventType.RECEIPT_DOCUMENT_SENT_TO_WAREHOUSE,
+                    source=ExternalOrderEvent.Source.LOGISTICS,
+                    title="Документ приходу передано на склад",
+                    payload={
+                        "receipt_document_id": receipt_document.id,
+                        "receipt_no": receipt_document.receipt_no,
+                    },
+                    created_by=self.request.user,
+                )
+
+            try_complete_order(
+                receipt_document.order,
+                created_by=self.request.user,
+            )
 
 
 class ExternalReceiptItemViewSet(ModelViewSet):
@@ -141,12 +196,18 @@ class ExternalReceiptItemViewSet(ModelViewSet):
     def perform_create(self, serializer):
         with transaction.atomic():
             receipt_item = serializer.save()
-            try_complete_order(receipt_item.order_item.order)
+            try_complete_order(
+                receipt_item.order_item.order,
+                created_by=self.request.user,
+            )
 
     def perform_update(self, serializer):
         with transaction.atomic():
             receipt_item = serializer.save()
-            try_complete_order(receipt_item.order_item.order)
+            try_complete_order(
+                receipt_item.order_item.order,
+                created_by=self.request.user,
+            )
 
     def perform_destroy(self, instance):
         if instance.receipt_document.completed:
@@ -158,4 +219,7 @@ class ExternalReceiptItemViewSet(ModelViewSet):
 
         with transaction.atomic():
             instance.delete()
-            try_complete_order(order)
+            try_complete_order(
+                order,
+                created_by=self.request.user,
+            )

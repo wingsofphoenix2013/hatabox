@@ -27,6 +27,7 @@ from rest_framework.exceptions import ValidationError
 
 from orders.models import (
     ExternalOrder,
+    ExternalOrderEvent,
     ExternalOrderItem,
     ExternalPaymentDocument,
     ExternalReceiptItem,
@@ -37,6 +38,8 @@ from orders.serializers import (
     ExternalOrderRegistrySerializer,
     ExternalOrderRegisterLightSerializer,
 )
+
+from orders.services.external_order_events import create_external_order_event
 
 
 VAT_RATE = Decimal("0.20")
@@ -60,7 +63,7 @@ def recalculate_order_vat_amount(order):
     order.save(update_fields=["vat_amount"])
 
 
-def try_complete_order(order):
+def try_complete_order(order, created_by=None):
     items_total_amount = Decimal("0.00")
     for item in order.items.all():
         items_total_amount += item.quantity * item.agreed_price
@@ -103,8 +106,23 @@ def try_complete_order(order):
         and receipt_percent == 100
         and order.status != ExternalOrder.StatusChoices.COMPLETED
     ):
+        old_status = order.status
+
         order.status = ExternalOrder.StatusChoices.COMPLETED
         order.save(update_fields=["status"])
+
+        create_external_order_event(
+            order=order,
+            event_type=ExternalOrderEvent.EventType.ORDER_STATUS_CHANGED,
+            source=ExternalOrderEvent.Source.SYSTEM,
+            title="Замовлення автоматично завершено",
+            payload={
+                "from": old_status,
+                "to": order.status,
+                "reason": "auto_completion",
+            },
+            created_by=created_by,
+        )
         
 
 class ExternalOrderRegisterLightViewSet(ModelViewSet):
@@ -556,7 +574,15 @@ class ExternalOrderViewSet(ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        order = serializer.save(created_by=self.request.user)
+
+        create_external_order_event(
+            order=order,
+            event_type=ExternalOrderEvent.EventType.ORDER_CREATED,
+            source=ExternalOrderEvent.Source.PROCUREMENT,
+            title="Замовлення створено",
+            created_by=self.request.user,
+        )
 
     def perform_update(self, serializer):
         if serializer.instance.status == ExternalOrder.StatusChoices.COMPLETED:
@@ -566,6 +592,19 @@ class ExternalOrderViewSet(ModelViewSet):
 
         with transaction.atomic():
             order = serializer.save()
+
+            if old_status != order.status:
+                create_external_order_event(
+                    order=order,
+                    event_type=ExternalOrderEvent.EventType.ORDER_STATUS_CHANGED,
+                    source=ExternalOrderEvent.Source.PROCUREMENT,
+                    title="Статус замовлення змінено",
+                    payload={
+                        "from": old_status,
+                        "to": order.status,
+                    },
+                    created_by=self.request.user,
+                )
 
             if (
                 old_status == ExternalOrder.StatusChoices.DRAFT
@@ -588,5 +627,5 @@ class ExternalOrderViewSet(ModelViewSet):
                         comment="Автоматично створено при переведенні замовлення в статус 'В роботі'.",
                     )
 
-            try_complete_order(order)
+            try_complete_order(order, created_by=self.request.user)
 

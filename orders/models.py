@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.conf import settings
 
 from vendors.models import Vendor, VendorItem
 from organizations.models import Organization
@@ -76,6 +77,82 @@ class ExternalOrder(models.Model):
 
     def __str__(self):
         return self.order_no
+
+class ExternalOrderEvent(models.Model):
+    class Source(models.TextChoices):
+        PROCUREMENT = "procurement", "Закупівля"
+        LOGISTICS = "logistics", "Логістика"
+        FINANCE = "finance", "Фінанси"
+        SYSTEM = "system", "Система"
+
+    class EventType(models.TextChoices):
+        ORDER_CREATED = "order_created", "Замовлення створено"
+        ORDER_STATUS_CHANGED = "order_status_changed", "Статус замовлення змінено"
+
+        PAYMENT_DOCUMENT_CREATED = "payment_document_created", "Створено платіжний документ"
+        PAYMENT_DOCUMENT_STATUS_CHANGED = "payment_document_status_changed", "Статус платіжного документа змінено"
+
+        RECEIPT_DOCUMENT_CREATED = "receipt_document_created", "Створено документ приходу"
+        RECEIPT_DOCUMENT_COMPLETED = "receipt_document_completed", "Документ приходу завершено"
+        RECEIPT_DOCUMENT_SENT_TO_WAREHOUSE = "receipt_document_sent_to_warehouse", "Документ приходу передано на склад"
+
+        COMMENT_ADDED = "comment_added", "Додано коментар"
+        COMMENT_UPDATED = "comment_updated", "Оновлено коментар"
+        COMMENT_DELETED = "comment_deleted", "Видалено коментар"
+
+    order = models.ForeignKey(
+        ExternalOrder,
+        on_delete=models.CASCADE,
+        related_name="events",
+        verbose_name="Замовлення",
+    )
+
+    event_type = models.CharField(
+        max_length=64,
+        choices=EventType.choices,
+        verbose_name="Тип події",
+    )
+
+    source = models.CharField(
+        max_length=20,
+        choices=Source.choices,
+        verbose_name="Джерело",
+    )
+
+    title = models.CharField(
+        max_length=255,
+        verbose_name="Заголовок",
+    )
+
+    message = models.TextField(
+        blank=True,
+        verbose_name="Повідомлення",
+    )
+
+    payload = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="Дані",
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="external_order_events",
+        null=True,
+        blank=True,
+        verbose_name="Створено користувачем",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "external_order_events"
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return f"{self.order_id} — {self.event_type}"
+
 
 class ExternalOrderItem(models.Model):
     order = models.ForeignKey(

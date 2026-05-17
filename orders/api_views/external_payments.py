@@ -8,12 +8,15 @@ from rest_framework.viewsets import ModelViewSet
 
 from orders.models import (
     ExternalOrder,
+    ExternalOrderEvent,
     ExternalPaymentDocument,
 )
 
 from orders.serializers import ExternalPaymentDocumentSerializer
 
 from .external_orders import try_complete_order
+
+from orders.services.external_order_events import create_external_order_event
 
 class ExternalPaymentDocumentViewSet(ModelViewSet):
     queryset = ExternalPaymentDocument.objects.select_related(
@@ -54,7 +57,21 @@ class ExternalPaymentDocumentViewSet(ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        payment_document = serializer.save(created_by=self.request.user)
+
+        create_external_order_event(
+            order=payment_document.order,
+            event_type=ExternalOrderEvent.EventType.PAYMENT_DOCUMENT_CREATED,
+            source=ExternalOrderEvent.Source.FINANCE,
+            title="Створено платіжний документ",
+            payload={
+                "payment_document_id": payment_document.id,
+                "payment_no": payment_document.payment_no,
+                "status": payment_document.status,
+                "payment_amount": str(payment_document.payment_amount),
+            },
+            created_by=self.request.user,
+        )
 
     def perform_update(self, serializer):
         old_status = serializer.instance.status
@@ -62,6 +79,21 @@ class ExternalPaymentDocumentViewSet(ModelViewSet):
         with transaction.atomic():
             payment_document = serializer.save()
             order = payment_document.order
+
+            if old_status != payment_document.status:
+                create_external_order_event(
+                    order=order,
+                    event_type=ExternalOrderEvent.EventType.PAYMENT_DOCUMENT_STATUS_CHANGED,
+                    source=ExternalOrderEvent.Source.FINANCE,
+                    title="Статус платіжного документа змінено",
+                    payload={
+                        "payment_document_id": payment_document.id,
+                        "payment_no": payment_document.payment_no,
+                        "from": old_status,
+                        "to": payment_document.status,
+                    },
+                    created_by=self.request.user,
+                )
 
             if (
                 old_status == ExternalPaymentDocument.StatusChoices.DRAFT
@@ -106,4 +138,4 @@ class ExternalPaymentDocumentViewSet(ModelViewSet):
                             comment="Автоматично створено на залишок суми замовлення.",
                         )
 
-            try_complete_order(order)
+            try_complete_order(order, created_by=self.request.user)

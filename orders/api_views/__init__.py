@@ -6,6 +6,10 @@ from .external_orders import (
     try_complete_order,
 )
 
+from .external_order_events import (
+    ExternalOrderEventViewSet,
+)
+
 from .external_order_items import (
     ExternalOrderItemViewSet,
 )

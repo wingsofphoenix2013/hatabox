@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from .models import (
     ExternalOrder,
+    ExternalOrderEvent,
     ExternalOrderItem,
     ExternalPaymentDocument,
     ExternalReceiptDocument,
@@ -17,6 +18,40 @@ class ExternalOrderItemInline(admin.TabularInline):
     model = ExternalOrderItem
     extra = 0
     autocomplete_fields = ("vendor_item",)
+
+
+@admin.register(ExternalOrderEvent)
+class ExternalOrderEventAdmin(admin.ModelAdmin):
+    list_display = (
+        "order",
+        "event_type",
+        "source",
+        "title",
+        "created_by",
+        "created_at",
+    )
+    search_fields = (
+        "order__order_no",
+        "title",
+        "message",
+        "created_by__username",
+    )
+    list_filter = (
+        "event_type",
+        "source",
+        "created_by",
+    )
+    autocomplete_fields = ("order", "created_by")
+    readonly_fields = (
+        "order",
+        "event_type",
+        "source",
+        "title",
+        "message",
+        "payload",
+        "created_by",
+        "created_at",
+    )
 
 
 @admin.register(ExternalOrder)

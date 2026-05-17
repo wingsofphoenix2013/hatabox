@@ -20,6 +20,10 @@ from .external_orders import (
     ExternalOrderSerializer,
 )
 
+from .external_order_events import (
+    ExternalOrderEventSerializer,
+)
+
 from .tolling_order_items import (
     TollingOrderItemSerializer,
 )
