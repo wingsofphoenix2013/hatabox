@@ -3,7 +3,7 @@ from django.db.models import Max
 
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import DjangoModelPermissions
+from rest_framework.permissions import IsAuthenticated
 
 from orders.models import (
     ExternalOrder,
@@ -16,7 +16,7 @@ from orders.serializers import InventoryIntakeHistoryItemSerializer
 
 
 class InventoryIntakeHistoryView(APIView):
-    permission_classes = [DjangoModelPermissions]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         inv_item_id = request.query_params.get("inv_item")
