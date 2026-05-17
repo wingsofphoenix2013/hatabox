@@ -81,11 +81,25 @@ class ExternalPaymentDocumentViewSet(ModelViewSet):
             order = payment_document.order
 
             if old_status != payment_document.status:
+                status_change_title = "Статус платіжного документа змінено"
+
+                if (
+                    old_status == ExternalPaymentDocument.StatusChoices.DRAFT
+                    and payment_document.status == ExternalPaymentDocument.StatusChoices.APPROVED
+                ):
+                    status_change_title = "Платіжний документ погоджено"
+
+                elif payment_document.status == ExternalPaymentDocument.StatusChoices.PAID:
+                    status_change_title = "Платіжний документ оплачено"
+
+                elif payment_document.status == ExternalPaymentDocument.StatusChoices.CANCELLED:
+                    status_change_title = "Платіжний документ скасовано"
+
                 create_external_order_event(
                     order=order,
                     event_type=ExternalOrderEvent.EventType.PAYMENT_DOCUMENT_STATUS_CHANGED,
                     source=ExternalOrderEvent.Source.FINANCE,
-                    title="Статус платіжного документа змінено",
+                    title=status_change_title,
                     payload={
                         "payment_document_id": payment_document.id,
                         "payment_no": payment_document.payment_no,
@@ -129,13 +143,28 @@ class ExternalPaymentDocumentViewSet(ModelViewSet):
                     ).exclude(id=payment_document.id)
 
                     if not existing_draft.exists():
-                        ExternalPaymentDocument.objects.create(
+                        draft_payment_document = ExternalPaymentDocument.objects.create(
                             payment_no=f"AUTO-{order.order_no}-{ExternalPaymentDocument.objects.filter(order=order).count() + 1}",
                             order=order,
                             status=ExternalPaymentDocument.StatusChoices.DRAFT,
                             payment_amount=remaining_amount,
                             created_by=self.request.user,
                             comment="Автоматично створено на залишок суми замовлення.",
+                        )
+
+                        create_external_order_event(
+                            order=order,
+                            event_type=ExternalOrderEvent.EventType.PAYMENT_DOCUMENT_CREATED,
+                            source=ExternalOrderEvent.Source.SYSTEM,
+                            title="Автоматично створено платіжний документ на залишок",
+                            payload={
+                                "payment_document_id": draft_payment_document.id,
+                                "payment_no": draft_payment_document.payment_no,
+                                "status": draft_payment_document.status,
+                                "payment_amount": str(draft_payment_document.payment_amount),
+                                "reason": "remaining_amount",
+                            },
+                            created_by=self.request.user,
                         )
 
             try_complete_order(order, created_by=self.request.user)

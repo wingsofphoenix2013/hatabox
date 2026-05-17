@@ -116,6 +116,7 @@ def try_complete_order(order, created_by=None):
             event_type=ExternalOrderEvent.EventType.ORDER_STATUS_CHANGED,
             source=ExternalOrderEvent.Source.SYSTEM,
             title="Замовлення автоматично завершено",
+            message="Замовлення автоматично переведено у статус 'Виконано'.",
             payload={
                 "from": old_status,
                 "to": order.status,
@@ -589,16 +590,58 @@ class ExternalOrderViewSet(ModelViewSet):
             raise ValidationError("Замовлення у статусі 'Виконано' не можна змінювати.")
 
         old_status = serializer.instance.status
+        old_comment = serializer.instance.comment or ""
 
         with transaction.atomic():
             order = serializer.save()
+            new_comment = order.comment or ""
+
+            if old_comment != new_comment:
+                if not old_comment and new_comment:
+                    comment_event_type = ExternalOrderEvent.EventType.COMMENT_ADDED
+                    comment_title = "Додано коментар"
+                elif old_comment and not new_comment:
+                    comment_event_type = ExternalOrderEvent.EventType.COMMENT_DELETED
+                    comment_title = "Видалено коментар"
+                else:
+                    comment_event_type = ExternalOrderEvent.EventType.COMMENT_UPDATED
+                    comment_title = "Оновлено коментар"
+
+                create_external_order_event(
+                    order=order,
+                    event_type=comment_event_type,
+                    source=ExternalOrderEvent.Source.PROCUREMENT,
+                    title=comment_title,
+                    payload={
+                        "from": old_comment,
+                        "to": new_comment,
+                    },
+                    created_by=self.request.user,
+                )
 
             if old_status != order.status:
+                status_change_title = "Статус замовлення змінено"
+
+                if (
+                    old_status == ExternalOrder.StatusChoices.DRAFT
+                    and order.status == ExternalOrder.StatusChoices.IN_PROGRESS
+                ):
+                    status_change_title = "Замовлення підтверджено"
+
+                elif (
+                    old_status == ExternalOrder.StatusChoices.IN_PROGRESS
+                    and order.status == ExternalOrder.StatusChoices.COMPLETED
+                ):
+                    status_change_title = "Замовлення завершено"
+
+                elif order.status == ExternalOrder.StatusChoices.CANCELLED:
+                    status_change_title = "Замовлення скасовано"
+
                 create_external_order_event(
                     order=order,
                     event_type=ExternalOrderEvent.EventType.ORDER_STATUS_CHANGED,
                     source=ExternalOrderEvent.Source.PROCUREMENT,
-                    title="Статус замовлення змінено",
+                    title=status_change_title,
                     payload={
                         "from": old_status,
                         "to": order.status,
@@ -618,13 +661,28 @@ class ExternalOrderViewSet(ModelViewSet):
                 auto_payment_no = f"AUTO-{order.order_no}"
 
                 if not ExternalPaymentDocument.objects.filter(payment_no=auto_payment_no).exists():
-                    ExternalPaymentDocument.objects.create(
+                    payment_document = ExternalPaymentDocument.objects.create(
                         payment_no=auto_payment_no,
                         order=order,
                         status=ExternalPaymentDocument.StatusChoices.DRAFT,
                         payment_amount=order_total_amount,
                         created_by=self.request.user,
                         comment="Автоматично створено при переведенні замовлення в статус 'В роботі'.",
+                    )
+
+                    create_external_order_event(
+                        order=order,
+                        event_type=ExternalOrderEvent.EventType.PAYMENT_DOCUMENT_CREATED,
+                        source=ExternalOrderEvent.Source.SYSTEM,
+                        title="Автоматично створено платіжний документ",
+                        payload={
+                            "payment_document_id": payment_document.id,
+                            "payment_no": payment_document.payment_no,
+                            "status": payment_document.status,
+                            "payment_amount": str(payment_document.payment_amount),
+                            "reason": "order_confirmed",
+                        },
+                        created_by=self.request.user,
                     )
 
             try_complete_order(order, created_by=self.request.user)
