@@ -32,6 +32,7 @@ from orders.api_views import (
     ExternalOrderRegistryViewSet,
     ExternalOrderRegisterLightViewSet,
     ExternalOrderEventViewSet,
+    InventoryIntakeHistoryView,
     ExternalOrderItemViewSet,
     ExternalPaymentDocumentViewSet,
     ExternalReceiptDocumentViewSet,
@@ -187,5 +188,6 @@ urlpatterns = [
     path("api/csrf/", csrf_view),
     path("api/inventory-item-options/", InvItemOptionsView.as_view()),
     path("api/product-options/", ProductOptionsView.as_view()),
+    path("api/inventory-intake-history/", InventoryIntakeHistoryView.as_view()),
     path("api/", include(router.urls)),
 ]

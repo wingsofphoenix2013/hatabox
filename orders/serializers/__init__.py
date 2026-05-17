@@ -24,6 +24,10 @@ from .external_order_events import (
     ExternalOrderEventSerializer,
 )
 
+from .inventory_intake_history import (
+    InventoryIntakeHistoryItemSerializer,
+)
+
 from .tolling_order_items import (
     TollingOrderItemSerializer,
 )

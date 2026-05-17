@@ -10,6 +10,10 @@ from .external_order_events import (
     ExternalOrderEventViewSet,
 )
 
+from .inventory_intake_history import (
+    InventoryIntakeHistoryView,
+)
+
 from .external_order_items import (
     ExternalOrderItemViewSet,
 )
