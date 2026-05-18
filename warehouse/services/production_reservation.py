@@ -272,7 +272,7 @@ def reserve_components_for_production_step_confirmation(
         selected_reservations, remaining_quantity = _select_units_from_pool(
             units=available_unit_pools[component.inv_item_id]["donor"],
             required_quantity=required_quantity,
-            allow_larger_splittable_unit=False,
+            allow_larger_splittable_unit=component.inv_item.is_splittable,
         )
 
         if remaining_quantity > ZERO:
