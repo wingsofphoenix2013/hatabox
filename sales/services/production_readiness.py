@@ -127,10 +127,7 @@ def build_sales_order_production_readiness(
         (
             step
             for step in steps_payload
-            if step["status"] in [
-                ProductionOrderStep.Status.DRAFT,
-                ProductionOrderStep.Status.CONFIRMED,
-            ]
+            if step["status"] == ProductionOrderStep.Status.DRAFT
         ),
         None,
     )
