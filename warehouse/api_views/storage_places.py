@@ -23,8 +23,6 @@ from warehouse.models import WarehouseStoragePlace
 from warehouse.serializers import WarehouseStoragePlaceSerializer
 
 class WarehouseStoragePlaceViewSet(ModelViewSet):
-    pagination_class = None
-
     queryset = WarehouseStoragePlace.objects.select_related(
         "location",
         "parent",
