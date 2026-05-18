@@ -319,6 +319,11 @@ class SalesOrderEvent(models.Model):
             "Видалено запис щоденника",
         )
 
+        PRODUCTION_ORDER_STEP_CONFIRMED = (
+            "production_order_step_confirmed",
+            "Підтверджено етап виробництва",
+        )
+
     sales_order = models.ForeignKey(
         SalesOrder,
         on_delete=models.CASCADE,

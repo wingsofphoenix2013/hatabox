@@ -6,6 +6,8 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 from production.models import ProductionOrderStep
+from sales.models import SalesOrderEvent
+from sales.services.events import create_sales_order_event
 from warehouse.services.production_reservation import (
     reserve_components_for_production_step_confirmation,
 )
@@ -63,16 +65,20 @@ class ProductionOrderStepViewSet(ModelViewSet):
                     "Підтвердити можна лише етап у статусі draft."
                 )
 
-            previous_unfinished_steps = ProductionOrderStep.objects.filter(
+            previous_not_confirmed_steps = ProductionOrderStep.objects.filter(
                 production_order=step.production_order,
                 sequence_number__lt=step.sequence_number,
             ).exclude(
-                status=ProductionOrderStep.Status.FINISHED,
+                status__in=[
+                    ProductionOrderStep.Status.CONFIRMED,
+                    ProductionOrderStep.Status.IN_PROGRESS,
+                    ProductionOrderStep.Status.FINISHED,
+                ],
             )
 
-            if previous_unfinished_steps.exists():
+            if previous_not_confirmed_steps.exists():
                 raise ValidationError(
-                    "Неможливо підтвердити етап, доки попередні етапи не завершені."
+                    "Неможливо підтвердити етап, доки попередні етапи не підтверджені."
                 )
 
             result = reserve_components_for_production_step_confirmation(
@@ -82,6 +88,21 @@ class ProductionOrderStepViewSet(ModelViewSet):
 
             step.status = ProductionOrderStep.Status.CONFIRMED
             step.save(update_fields=["status"])
+
+            create_sales_order_event(
+                sales_order=step.production_order.sales_order,
+                event_type=SalesOrderEvent.EventType.PRODUCTION_ORDER_STEP_CONFIRMED,
+                source=SalesOrderEvent.Source.PRODUCTION,
+                title="Підтверджено етап виробництва",
+                message=f"Підтверджено етап: {step.name}.",
+                payload={
+                    "production_order_id": step.production_order_id,
+                    "production_order_step_id": step.id,
+                    "sequence_number": step.sequence_number,
+                    "reserved_components_count": len(result["components"]),
+                },
+                created_by=request.user,
+            )
 
             inv_item_ids = result["inv_item_ids"]
 
