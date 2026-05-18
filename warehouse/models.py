@@ -888,6 +888,14 @@ class WarehouseProductionReservation(models.Model):
         related_name="warehouse_production_reservations",
     )
 
+    production_order_step_component = models.ForeignKey(
+        "production.ProductionOrderStepComponent",
+        on_delete=models.PROTECT,
+        related_name="warehouse_production_reservations",
+        null=True,
+        blank=True,
+    )
+
     quantity = models.DecimalField(
         max_digits=12,
         decimal_places=3,
@@ -954,6 +962,16 @@ class WarehouseProductionReservation(models.Model):
         ):
             raise ValidationError(
                 "Номенклатура WarehouseUnit повинна збігатися з компонентом SalesOrder."
+            )
+
+        if (
+            self.production_order_step_component_id
+            and self.sales_order_component_id
+            and self.production_order_step_component.sales_order_component_id
+            != self.sales_order_component_id
+        ):
+            raise ValidationError(
+                "Компонент етапу повинен відповідати компоненту SalesOrder."
             )
 
         if (
