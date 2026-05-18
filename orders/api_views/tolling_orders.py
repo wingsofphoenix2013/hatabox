@@ -11,6 +11,7 @@ from rest_framework.exceptions import ValidationError
 
 from orders.models import (
     TollingOrder,
+    TollingOrderEvent,
     TollingOrderItem,
     TollingReceiptDocument,
     TollingReceiptItem,
@@ -21,7 +22,9 @@ from orders.serializers import (
     TollingOrderSerializer,
 )
 
-def try_complete_tolling_order(order):
+from orders.services.tolling_order_events import create_tolling_order_event
+
+def try_complete_tolling_order(order, created_by=None):
     if order.status == TollingOrder.StatusChoices.DRAFT:
         return
 
@@ -42,8 +45,24 @@ def try_complete_tolling_order(order):
         has_items
         and order.status != TollingOrder.StatusChoices.COMPLETED
     ):
+        old_status = order.status
+
         order.status = TollingOrder.StatusChoices.COMPLETED
         order.save(update_fields=["status"])
+
+        create_tolling_order_event(
+            order=order,
+            event_type=TollingOrderEvent.EventType.ORDER_STATUS_CHANGED,
+            source=TollingOrderEvent.Source.SYSTEM,
+            title="Замовлення автоматично завершено",
+            message="Замовлення автоматично переведено у статус 'Виконано'.",
+            payload={
+                "from": old_status,
+                "to": order.status,
+                "reason": "auto_completion",
+            },
+            created_by=created_by,
+        )
         
 def generate_tolling_order_no():
     today = date.today()
@@ -283,10 +302,20 @@ class TollingOrderViewSet(ModelViewSet):
                 with transaction.atomic():
                     order_no = generate_tolling_order_no()
 
-                    return serializer.save(
+                    order = serializer.save(
                         order_no=order_no,
                         created_by=self.request.user,
                     )
+
+                    create_tolling_order_event(
+                        order=order,
+                        event_type=TollingOrderEvent.EventType.ORDER_CREATED,
+                        source=TollingOrderEvent.Source.TOLLING,
+                        title="Замовлення створено",
+                        created_by=self.request.user,
+                    )
+
+                    return order
             except IntegrityError:
                 continue
 
@@ -299,9 +328,58 @@ class TollingOrderViewSet(ModelViewSet):
             raise ValidationError("Замовлення у статусі 'Виконано' не можна змінювати.")
 
         old_status = serializer.instance.status
+        old_comment = serializer.instance.comment or ""
 
         with transaction.atomic():
             order = serializer.save()
+            new_comment = order.comment or ""
+
+            if old_status != order.status:
+                status_change_title = "Статус замовлення змінено"
+
+                if (
+                    old_status == TollingOrder.StatusChoices.DRAFT
+                    and order.status == TollingOrder.StatusChoices.ACTIVE
+                ):
+                    status_change_title = "Замовлення активовано"
+
+                elif order.status == TollingOrder.StatusChoices.COMPLETED:
+                    status_change_title = "Замовлення завершено"
+
+                create_tolling_order_event(
+                    order=order,
+                    event_type=TollingOrderEvent.EventType.ORDER_STATUS_CHANGED,
+                    source=TollingOrderEvent.Source.TOLLING,
+                    title=status_change_title,
+                    payload={
+                        "from": old_status,
+                        "to": order.status,
+                    },
+                    created_by=self.request.user,
+                )
+
+            if old_comment != new_comment:
+                if not old_comment and new_comment:
+                    comment_event_type = TollingOrderEvent.EventType.COMMENT_ADDED
+                    comment_title = "Додано коментар"
+                elif old_comment and not new_comment:
+                    comment_event_type = TollingOrderEvent.EventType.COMMENT_DELETED
+                    comment_title = "Видалено коментар"
+                else:
+                    comment_event_type = TollingOrderEvent.EventType.COMMENT_UPDATED
+                    comment_title = "Оновлено коментар"
+
+                create_tolling_order_event(
+                    order=order,
+                    event_type=comment_event_type,
+                    source=TollingOrderEvent.Source.TOLLING,
+                    title=comment_title,
+                    payload={
+                        "from": old_comment,
+                        "to": new_comment,
+                    },
+                    created_by=self.request.user,
+                )
 
             if (
                 old_status == TollingOrder.StatusChoices.DRAFT
@@ -327,4 +405,7 @@ class TollingOrderViewSet(ModelViewSet):
                     created_by=self.request.user,
                 )
 
-            try_complete_tolling_order(order)
+            try_complete_tolling_order(
+                order,
+                created_by=self.request.user,
+            )

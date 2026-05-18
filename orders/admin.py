@@ -4,6 +4,7 @@ from .models import (
     ExternalOrder,
     ExternalOrderEvent,
     ExternalOrderItem,
+    TollingOrderEvent,
     ExternalPaymentDocument,
     ExternalReceiptDocument,
     ExternalReceiptItem,
@@ -191,6 +192,40 @@ class TollingOrderItemInline(admin.TabularInline):
     model = TollingOrderItem
     extra = 0
     autocomplete_fields = ("inv_item",)
+
+
+@admin.register(TollingOrderEvent)
+class TollingOrderEventAdmin(admin.ModelAdmin):
+    list_display = (
+        "order",
+        "event_type",
+        "source",
+        "title",
+        "created_by",
+        "created_at",
+    )
+    search_fields = (
+        "order__order_no",
+        "title",
+        "message",
+        "created_by__username",
+    )
+    list_filter = (
+        "event_type",
+        "source",
+        "created_by",
+    )
+    autocomplete_fields = ("order", "created_by")
+    readonly_fields = (
+        "order",
+        "event_type",
+        "source",
+        "title",
+        "message",
+        "payload",
+        "created_by",
+        "created_at",
+    )
 
 
 @admin.register(TollingOrder)

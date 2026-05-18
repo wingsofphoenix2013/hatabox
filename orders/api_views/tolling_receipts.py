@@ -8,6 +8,7 @@ from rest_framework.exceptions import ValidationError
 
 from orders.models import (
     TollingOrder,
+    TollingOrderEvent,
     TollingReceiptDocument,
     TollingReceiptItem,
 )
@@ -23,6 +24,8 @@ from .tolling_orders import (
     validate_tolling_receipt_before_completion,
     create_next_tolling_receipt_draft_from_remainders,
 )
+
+from orders.services.tolling_order_events import create_tolling_order_event
 
 class TollingReceiptDocumentViewSet(ModelViewSet):
     queryset = TollingReceiptDocument.objects.select_related(
@@ -75,10 +78,25 @@ class TollingReceiptDocumentViewSet(ModelViewSet):
                 with transaction.atomic():
                     receipt_no = generate_tolling_receipt_no(order)
 
-                    return serializer.save(
+                    receipt_document = serializer.save(
                         receipt_no=receipt_no,
                         created_by=self.request.user,
                     )
+
+                    create_tolling_order_event(
+                        order=receipt_document.order,
+                        event_type=TollingOrderEvent.EventType.RECEIPT_DOCUMENT_CREATED,
+                        source=TollingOrderEvent.Source.LOGISTICS,
+                        title="Створено документ приходу",
+                        payload={
+                            "receipt_document_id": receipt_document.id,
+                            "receipt_no": receipt_document.receipt_no,
+                            "receipt_date": str(receipt_document.receipt_date),
+                        },
+                        created_by=self.request.user,
+                    )
+
+                    return receipt_document
             except IntegrityError:
                 continue
 
@@ -112,6 +130,8 @@ class TollingReceiptDocumentViewSet(ModelViewSet):
             and serializer.validated_data.get("completed") is True
         )
 
+        old_sent_to_warehouse = instance.sent_to_warehouse
+
         with transaction.atomic():
             if will_be_completed:
                 validate_tolling_receipt_before_completion(instance)
@@ -119,8 +139,39 @@ class TollingReceiptDocumentViewSet(ModelViewSet):
             receipt_document = serializer.save()
             order = receipt_document.order
 
+            if (
+                not old_sent_to_warehouse
+                and receipt_document.sent_to_warehouse
+            ):
+                create_tolling_order_event(
+                    order=order,
+                    event_type=TollingOrderEvent.EventType.RECEIPT_DOCUMENT_SENT_TO_WAREHOUSE,
+                    source=TollingOrderEvent.Source.LOGISTICS,
+                    title="Документ приходу передано на склад",
+                    payload={
+                        "receipt_document_id": receipt_document.id,
+                        "receipt_no": receipt_document.receipt_no,
+                    },
+                    created_by=self.request.user,
+                )
+
             if will_be_completed:
-                try_complete_tolling_order(order)
+                create_tolling_order_event(
+                    order=order,
+                    event_type=TollingOrderEvent.EventType.RECEIPT_DOCUMENT_COMPLETED,
+                    source=TollingOrderEvent.Source.LOGISTICS,
+                    title="Документ приходу завершено",
+                    payload={
+                        "receipt_document_id": receipt_document.id,
+                        "receipt_no": receipt_document.receipt_no,
+                    },
+                    created_by=self.request.user,
+                )
+
+                try_complete_tolling_order(
+                    order,
+                    created_by=self.request.user,
+                )
 
                 if order.status != TollingOrder.StatusChoices.COMPLETED:
                     existing_draft_receipt = TollingReceiptDocument.objects.filter(
@@ -138,7 +189,10 @@ class TollingReceiptDocumentViewSet(ModelViewSet):
                         created_by=self.request.user,
                     )
             else:
-                try_complete_tolling_order(order)
+                try_complete_tolling_order(
+                    order,
+                    created_by=self.request.user,
+                )
 
 class TollingReceiptItemViewSet(ModelViewSet):
     queryset = TollingReceiptItem.objects.select_related(
@@ -185,12 +239,18 @@ class TollingReceiptItemViewSet(ModelViewSet):
     def perform_create(self, serializer):
         with transaction.atomic():
             receipt_item = serializer.save()
-            try_complete_tolling_order(receipt_item.order_item.order)
+            try_complete_tolling_order(
+                receipt_item.order_item.order,
+                created_by=self.request.user,
+            )
 
     def perform_update(self, serializer):
         with transaction.atomic():
             receipt_item = serializer.save()
-            try_complete_tolling_order(receipt_item.order_item.order)
+            try_complete_tolling_order(
+                receipt_item.order_item.order,
+                created_by=self.request.user,
+            )
 
     def perform_destroy(self, instance):
         if instance.receipt_document.completed:
@@ -207,4 +267,7 @@ class TollingReceiptItemViewSet(ModelViewSet):
 
         with transaction.atomic():
             instance.delete()
-            try_complete_tolling_order(order)
+            try_complete_tolling_order(
+                order,
+                created_by=self.request.user,
+            )

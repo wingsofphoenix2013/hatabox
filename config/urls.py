@@ -32,6 +32,7 @@ from orders.api_views import (
     ExternalOrderRegistryViewSet,
     ExternalOrderRegisterLightViewSet,
     ExternalOrderEventViewSet,
+    TollingOrderEventViewSet,
     InventoryIntakeHistoryView,
     ExternalOrderItemViewSet,
     TollingOrderRegisterLightViewSet,
@@ -107,6 +108,7 @@ router.register("orders", ExternalOrderViewSet)
 router.register("orders-registry", ExternalOrderRegistryViewSet, basename="orders-registry")
 router.register("orders-register", ExternalOrderRegisterLightViewSet, basename="orders-register")
 router.register("order-events", ExternalOrderEventViewSet, basename="order-events")
+router.register("tolling-order-events", TollingOrderEventViewSet, basename="tolling-order-events")
 router.register("order-items", ExternalOrderItemViewSet)
 router.register("payment-documents", ExternalPaymentDocumentViewSet)
 router.register("receipt-documents", ExternalReceiptDocumentViewSet)
