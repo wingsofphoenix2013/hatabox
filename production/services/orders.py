@@ -103,9 +103,9 @@ def start_production_order(
     production_order,
     created_by=None,
 ):
-    if production_order.status != ProductionOrder.Status.CONFIRMED:
+    if production_order.status != ProductionOrder.Status.DRAFT:
         raise ValidationError(
-            "Запуск виробництва можливий лише для confirmed ProductionOrder."
+            "Запуск виробництва можливий лише для draft ProductionOrder."
         )
 
     first_step = (
