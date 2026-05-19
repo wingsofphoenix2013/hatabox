@@ -7,6 +7,9 @@ from production.models import (
     ProductionOrderStep,
     ProductionOrderStepComponent,
 )
+from warehouse.services.production_movement import (
+    create_production_movements_for_order,
+)
 from sales.models import SalesOrder, SalesOrderComponent
 
 
@@ -91,3 +94,50 @@ def create_production_order_from_sales_order(
             )
 
     return production_order
+
+
+def start_production_order(
+    *,
+    production_order,
+    created_by=None,
+):
+    if production_order.status != ProductionOrder.Status.CONFIRMED:
+        raise ValidationError(
+            "Запуск виробництва можливий лише для confirmed ProductionOrder."
+        )
+
+    first_step = (
+        production_order.steps.order_by(
+            "sequence_number",
+            "id",
+        ).first()
+    )
+
+    if first_step is None:
+        raise ValidationError(
+            "ProductionOrder не містить жодного етапу."
+        )
+
+    if first_step.status != ProductionOrderStep.Status.CONFIRMED:
+        raise ValidationError(
+            "Перший етап виробництва повинен бути підтверджений."
+        )
+
+    with transaction.atomic():
+        production_order.status = ProductionOrder.Status.IN_PROGRESS
+        production_order.save(update_fields=["status"])
+
+        sales_order = production_order.sales_order
+        sales_order.status = SalesOrder.Status.IN_PROGRESS
+        sales_order.save(update_fields=["status"])
+
+        movement_result = create_production_movements_for_order(
+            production_order=production_order,
+            created_by=created_by,
+        )
+
+    return {
+        "production_order_id": production_order.id,
+        "sales_order_id": sales_order.id,
+        "created_movements": movement_result["created_movements"],
+    }

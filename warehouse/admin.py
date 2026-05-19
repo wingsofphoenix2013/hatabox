@@ -5,6 +5,8 @@ from .models import (
     MovementPlan,
     MovementPlanItem,
     WarehouseLocation,
+    WarehouseProductionMovement,
+    WarehouseProductionMovementItem,
     WarehouseProductionReservation,
     WarehouseSalesOrderShortage,
     WarehouseStoragePlace,
@@ -224,6 +226,85 @@ class WarehouseSalesOrderShortageAdmin(admin.ModelAdmin):
     autocomplete_fields = (
         "inv_item",
     )
+
+class WarehouseProductionMovementItemInline(admin.TabularInline):
+    model = WarehouseProductionMovementItem
+    extra = 0
+    autocomplete_fields = (
+        "production_reservation",
+        "source_warehouse_unit",
+        "result_warehouse_unit",
+        "inventory_item",
+        "executed_source_location",
+        "executed_source_storage_place",
+    )
+
+
+@admin.register(WarehouseProductionMovement)
+class WarehouseProductionMovementAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "production_order",
+        "production_order_step",
+        "status",
+        "created_by",
+        "created_at",
+        "executed_at",
+        "cancelled_at",
+    )
+    list_filter = (
+        "status",
+        "created_at",
+        "executed_at",
+        "cancelled_at",
+    )
+    search_fields = (
+        "id",
+        "production_order__id",
+        "production_order_step__id",
+        "production_order_step__name",
+        "comment",
+    )
+    autocomplete_fields = (
+        "production_order",
+        "production_order_step",
+        "created_by",
+    )
+    inlines = (
+        WarehouseProductionMovementItemInline,
+    )
+
+
+@admin.register(WarehouseProductionMovementItem)
+class WarehouseProductionMovementItemAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "movement",
+        "production_reservation",
+        "source_warehouse_unit",
+        "result_warehouse_unit",
+        "inventory_item",
+        "quantity",
+    )
+    search_fields = (
+        "id",
+        "movement__id",
+        "production_reservation__id",
+        "source_warehouse_unit__id",
+        "result_warehouse_unit__id",
+        "inventory_item__internal_code",
+        "inventory_item__name",
+    )
+    autocomplete_fields = (
+        "movement",
+        "production_reservation",
+        "source_warehouse_unit",
+        "result_warehouse_unit",
+        "inventory_item",
+        "executed_source_location",
+        "executed_source_storage_place",
+    )
+
 
 @admin.register(WarehouseProductionReservation)
 class WarehouseProductionReservationAdmin(admin.ModelAdmin):

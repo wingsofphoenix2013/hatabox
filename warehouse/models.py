@@ -27,6 +27,11 @@ def storage_place_qr_pdf_upload_to(instance, filename):
 def movement_plan_invoice_upload_to(instance, filename):
     ext = os.path.splitext(filename)[1].lower() or ".pdf"
     return f"warehouse/movement_plan_invoices/{uuid.uuid4().hex}{ext}"
+
+
+def production_movement_invoice_upload_to(instance, filename):
+    ext = os.path.splitext(filename)[1].lower() or ".pdf"
+    return f"warehouse/production_movement_invoices/{uuid.uuid4().hex}{ext}"
     
 class WarehouseLocation(models.Model):
     code = models.CharField(
@@ -324,12 +329,14 @@ class WarehouseStoragePlace(models.Model):
             self.full_clean()
             super().save(*args, **kwargs)
 
+
 class WarehouseUnitEvent(models.Model):
     class OperationType(models.TextChoices):
         INTAKE = "intake", "Первинна прийомка"
         CONVERTED_INTAKE = "converted_intake", "Первинна прийомка з конвертацією"
         MOVE = "move", "Переміщення"
         SPLIT_MOVE = "split_move", "Переміщення з розділенням"
+        PRODUCTION_TRANSFER = "production_transfer", "Передача у виробництво"
 
     operation_type = models.CharField(
         max_length=20,
@@ -426,7 +433,12 @@ class WarehouseUnitEvent(models.Model):
                 "quantity": "Кількість повинна бути більше 0."
             })
 
-        if (self.to_location is None) == (self.to_storage_place is None):
+        if self.operation_type == self.OperationType.PRODUCTION_TRANSFER:
+            if self.to_location is not None or self.to_storage_place is not None:
+                raise ValidationError(
+                    "Для передачі у виробництво не потрібно вказувати to_location або to_storage_place."
+                )
+        elif (self.to_location is None) == (self.to_storage_place is None):
             raise ValidationError(
                 "Потрібно вказати або to_location, або to_storage_place, але не обидва одночасно."
             )
@@ -995,6 +1007,172 @@ class WarehouseProductionReservation(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
+
+
+class WarehouseProductionMovement(models.Model):
+    class Status(models.TextChoices):
+        CREATED = "created", "Створено"
+        EXECUTED = "executed", "Виконано"
+        CANCELLED = "cancelled", "Скасовано"
+
+    production_order = models.ForeignKey(
+        "production.ProductionOrder",
+        on_delete=models.PROTECT,
+        related_name="warehouse_production_movements",
+    )
+
+    production_order_step = models.ForeignKey(
+        "production.ProductionOrderStep",
+        on_delete=models.PROTECT,
+        related_name="warehouse_production_movements",
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.CREATED,
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="warehouse_production_movements",
+        null=True,
+        blank=True,
+    )
+
+    comment = models.TextField(
+        blank=True,
+    )
+
+    invoice_file = models.FileField(
+        upload_to=production_movement_invoice_upload_to,
+        blank=True,
+        null=True,
+    )
+
+    invoice_generated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    invoice_snapshot_hash = models.CharField(
+        max_length=64,
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    executed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    cancelled_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "warehouse_production_movements"
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["production_order_step"],
+                condition=models.Q(status="created"),
+                name="uq_created_production_movement_step",
+            ),
+        ]
+
+
+class WarehouseProductionMovementItem(models.Model):
+    movement = models.ForeignKey(
+        WarehouseProductionMovement,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+
+    production_reservation = models.ForeignKey(
+        WarehouseProductionReservation,
+        on_delete=models.PROTECT,
+        related_name="production_movement_items",
+    )
+
+    source_warehouse_unit = models.ForeignKey(
+        WarehouseUnit,
+        on_delete=models.PROTECT,
+        related_name="production_movement_source_items",
+    )
+
+    result_warehouse_unit = models.ForeignKey(
+        WarehouseUnit,
+        on_delete=models.PROTECT,
+        related_name="production_movement_result_items",
+        null=True,
+        blank=True,
+    )
+
+    inventory_item = models.ForeignKey(
+        InvItem,
+        on_delete=models.PROTECT,
+        related_name="production_movement_items",
+    )
+
+    quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+    )
+
+    executed_source_location = models.ForeignKey(
+        WarehouseLocation,
+        on_delete=models.PROTECT,
+        related_name="production_movement_items_from_location",
+        null=True,
+        blank=True,
+    )
+
+    executed_source_location_code = models.CharField(
+        max_length=3,
+        blank=True,
+    )
+
+    executed_source_location_name = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    executed_source_storage_place = models.ForeignKey(
+        WarehouseStoragePlace,
+        on_delete=models.PROTECT,
+        related_name="production_movement_items_from_storage_place",
+        null=True,
+        blank=True,
+    )
+
+    executed_source_storage_place_code = models.CharField(
+        max_length=3,
+        blank=True,
+    )
+
+    executed_source_storage_place_display_name = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    executed_source_storage_place_full_display = models.CharField(
+        max_length=500,
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "warehouse_production_movement_items"
+        ordering = ["movement", "inventory_item", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["production_reservation"],
+                name="uq_production_movement_item_reservation",
+            ),
+        ]
 
 
 class MovementPlanItem(models.Model):
