@@ -6,6 +6,8 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from production.models import ProductionOrderStep
+from sales.models import SalesOrderEvent
+from sales.services.events import create_sales_order_event
 from warehouse.models import (
     WarehouseProductionMovement,
     WarehouseProductionMovementItem,
@@ -354,6 +356,28 @@ def execute_production_movement(
                 "status",
                 "executed_at",
             ]
+        )
+
+        create_sales_order_event(
+            sales_order=movement.production_order.sales_order,
+            event_type=SalesOrderEvent.EventType.PRODUCTION_MOVEMENT_EXECUTED,
+            source=SalesOrderEvent.Source.WAREHOUSE,
+            title="Компоненти передано у виробництво",
+            message=(
+                f"Компоненти для етапу "
+                f"{movement.production_order_step.sequence_number}: "
+                f"{movement.production_order_step.name} "
+                f"передано у виробництво."
+            ),
+            payload={
+                "production_movement_id": movement.id,
+                "production_order_id": movement.production_order_id,
+                "production_order_step_id": (
+                    movement.production_order_step_id
+                ),
+                "items_count": len(items),
+            },
+            created_by=created_by,
         )
 
     return movement

@@ -16,6 +16,8 @@ from warehouse.services.production_movement import (
     cancel_production_movement,
     execute_production_movement,
 )
+from sales.models import SalesOrderEvent
+from sales.services.events import create_sales_order_event
 from warehouse.services.production_movement_invoice import (
     generate_and_save_production_movement_invoice,
 )
@@ -158,6 +160,26 @@ class WarehouseProductionMovementViewSet(ModelViewSet):
 
         movement = generate_and_save_production_movement_invoice(
             movement,
+        )
+
+        create_sales_order_event(
+            sales_order=movement.production_order.sales_order,
+            event_type=SalesOrderEvent.EventType.PRODUCTION_MOVEMENT_INVOICE_GENERATED,
+            source=SalesOrderEvent.Source.WAREHOUSE,
+            title="Сформовано накладну видачі у виробництво",
+            message=(
+                f"Сформовано накладну для етапу "
+                f"{movement.production_order_step.sequence_number}: "
+                f"{movement.production_order_step.name}."
+            ),
+            payload={
+                "production_movement_id": movement.id,
+                "production_order_id": movement.production_order_id,
+                "production_order_step_id": (
+                    movement.production_order_step_id
+                ),
+            },
+            created_by=request.user,
         )
 
         movement = self.get_queryset().get(pk=movement.pk)

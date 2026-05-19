@@ -7,6 +7,8 @@ from production.models import (
     ProductionOrderStep,
     ProductionOrderStepComponent,
 )
+from sales.models import SalesOrderEvent
+from sales.services.events import create_sales_order_event
 from warehouse.services.production_movement import (
     create_production_movements_for_order,
 )
@@ -133,6 +135,21 @@ def start_production_order(
 
         movement_result = create_production_movements_for_order(
             production_order=production_order,
+            created_by=created_by,
+        )
+
+        create_sales_order_event(
+            sales_order=sales_order,
+            event_type=SalesOrderEvent.EventType.PRODUCTION_ORDER_STARTED,
+            source=SalesOrderEvent.Source.PRODUCTION,
+            title="Виробництво запущено",
+            message="ProductionOrder переведено у статус in_progress.",
+            payload={
+                "production_order_id": production_order.id,
+                "created_movements_count": len(
+                    movement_result["created_movements"]
+                ),
+            },
             created_by=created_by,
         )
 

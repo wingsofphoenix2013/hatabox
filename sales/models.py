@@ -324,6 +324,21 @@ class SalesOrderEvent(models.Model):
             "Підтверджено етап виробництва",
         )
 
+        PRODUCTION_ORDER_STARTED = (
+            "production_order_started",
+            "Виробництво запущено",
+        )
+
+        PRODUCTION_MOVEMENT_INVOICE_GENERATED = (
+            "production_movement_invoice_generated",
+            "Сформовано накладну видачі у виробництво",
+        )
+
+        PRODUCTION_MOVEMENT_EXECUTED = (
+            "production_movement_executed",
+            "Компоненти передано у виробництво",
+        )
+
     sales_order = models.ForeignKey(
         SalesOrder,
         on_delete=models.CASCADE,
