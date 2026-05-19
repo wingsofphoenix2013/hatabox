@@ -60,11 +60,11 @@ class WarehouseShortageDetailRowSerializer(serializers.Serializer):
 
 
 class WarehouseShortageAllocationSerializer(serializers.Serializer):
-    reservation = serializers.IntegerField(read_only=True)
     reservation_status = serializers.CharField(read_only=True)
-
-    warehouse_unit = serializers.IntegerField(read_only=True)
-    warehouse_unit_status = serializers.CharField(read_only=True)
+    warehouse_unit_statuses = serializers.ListField(
+        child=serializers.CharField(),
+        read_only=True,
+    )
 
     sales_order = serializers.IntegerField(read_only=True)
 
