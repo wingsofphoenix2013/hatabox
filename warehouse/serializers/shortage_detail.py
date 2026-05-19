@@ -49,6 +49,30 @@ class WarehouseShortageDetailRowSerializer(serializers.Serializer):
     )
 
 
+class WarehouseShortageAllocationSerializer(serializers.Serializer):
+    reservation = serializers.IntegerField(read_only=True)
+    reservation_status = serializers.CharField(read_only=True)
+
+    warehouse_unit = serializers.IntegerField(read_only=True)
+    warehouse_unit_status = serializers.CharField(read_only=True)
+
+    sales_order = serializers.IntegerField(read_only=True)
+
+    product = serializers.IntegerField(read_only=True)
+    product_code = serializers.CharField(read_only=True)
+    product_name = serializers.CharField(read_only=True)
+
+    production_order = serializers.IntegerField(read_only=True)
+    production_order_step = serializers.IntegerField(read_only=True)
+    production_order_step_name = serializers.CharField(read_only=True)
+
+    quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
+
+
 class WarehouseShortageDetailSerializer(serializers.Serializer):
     inv_item = serializers.IntegerField(read_only=True)
 
@@ -62,6 +86,11 @@ class WarehouseShortageDetailSerializer(serializers.Serializer):
     )
 
     rows = WarehouseShortageDetailRowSerializer(
+        many=True,
+        read_only=True,
+    )
+
+    allocations = WarehouseShortageAllocationSerializer(
         many=True,
         read_only=True,
     )

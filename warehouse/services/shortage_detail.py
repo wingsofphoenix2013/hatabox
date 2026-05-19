@@ -46,6 +46,7 @@ def build_shortage_detail(
             },
 
             "rows": [],
+            "allocations": [],
         }
 
     inv_item = shortage.inv_item
@@ -129,6 +130,53 @@ def build_shortage_detail(
         for row in detail_rows
     }
 
+    allocations = []
+
+    reservations = (
+        WarehouseProductionReservation.objects.select_related(
+            "warehouse_unit",
+            "sales_order",
+            "sales_order__product",
+            "sales_order__product__product_family",
+            "production_order_step_component",
+            "production_order_step_component__production_order_step",
+            "production_order_step_component__production_order_step__production_order",
+        ).filter(
+            warehouse_unit__inventory_item_id=inv_item_id,
+            status__in=[
+                WarehouseProductionReservation.Status.ACTIVE,
+                WarehouseProductionReservation.Status.TRANSFERRED,
+            ],
+        ).order_by(
+            "sales_order_id",
+            "id",
+        )
+    )
+
+    for reservation in reservations:
+        step = reservation.production_order_step_component.production_order_step
+        sales_order = reservation.sales_order
+
+        allocations.append({
+            "reservation": reservation.id,
+            "reservation_status": reservation.status,
+
+            "warehouse_unit": reservation.warehouse_unit_id,
+            "warehouse_unit_status": reservation.warehouse_unit.status,
+
+            "sales_order": sales_order.id,
+
+            "product": sales_order.product_id,
+            "product_code": sales_order.product.code,
+            "product_name": sales_order.product.product_family.name,
+
+            "production_order": step.production_order_id,
+            "production_order_step": step.id,
+            "production_order_step_name": step.name,
+
+            "quantity": reservation.quantity,
+        })
+
     return {
         "inv_item": inv_item.id,
         "inv_item_code": inv_item.internal_code,
@@ -144,4 +192,5 @@ def build_shortage_detail(
         },
 
         "rows": detail_rows,
+        "allocations": allocations,
     }
