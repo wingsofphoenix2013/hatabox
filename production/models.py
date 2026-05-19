@@ -52,6 +52,16 @@ class ProductionOrder(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
 
+    started_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    expected_ready_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
     ready_at = models.DateTimeField(
         null=True,
         blank=True,
@@ -98,6 +108,11 @@ class ProductionOrderStep(models.Model):
     )
 
     started_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    expected_finished_at = models.DateTimeField(
         null=True,
         blank=True,
     )
