@@ -27,6 +27,12 @@ class WarehouseShortageOverviewRowSerializer(serializers.Serializer):
         read_only=True,
     )
 
+    reserved_quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
+
     forecast_quantity = serializers.DecimalField(
         max_digits=12,
         decimal_places=3,

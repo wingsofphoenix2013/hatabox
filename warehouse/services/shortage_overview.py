@@ -11,7 +11,10 @@ from orders.models import (
     TollingReceiptItem,
 )
 
-from warehouse.models import WarehouseSalesOrderShortage
+from warehouse.models import (
+    WarehouseProductionReservation,
+    WarehouseSalesOrderShortage,
+)
 
 
 ZERO = Decimal("0.000")
@@ -54,6 +57,8 @@ def build_shortage_overview(
         for row in shortage_rows
     ]
 
+    reserved_quantity_by_item = {}
+
     procurement_pending_by_item = {}
     procurement_incoming_by_item = {}
     procurement_unconverted_by_item = {}
@@ -63,6 +68,25 @@ def build_shortage_overview(
     tolling_unconverted_by_item = {}
 
     if item_ids:
+        reservation_rows = (
+            WarehouseProductionReservation.objects.filter(
+                warehouse_unit__inventory_item_id__in=item_ids,
+                status__in=[
+                    WarehouseProductionReservation.Status.ACTIVE,
+                    WarehouseProductionReservation.Status.TRANSFERRED,
+                ],
+            ).values(
+                "warehouse_unit__inventory_item_id",
+            ).annotate(
+                total=Sum("quantity"),
+            )
+        )
+
+        reserved_quantity_by_item = {
+            row["warehouse_unit__inventory_item_id"]: _to_decimal(row["total"])
+            for row in reservation_rows
+        }
+
         pending_rows = (
             ExternalReceiptItem.objects.filter(
                 order_item__vendor_item__item_id__in=item_ids,
@@ -248,6 +272,10 @@ def build_shortage_overview(
             "required_quantity": row.required_quantity,
             "available_quantity": row.available_quantity,
             "missing_quantity": row.missing_quantity,
+            "reserved_quantity": reserved_quantity_by_item.get(
+                item_id,
+                ZERO,
+            ),
             "forecast_quantity": forecast_quantity,
             "has_unconverted_incoming": has_unconverted_incoming,
             "last_recalculated_at": row.last_recalculated_at,
