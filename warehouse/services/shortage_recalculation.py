@@ -71,19 +71,56 @@ def recalculate_warehouse_shortages(
 
     required_quantity_by_item = defaultdict(lambda: ZERO)
 
-    confirmed_components = (
+    components = list(
         SalesOrderComponent.objects.select_related(
             "sales_order",
         ).filter(
-            sales_order__status=SalesOrder.Status.CONFIRMED,
+            sales_order__status__in=[
+                SalesOrder.Status.CONFIRMED,
+                SalesOrder.Status.IN_PROGRESS,
+            ],
             fulfillment_mode=SalesOrderComponent.FulfillmentMode.MIXED,
             inv_item_id__in=inv_item_ids,
         )
     )
 
-    for component in confirmed_components:
-        required_quantity_by_item[component.inv_item_id] += _to_decimal(
-            component.quantity
+    component_ids = [
+        component.id
+        for component in components
+    ]
+
+    reserved_quantity_by_component = defaultdict(lambda: ZERO)
+
+    reservation_rows = (
+        WarehouseProductionReservation.objects.filter(
+            sales_order_component_id__in=component_ids,
+            status__in=[
+                WarehouseProductionReservation.Status.ACTIVE,
+                WarehouseProductionReservation.Status.TRANSFERRED,
+            ],
+        ).values(
+            "sales_order_component_id",
+        ).annotate(
+            total_quantity=Sum("quantity"),
+        )
+    )
+
+    for row in reservation_rows:
+        reserved_quantity_by_component[
+            row["sales_order_component_id"]
+        ] = _to_decimal(row["total_quantity"])
+
+    for component in components:
+        remaining_quantity = (
+            _to_decimal(component.quantity)
+            - reserved_quantity_by_component[component.id]
+        )
+
+        if remaining_quantity <= ZERO:
+            continue
+
+        required_quantity_by_item[component.inv_item_id] += (
+            remaining_quantity
         )
 
     now = timezone.now()

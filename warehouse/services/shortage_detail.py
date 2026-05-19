@@ -1,7 +1,11 @@
+from collections import defaultdict
 from decimal import Decimal
+
+from django.db.models import Sum
 
 from inventory.models import InvItem
 from sales.models import SalesOrder, SalesOrderComponent
+from warehouse.models import WarehouseProductionReservation
 
 from warehouse.models import WarehouseSalesOrderShortage
 
@@ -53,7 +57,10 @@ def build_shortage_detail(
             "sales_order__product",
             "sales_order__product__product_family",
         ).filter(
-            sales_order__status=SalesOrder.Status.CONFIRMED,
+            sales_order__status__in=[
+                SalesOrder.Status.CONFIRMED,
+                SalesOrder.Status.IN_PROGRESS,
+            ],
             fulfillment_mode=SalesOrderComponent.FulfillmentMode.MIXED,
             inv_item_id=inv_item_id,
         ).order_by(
@@ -63,9 +70,63 @@ def build_shortage_detail(
         )
     )
 
-    sales_order_ids = {
-        component.sales_order_id
+    component_ids = [
+        component.id
         for component in components
+    ]
+
+    reserved_quantity_by_component = defaultdict(lambda: ZERO)
+
+    reservation_rows = (
+        WarehouseProductionReservation.objects.filter(
+            sales_order_component_id__in=component_ids,
+            status__in=[
+                WarehouseProductionReservation.Status.ACTIVE,
+                WarehouseProductionReservation.Status.TRANSFERRED,
+            ],
+        ).values(
+            "sales_order_component_id",
+        ).annotate(
+            total_quantity=Sum("quantity"),
+        )
+    )
+
+    for row in reservation_rows:
+        reserved_quantity_by_component[
+            row["sales_order_component_id"]
+        ] = row["total_quantity"]
+
+    detail_rows = []
+
+    for component in components:
+        remaining_quantity = (
+            component.quantity
+            - reserved_quantity_by_component[component.id]
+        )
+
+        if remaining_quantity <= ZERO:
+            continue
+
+        detail_rows.append({
+            "sales_order": component.sales_order.id,
+            "sales_order_status": component.sales_order.status,
+            "sales_order_created_at": component.sales_order.created_at,
+
+            "organization": component.sales_order.organization.id,
+            "organization_name": component.sales_order.organization.name,
+
+            "product": component.sales_order.product.id,
+            "product_code": component.sales_order.product.code,
+            "product_name": component.sales_order.product.product_family.name,
+
+            "component_id": component.id,
+
+            "required_quantity": remaining_quantity,
+        })
+
+    sales_order_ids = {
+        row["sales_order"]
+        for row in detail_rows
     }
 
     return {
@@ -82,23 +143,5 @@ def build_shortage_detail(
             "last_recalculated_at": shortage.last_recalculated_at,
         },
 
-        "rows": [
-            {
-                "sales_order": component.sales_order.id,
-                "sales_order_status": component.sales_order.status,
-                "sales_order_created_at": component.sales_order.created_at,
-
-                "organization": component.sales_order.organization.id,
-                "organization_name": component.sales_order.organization.name,
-
-                "product": component.sales_order.product.id,
-                "product_code": component.sales_order.product.code,
-                "product_name": component.sales_order.product.product_family.name,
-
-                "component_id": component.id,
-
-                "required_quantity": component.quantity,
-            }
-            for component in components
-        ],
+        "rows": detail_rows,
     }
