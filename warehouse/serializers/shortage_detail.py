@@ -58,6 +58,11 @@ class WarehouseShortageAllocationSerializer(serializers.Serializer):
 
     sales_order = serializers.IntegerField(read_only=True)
 
+    organization = serializers.IntegerField(read_only=True)
+    organization_name = serializers.CharField(read_only=True)
+
+    serial_number = serializers.CharField(read_only=True)
+
     product = serializers.IntegerField(read_only=True)
     product_code = serializers.CharField(read_only=True)
     product_name = serializers.CharField(read_only=True)

@@ -166,6 +166,11 @@ def build_shortage_detail(
 
             "sales_order": sales_order.id,
 
+            "organization": sales_order.organization_id,
+            "organization_name": sales_order.organization.name,
+
+            "serial_number": step.production_order.serial_number,
+
             "product": sales_order.product_id,
             "product_code": sales_order.product.code,
             "product_name": sales_order.product.product_family.name,
