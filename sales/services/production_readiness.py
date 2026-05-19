@@ -87,7 +87,10 @@ def build_sales_order_production_readiness(
             "sequence_number": step.sequence_number,
             "name": step.name,
             "status": step.status,
-            "can_be_confirmed": open_critical_issues_count == 0,
+            "can_be_confirmed": (
+                step.status == ProductionOrderStep.Status.DRAFT
+                and open_critical_issues_count == 0
+            ),
             "open_critical_issues_count": open_critical_issues_count,
             "open_non_critical_issues_count": open_non_critical_issues_count,
             "issues": [
