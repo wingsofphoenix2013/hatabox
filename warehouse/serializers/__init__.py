@@ -17,6 +17,7 @@ from .intake import (
 )
 
 from .production_movement import (
+    UpdateWarehouseProductionMovementCommentSerializer,
     WarehouseProductionMovementItemSerializer,
     WarehouseProductionMovementListSerializer,
     WarehouseProductionMovementSerializer,

@@ -87,6 +87,13 @@ class WarehouseProductionMovementListSerializer(serializers.ModelSerializer):
         ]
 
 
+class UpdateWarehouseProductionMovementCommentSerializer(serializers.Serializer):
+    comment = serializers.CharField(
+        required=True,
+        allow_blank=True,
+    )
+
+
 class WarehouseProductionMovementSerializer(serializers.ModelSerializer):
     production_order_step_name = serializers.CharField(
         source="production_order_step.name",

@@ -581,7 +581,12 @@ class WarehouseUnit(models.Model):
                     "Неможливо змінювати складську одиницю, яка зарезервована в активному плані переміщення."
                 )
 
-        if (self.location is None) == (self.storage_place is None):
+        if self.status == self.Status.IN_PRODUCTION:
+            if self.location is not None or self.storage_place is not None:
+                raise ValidationError(
+                    "Складська одиниця у виробництві не повинна мати складську локацію або місце зберігання."
+                )
+        elif (self.location is None) == (self.storage_place is None):
             raise ValidationError(
                 "Потрібно вказати або локацію, або місце зберігання, але не обидва одночасно."
             )

@@ -8,8 +8,13 @@ from rest_framework.viewsets import ModelViewSet
 
 from warehouse.models import WarehouseProductionMovement
 from warehouse.serializers import (
+    UpdateWarehouseProductionMovementCommentSerializer,
     WarehouseProductionMovementListSerializer,
     WarehouseProductionMovementSerializer,
+)
+from warehouse.services.production_movement import (
+    cancel_production_movement,
+    execute_production_movement,
 )
 from warehouse.services.production_movement_invoice import (
     generate_and_save_production_movement_invoice,
@@ -89,6 +94,58 @@ class WarehouseProductionMovementViewSet(ModelViewSet):
             return WarehouseProductionMovementListSerializer
 
         return WarehouseProductionMovementSerializer
+
+    @action(detail=True, methods=["post"], url_path="update-comment")
+    def update_comment(self, request, pk=None):
+        movement = self.get_object()
+
+        if movement.status != WarehouseProductionMovement.Status.CREATED:
+            raise ValidationError(
+                "Коментар можна змінювати лише для created документа."
+            )
+
+        serializer = UpdateWarehouseProductionMovementCommentSerializer(
+            data=request.data,
+        )
+        serializer.is_valid(raise_exception=True)
+
+        movement.comment = serializer.validated_data["comment"]
+        movement.save(update_fields=["comment"])
+
+        movement = self.get_queryset().get(pk=movement.pk)
+
+        return Response(
+            self.get_serializer(movement).data
+        )
+
+    @action(detail=True, methods=["post"], url_path="execute")
+    def execute(self, request, pk=None):
+        movement = self.get_object()
+
+        movement = execute_production_movement(
+            movement=movement,
+            created_by=request.user if request.user.is_authenticated else None,
+        )
+
+        movement = self.get_queryset().get(pk=movement.pk)
+
+        return Response(
+            self.get_serializer(movement).data
+        )
+
+    @action(detail=True, methods=["post"], url_path="cancel")
+    def cancel(self, request, pk=None):
+        movement = self.get_object()
+
+        movement = cancel_production_movement(
+            movement=movement,
+        )
+
+        movement = self.get_queryset().get(pk=movement.pk)
+
+        return Response(
+            self.get_serializer(movement).data
+        )
 
     @action(detail=True, methods=["post"], url_path="generate-invoice")
     def generate_invoice(self, request, pk=None):
