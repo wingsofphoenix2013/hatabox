@@ -22,6 +22,16 @@ class WarehouseShortageDetailSummarySerializer(serializers.Serializer):
 
     sales_orders_count = serializers.IntegerField(read_only=True)
 
+    reserved_quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
+
+    reserved_sales_orders_count = serializers.IntegerField(
+        read_only=True,
+    )
+
     last_recalculated_at = serializers.DateTimeField(read_only=True)
 
 

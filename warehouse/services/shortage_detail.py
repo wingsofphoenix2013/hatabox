@@ -42,6 +42,8 @@ def build_shortage_detail(
                 "available_quantity": ZERO,
                 "missing_quantity": ZERO,
                 "sales_orders_count": 0,
+                "reserved_quantity": ZERO,
+                "reserved_sales_orders_count": 0,
                 "last_recalculated_at": None,
             },
 
@@ -182,6 +184,19 @@ def build_shortage_detail(
             "quantity": reservation.quantity,
         })
 
+    reserved_quantity = sum(
+        (
+            reservation.quantity
+            for reservation in reservations
+        ),
+        ZERO,
+    )
+
+    reserved_sales_order_ids = {
+        reservation.sales_order_id
+        for reservation in reservations
+    }
+
     return {
         "inv_item": inv_item.id,
         "inv_item_code": inv_item.internal_code,
@@ -193,6 +208,10 @@ def build_shortage_detail(
             "available_quantity": shortage.available_quantity,
             "missing_quantity": shortage.missing_quantity,
             "sales_orders_count": len(sales_order_ids),
+            "reserved_quantity": reserved_quantity,
+            "reserved_sales_orders_count": len(
+                reserved_sales_order_ids
+            ),
             "last_recalculated_at": shortage.last_recalculated_at,
         },
 
