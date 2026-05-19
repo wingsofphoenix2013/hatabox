@@ -16,6 +16,12 @@ from .intake import (
     WarehousePendingIntakeStatusSerializer,
 )
 
+from .production_movement import (
+    WarehouseProductionMovementItemSerializer,
+    WarehouseProductionMovementListSerializer,
+    WarehouseProductionMovementSerializer,
+)
+
 from .movement_plan import (
     MovementPlanSerializer,
     MovementPlanListSerializer,
