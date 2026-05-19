@@ -1,12 +1,18 @@
 from django.db.models import Count
 
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import DjangoModelPermissions
+from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 from warehouse.models import WarehouseProductionMovement
 from warehouse.serializers import (
     WarehouseProductionMovementListSerializer,
     WarehouseProductionMovementSerializer,
+)
+from warehouse.services.production_movement_invoice import (
+    generate_and_save_production_movement_invoice,
 )
 
 
@@ -83,3 +89,22 @@ class WarehouseProductionMovementViewSet(ModelViewSet):
             return WarehouseProductionMovementListSerializer
 
         return WarehouseProductionMovementSerializer
+
+    @action(detail=True, methods=["post"], url_path="generate-invoice")
+    def generate_invoice(self, request, pk=None):
+        movement = self.get_object()
+
+        if movement.status != WarehouseProductionMovement.Status.CREATED:
+            raise ValidationError(
+                "Накладну можна сформувати лише для created документа."
+            )
+
+        movement = generate_and_save_production_movement_invoice(
+            movement,
+        )
+
+        movement = self.get_queryset().get(pk=movement.pk)
+
+        return Response(
+            self.get_serializer(movement).data
+        )
