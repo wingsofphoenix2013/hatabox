@@ -311,6 +311,10 @@ class SalesOrderProductionReadinessStepSerializer(serializers.Serializer):
         read_only=True,
     )
 
+    production_step_can_start = serializers.BooleanField(
+        read_only=True,
+    )
+
     can_be_confirmed = serializers.BooleanField(read_only=True)
 
     open_critical_issues_count = serializers.IntegerField(read_only=True)

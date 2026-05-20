@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 from production.models import ProductionOrderStep
+from production.services.steps import start_production_order_step
 from sales.models import SalesOrderEvent
 from sales.services.events import create_sales_order_event
 from warehouse.services.production_reservation import (
@@ -52,6 +53,22 @@ class ProductionOrderStepViewSet(ModelViewSet):
                 read_only_fields = fields
 
         return ProductionOrderStepSerializer
+
+    @action(detail=True, methods=["post"], url_path="start")
+    def start(self, request, pk=None):
+        step = self.get_object()
+
+        step = start_production_order_step(
+            production_order_step=step,
+        )
+
+        step = self.get_queryset().get(pk=step.pk)
+
+        return Response({
+            "production_order_step": step.id,
+            "status": step.status,
+            "started_at": step.started_at,
+        })
 
     @action(detail=True, methods=["post"], url_path="confirm")
     def confirm(self, request, pk=None):

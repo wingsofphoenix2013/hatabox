@@ -84,6 +84,8 @@ def build_sales_order_production_readiness(
     total_open_critical_issues_count = 0
     total_open_non_critical_issues_count = 0
 
+    previous_step_payload = None
+
     for step in steps:
         step_issues = issues_by_step_id.get(step.id, [])
 
@@ -102,6 +104,22 @@ def build_sales_order_production_readiness(
         total_open_non_critical_issues_count += open_non_critical_issues_count
 
         movement = movement_by_step_id.get(step.id)
+
+        production_movement_components_transferred = (
+            movement.status == WarehouseProductionMovement.Status.EXECUTED
+            if movement
+            else False
+        )
+
+        production_step_can_start = (
+            step.status == ProductionOrderStep.Status.CONFIRMED
+            and production_movement_components_transferred
+            and (
+                previous_step_payload is None
+                or previous_step_payload["status"]
+                == ProductionOrderStep.Status.FINISHED
+            )
+        )
 
         steps_payload.append({
             "production_order_step": step.id,
@@ -129,10 +147,9 @@ def build_sales_order_production_readiness(
                 else None
             ),
             "production_movement_components_transferred": (
-                movement.status == WarehouseProductionMovement.Status.EXECUTED
-                if movement
-                else False
+                production_movement_components_transferred
             ),
+            "production_step_can_start": production_step_can_start,
             "can_be_confirmed": (
                 step.status == ProductionOrderStep.Status.DRAFT
                 and open_critical_issues_count == 0
@@ -171,6 +188,8 @@ def build_sales_order_production_readiness(
                 for issue in step_issues
             ],
         })
+
+        previous_step_payload = steps_payload[-1]
 
     next_step_payload = next(
         (
