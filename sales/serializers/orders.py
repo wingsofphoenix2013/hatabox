@@ -285,6 +285,8 @@ class SalesOrderProductionReadinessSummarySerializer(serializers.Serializer):
     next_step_name = serializers.CharField(read_only=True, allow_null=True)
     can_confirm_next_step = serializers.BooleanField(read_only=True)
 
+    production_order_can_start = serializers.BooleanField(read_only=True)
+
     open_critical_issues_count = serializers.IntegerField(read_only=True)
     open_non_critical_issues_count = serializers.IntegerField(read_only=True)
 

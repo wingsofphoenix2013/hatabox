@@ -162,6 +162,12 @@ def build_sales_order_production_readiness(
                 if next_step_payload
                 else False
             ),
+            "production_order_can_start": (
+                production_order.status == ProductionOrder.Status.DRAFT
+                and next_step_payload is not None
+                and next_step_payload["sequence_number"] == 1
+                and next_step_payload["status"] == ProductionOrderStep.Status.CONFIRMED
+            ),
             "open_critical_issues_count": total_open_critical_issues_count,
             "open_non_critical_issues_count": total_open_non_critical_issues_count,
         },
