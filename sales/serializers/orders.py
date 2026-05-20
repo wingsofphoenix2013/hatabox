@@ -287,6 +287,30 @@ class SalesOrderProductionReadinessStepSerializer(serializers.Serializer):
     name = serializers.CharField(read_only=True)
     status = serializers.CharField(read_only=True)
 
+    production_movement = serializers.IntegerField(
+        read_only=True,
+        allow_null=True,
+    )
+
+    production_movement_status = serializers.CharField(
+        read_only=True,
+        allow_null=True,
+    )
+
+    production_movement_invoice_file = serializers.CharField(
+        read_only=True,
+        allow_null=True,
+    )
+
+    production_movement_invoice_generated_at = serializers.DateTimeField(
+        read_only=True,
+        allow_null=True,
+    )
+
+    production_movement_components_transferred = serializers.BooleanField(
+        read_only=True,
+    )
+
     can_be_confirmed = serializers.BooleanField(read_only=True)
 
     open_critical_issues_count = serializers.IntegerField(read_only=True)

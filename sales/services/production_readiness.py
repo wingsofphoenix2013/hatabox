@@ -2,6 +2,7 @@ from collections import defaultdict
 
 from production.models import ProductionOrder, ProductionOrderStep
 from sales.models import SalesOrderIssue
+from warehouse.models import WarehouseProductionMovement
 
 
 def build_sales_order_production_readiness(
@@ -34,6 +35,24 @@ def build_sales_order_production_readiness(
         step.id
         for step in steps
     ]
+
+    movements = list(
+        WarehouseProductionMovement.objects.filter(
+            production_order=production_order,
+        ).order_by(
+            "production_order_step_id",
+            "-created_at",
+            "-id",
+        )
+    )
+
+    movement_by_step_id = {}
+
+    for movement in movements:
+        if movement.production_order_step_id not in movement_by_step_id:
+            movement_by_step_id[
+                movement.production_order_step_id
+            ] = movement
 
     open_issues = list(
         SalesOrderIssue.objects.select_related(
@@ -82,11 +101,38 @@ def build_sales_order_production_readiness(
         total_open_critical_issues_count += open_critical_issues_count
         total_open_non_critical_issues_count += open_non_critical_issues_count
 
+        movement = movement_by_step_id.get(step.id)
+
         steps_payload.append({
             "production_order_step": step.id,
             "sequence_number": step.sequence_number,
             "name": step.name,
             "status": step.status,
+            "production_movement": (
+                movement.id
+                if movement
+                else None
+            ),
+            "production_movement_status": (
+                movement.status
+                if movement
+                else None
+            ),
+            "production_movement_invoice_file": (
+                movement.invoice_file.url
+                if movement and movement.invoice_file
+                else None
+            ),
+            "production_movement_invoice_generated_at": (
+                movement.invoice_generated_at
+                if movement
+                else None
+            ),
+            "production_movement_components_transferred": (
+                movement.status == WarehouseProductionMovement.Status.EXECUTED
+                if movement
+                else False
+            ),
             "can_be_confirmed": (
                 step.status == ProductionOrderStep.Status.DRAFT
                 and open_critical_issues_count == 0
