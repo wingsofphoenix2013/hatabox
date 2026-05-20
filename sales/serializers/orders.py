@@ -4,6 +4,7 @@ from sales.models import SalesOrder, SalesOrderComponent, SalesOrderIssue
 from sales.services.orders import check_sales_order_can_confirm
 from organizations.models import Organization, Person, OrganizationPersonAssignment
 from inventory.models import Product
+from production.models import ProductionOrder
 
 
 class SalesOrderComponentSerializer(serializers.ModelSerializer):
@@ -34,6 +35,18 @@ class SalesOrderComponentSerializer(serializers.ModelSerializer):
 
 
 class SalesOrderListSerializer(serializers.ModelSerializer):
+    production_order = serializers.IntegerField(
+        source="production_order.id",
+        read_only=True,
+        allow_null=True,
+    )
+    production_order_status = serializers.CharField(
+        source="production_order.status",
+        read_only=True,
+        allow_null=True,
+    )
+    production_order_can_start = serializers.SerializerMethodField()
+
     organization_name = serializers.CharField(
         source="organization.name",
         read_only=True,
@@ -69,6 +82,9 @@ class SalesOrderListSerializer(serializers.ModelSerializer):
             "product_code",
             "product_family_name",
             "status",
+            "production_order",
+            "production_order_status",
+            "production_order_can_start",
             "created_by",
             "created_at",
             "completed_at",
@@ -85,6 +101,15 @@ class SalesOrderListSerializer(serializers.ModelSerializer):
 
     def get_can_confirm_now(self, obj):
         return obj.open_critical_confirmation_issues_count == 0
+
+    def get_production_order_can_start(self, obj):
+        if not hasattr(obj, "production_order"):
+            return False
+
+        return (
+            obj.production_order.status == ProductionOrder.Status.DRAFT
+            and obj.production_order_first_step_confirmed
+        )
 
 
 class SalesOrderSerializer(serializers.ModelSerializer):

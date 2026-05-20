@@ -2,6 +2,7 @@ import logging
 import traceback
 
 from django.db import models, transaction
+from django.db.models import Exists, OuterRef
 from django.shortcuts import get_object_or_404
 
 
@@ -66,6 +67,7 @@ class SalesOrderViewSet(ModelViewSet):
         "product",
         "created_by",
         "customer_responsible_person",
+        "production_order",
     ).annotate(
         open_confirmation_issues_count=models.Count(
             "issues",
@@ -81,6 +83,13 @@ class SalesOrderViewSet(ModelViewSet):
                 issues__status=SalesOrderIssue.Status.OPEN,
                 issues__severity=SalesOrderIssue.Severity.CRITICAL,
             ),
+        ),
+        production_order_first_step_confirmed=Exists(
+            ProductionOrderStep.objects.filter(
+                production_order__sales_order=OuterRef("pk"),
+                sequence_number=1,
+                status=ProductionOrderStep.Status.CONFIRMED,
+            )
         ),
     ).order_by("-created_at", "-id")
 
