@@ -249,37 +249,6 @@ def execute_production_movement(
     now = timezone.now()
 
     with transaction.atomic():
-        result_units_by_inventory_item = {}
-
-        for inventory_item_id, grouped_items in items_by_inventory_item.items():
-            total_quantity = sum(
-                (
-                    _to_decimal(item.quantity)
-                    for item in grouped_items
-                ),
-                ZERO,
-            )
-
-            source_unit = grouped_items[0].source_warehouse_unit
-
-            result_unit = WarehouseUnit.objects.create(
-                inventory_item_id=inventory_item_id,
-                location=None,
-                storage_place=None,
-                quantity=total_quantity,
-                source_receipt_item_id=source_unit.source_receipt_item_id,
-                source_order_item_id=source_unit.source_order_item_id,
-                tolling_source_receipt_item_id=(
-                    source_unit.tolling_source_receipt_item_id
-                ),
-                tolling_source_order_item_id=(
-                    source_unit.tolling_source_order_item_id
-                ),
-                status=WarehouseUnit.Status.IN_PRODUCTION,
-            )
-
-            result_units_by_inventory_item[inventory_item_id] = result_unit
-
         source_units_to_update = []
         reservations_to_update = []
         items_to_update = []
@@ -287,9 +256,6 @@ def execute_production_movement(
 
         for item in items:
             source_unit = item.source_warehouse_unit
-            result_unit = result_units_by_inventory_item[
-                item.inventory_item_id
-            ]
             reservation = item.production_reservation
 
             source_quantity = _to_decimal(source_unit.quantity)
@@ -297,10 +263,32 @@ def execute_production_movement(
 
             if move_quantity == source_quantity:
                 source_unit.status = WarehouseUnit.Status.IN_PRODUCTION
+                source_unit.location = None
+                source_unit.storage_place = None
                 source_unit.quantity = source_quantity
+
+                result_unit = source_unit
+
             elif move_quantity < source_quantity:
                 source_unit.quantity = source_quantity - move_quantity
                 source_unit.status = WarehouseUnit.Status.ON_STOCK
+
+                result_unit = WarehouseUnit.objects.create(
+                    inventory_item_id=item.inventory_item_id,
+                    location=None,
+                    storage_place=None,
+                    quantity=move_quantity,
+                    source_receipt_item_id=source_unit.source_receipt_item_id,
+                    source_order_item_id=source_unit.source_order_item_id,
+                    tolling_source_receipt_item_id=(
+                        source_unit.tolling_source_receipt_item_id
+                    ),
+                    tolling_source_order_item_id=(
+                        source_unit.tolling_source_order_item_id
+                    ),
+                    status=WarehouseUnit.Status.IN_PRODUCTION,
+                )
+
             else:
                 raise ValidationError(
                     "Кількість переміщення перевищує кількість складської одиниці."
@@ -334,6 +322,8 @@ def execute_production_movement(
             [
                 "quantity",
                 "status",
+                "location",
+                "storage_place",
                 "updated_at",
             ],
         )
