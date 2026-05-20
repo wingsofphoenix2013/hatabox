@@ -26,6 +26,7 @@ from warehouse.services.production_movement_invoice import (
 class WarehouseProductionMovementViewSet(ModelViewSet):
     http_method_names = [
         "get",
+        "post",
         "head",
         "options",
     ]
