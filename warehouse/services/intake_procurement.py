@@ -3,6 +3,8 @@ from decimal import Decimal
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
 
+from orders.models import ExternalReceiptItem
+
 from warehouse.models import (
     WarehouseReceiptItemConversion,
     WarehouseUnit,
@@ -273,6 +275,11 @@ def bulk_accept_procurement_receipt_items_to_location(
         if order_item.requires_unit_conversion:
             raise ValidationError(
                 f"Рядок приходу {receipt_item.id} потребує окремої операції конвертації одиниць."
+            )
+
+        if receipt_item.received_quantity <= 0:
+            raise ValidationError(
+                f"Рядок приходу {receipt_item.id} має некоректну кількість."
             )
 
         whole_units = int(receipt_item.received_quantity)
