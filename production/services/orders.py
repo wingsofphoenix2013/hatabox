@@ -101,6 +101,11 @@ def create_production_order_from_sales_order(
 def start_production_order(
     *,
     production_order,
+    serial_number,
+    use_work_tracking,
+    use_hr_tracking,
+    expected_ready_at,
+    comment="",
     created_by=None,
 ):
     if production_order.status != ProductionOrder.Status.DRAFT:
@@ -126,8 +131,20 @@ def start_production_order(
         )
 
     with transaction.atomic():
+        production_order.serial_number = serial_number
+        production_order.use_work_tracking = use_work_tracking
+        production_order.use_hr_tracking = use_hr_tracking
+        production_order.expected_ready_at = expected_ready_at
+        production_order.comment = comment
         production_order.status = ProductionOrder.Status.IN_PROGRESS
-        production_order.save(update_fields=["status"])
+        production_order.save(update_fields=[
+            "serial_number",
+            "use_work_tracking",
+            "use_hr_tracking",
+            "expected_ready_at",
+            "comment",
+            "status",
+        ])
 
         sales_order = production_order.sales_order
         sales_order.status = SalesOrder.Status.IN_PROGRESS

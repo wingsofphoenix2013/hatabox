@@ -1,3 +1,4 @@
+from rest_framework import serializers
 from rest_framework.decorators import action
 from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.response import Response
@@ -5,6 +6,23 @@ from rest_framework.viewsets import ModelViewSet
 
 from production.models import ProductionOrder
 from production.services.orders import start_production_order
+
+
+class StartProductionOrderSerializer(serializers.Serializer):
+    serial_number = serializers.CharField(
+        max_length=100,
+    )
+
+    use_work_tracking = serializers.BooleanField()
+
+    use_hr_tracking = serializers.BooleanField()
+
+    expected_ready_at = serializers.DateTimeField()
+
+    comment = serializers.CharField(
+        required=False,
+        allow_blank=True,
+    )
 
 
 class ProductionOrderViewSet(ModelViewSet):
@@ -47,8 +65,18 @@ class ProductionOrderViewSet(ModelViewSet):
     def start(self, request, pk=None):
         production_order = self.get_object()
 
+        serializer = StartProductionOrderSerializer(
+            data=request.data,
+        )
+        serializer.is_valid(raise_exception=True)
+
         result = start_production_order(
             production_order=production_order,
+            serial_number=serializer.validated_data["serial_number"],
+            use_work_tracking=serializer.validated_data["use_work_tracking"],
+            use_hr_tracking=serializer.validated_data["use_hr_tracking"],
+            expected_ready_at=serializer.validated_data["expected_ready_at"],
+            comment=serializer.validated_data.get("comment", ""),
             created_by=request.user if request.user.is_authenticated else None,
         )
 
