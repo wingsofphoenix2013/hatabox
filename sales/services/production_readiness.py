@@ -135,6 +135,15 @@ def build_sales_order_production_readiness(
         None,
     )
 
+    first_step_payload = next(
+        (
+            step
+            for step in steps_payload
+            if step["sequence_number"] == 1
+        ),
+        None,
+    )
+
     return {
         "sales_order": sales_order.id,
         "production_order": production_order.id,
@@ -164,9 +173,8 @@ def build_sales_order_production_readiness(
             ),
             "production_order_can_start": (
                 production_order.status == ProductionOrder.Status.DRAFT
-                and next_step_payload is not None
-                and next_step_payload["sequence_number"] == 1
-                and next_step_payload["status"] == ProductionOrderStep.Status.CONFIRMED
+                and first_step_payload is not None
+                and first_step_payload["status"] == ProductionOrderStep.Status.CONFIRMED
             ),
             "open_critical_issues_count": total_open_critical_issues_count,
             "open_non_critical_issues_count": total_open_non_critical_issues_count,
