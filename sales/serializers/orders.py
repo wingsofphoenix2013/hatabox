@@ -135,6 +135,21 @@ class SalesOrderSerializer(serializers.ModelSerializer):
     )
     customer_responsible_person_name = serializers.SerializerMethodField()
     can_try_confirm = serializers.SerializerMethodField()
+    production_order = serializers.IntegerField(
+        source="production_order.id",
+        read_only=True,
+        allow_null=True,
+    )
+    production_order_status = serializers.CharField(
+        source="production_order.status",
+        read_only=True,
+        allow_null=True,
+    )
+    production_order_serial_number = serializers.CharField(
+        source="production_order.serial_number",
+        read_only=True,
+        allow_null=True,
+    )
 
     class Meta:
         model = SalesOrder
@@ -147,6 +162,9 @@ class SalesOrderSerializer(serializers.ModelSerializer):
             "product_family_name",
             "status",
             "status_display",
+            "production_order",
+            "production_order_status",
+            "production_order_serial_number",
             "created_by",
             "created_by_username",
             "created_at",
