@@ -388,4 +388,15 @@ def execute_production_movement(
             created_by=created_by,
         )
 
+        inv_item_ids = list(items_by_inventory_item.keys())
+
+        if inv_item_ids:
+            from warehouse.tasks import recalculate_warehouse_shortages_task
+
+            transaction.on_commit(
+                lambda: recalculate_warehouse_shortages_task.delay(
+                    inv_item_ids=inv_item_ids,
+                )
+            )
+
     return movement
