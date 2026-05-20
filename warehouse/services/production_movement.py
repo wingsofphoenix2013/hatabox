@@ -134,6 +134,14 @@ def create_production_movements_for_order(
                 items_to_create,
             )
 
+            from warehouse.services.production_movement_invoice import (
+                generate_and_save_production_movement_invoice,
+            )
+
+            generate_and_save_production_movement_invoice(
+                movement,
+            )
+
             created_movements.append(movement)
 
     return {
