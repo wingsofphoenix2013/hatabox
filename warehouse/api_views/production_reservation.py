@@ -24,3 +24,14 @@ class WarehouseProductionReservationViewSet(ReadOnlyModelViewSet):
         "-created_at",
         "-id",
     )
+
+    def get_queryset(self):
+        queryset = self.queryset
+
+        inv_item = self.request.query_params.get("inv_item")
+        if inv_item:
+            queryset = queryset.filter(
+                sales_order_component__inv_item_id=inv_item,
+            )
+
+        return queryset
