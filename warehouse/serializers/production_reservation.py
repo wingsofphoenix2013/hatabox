@@ -10,6 +10,26 @@ class WarehouseProductionReservationListSerializer(serializers.ModelSerializer):
         allow_null=True,
     )
 
+    inv_item = serializers.IntegerField(
+        source="sales_order_component.inv_item_id",
+        read_only=True,
+    )
+
+    inv_item_code = serializers.CharField(
+        source="sales_order_component.inv_item.internal_code",
+        read_only=True,
+    )
+
+    inv_item_name = serializers.CharField(
+        source="sales_order_component.inv_item.name",
+        read_only=True,
+    )
+
+    unit_symbol = serializers.CharField(
+        source="sales_order_component.inv_item.unit.symbol",
+        read_only=True,
+    )
+
     organization = serializers.IntegerField(
         source="sales_order.organization_id",
         read_only=True,
@@ -73,6 +93,12 @@ class WarehouseProductionReservationListSerializer(serializers.ModelSerializer):
         model = WarehouseProductionReservation
         fields = [
             "serial_number",
+
+            "inv_item",
+            "inv_item_code",
+            "inv_item_name",
+            "unit_symbol",
+
             "organization",
             "organization_name",
             "product_name",
