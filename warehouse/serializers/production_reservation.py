@@ -4,11 +4,7 @@ from warehouse.models import WarehouseProductionReservation
 
 
 class WarehouseProductionReservationListSerializer(serializers.ModelSerializer):
-    serial_number = serializers.CharField(
-        source="sales_order.production_order.serial_number",
-        read_only=True,
-        allow_null=True,
-    )
+    serial_number = serializers.SerializerMethodField()
 
     inv_item = serializers.IntegerField(
         source="sales_order_component.inv_item_id",
@@ -71,6 +67,7 @@ class WarehouseProductionReservationListSerializer(serializers.ModelSerializer):
     )
 
     sales_order = serializers.IntegerField(
+        source="sales_order_id",
         read_only=True,
     )
 
@@ -110,3 +107,9 @@ class WarehouseProductionReservationListSerializer(serializers.ModelSerializer):
             "sales_order",
             "production_order",
         ]
+        
+    def get_serial_number(self, obj):
+        try:
+            return obj.sales_order.production_order.serial_number
+        except obj.sales_order.production_order.RelatedObjectDoesNotExist:
+            return None
