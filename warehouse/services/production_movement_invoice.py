@@ -26,7 +26,7 @@ def _to_decimal(value) -> Decimal:
 def build_production_movement_invoice_context(
     movement: WarehouseProductionMovement,
 ):
-    rows = []
+    rows_by_key = {}
     resize_map = defaultdict(list)
 
     items = movement.items.select_related(
@@ -34,24 +34,38 @@ def build_production_movement_invoice_context(
         "inventory_item__unit",
     ).order_by(
         "inventory_item__name",
+        "executed_source_location_code",
+        "executed_source_storage_place_full_display",
         "id",
     )
 
     for item in items:
-        rows.append({
-            "inventory_item_name": item.inventory_item.name,
-            "source_location_code": (
-                item.executed_source_location_code
-            ),
-            "source_location_name": (
-                item.executed_source_location_name
-            ),
-            "source_storage_place_full_display": (
-                item.executed_source_storage_place_full_display
-            ),
-            "quantity": item.quantity,
-            "unit_symbol": item.inventory_item.unit.symbol,
-        })
+        key = (
+            item.inventory_item_id,
+            item.executed_source_location_id,
+            item.executed_source_storage_place_id,
+            item.executed_source_location_code,
+            item.executed_source_location_name,
+            item.executed_source_storage_place_full_display,
+        )
+
+        if key not in rows_by_key:
+            rows_by_key[key] = {
+                "inventory_item_name": item.inventory_item.name,
+                "source_location_code": (
+                    item.executed_source_location_code
+                ),
+                "source_location_name": (
+                    item.executed_source_location_name
+                ),
+                "source_storage_place_full_display": (
+                    item.executed_source_storage_place_full_display
+                ),
+                "quantity": ZERO,
+                "unit_symbol": item.inventory_item.unit.symbol,
+            }
+
+        rows_by_key[key]["quantity"] += _to_decimal(item.quantity)
 
         source_quantity = _to_decimal(
             item.source_warehouse_unit.quantity
@@ -59,6 +73,8 @@ def build_production_movement_invoice_context(
 
         if source_quantity != _to_decimal(item.quantity):
             resize_map[item.inventory_item_id].append(item)
+
+    rows = list(rows_by_key.values())
 
     resize_rows = []
 
