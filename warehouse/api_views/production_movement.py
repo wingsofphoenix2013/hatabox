@@ -1,4 +1,4 @@
-from django.db.models import Count
+from django.db.models import Count, Q
 
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -91,6 +91,62 @@ class WarehouseProductionMovementViewSet(ModelViewSet):
             queryset = queryset.filter(status__in=status)
 
         return queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(
+            self.get_queryset()
+        )
+
+        summary = queryset.aggregate(
+            created_count=Count(
+                "id",
+                filter=Q(
+                    status=WarehouseProductionMovement.Status.CREATED,
+                ),
+            ),
+            executed_count=Count(
+                "id",
+                filter=Q(
+                    status=WarehouseProductionMovement.Status.EXECUTED,
+                ),
+            ),
+            cancelled_count=Count(
+                "id",
+                filter=Q(
+                    status=WarehouseProductionMovement.Status.CANCELLED,
+                ),
+            ),
+        )
+
+        summary["has_created"] = (
+            summary["created_count"] > 0
+        )
+
+        page = self.paginate_queryset(queryset)
+
+        if page is not None:
+            serializer = self.get_serializer(
+                page,
+                many=True,
+            )
+
+            response = self.get_paginated_response(
+                serializer.data,
+            )
+
+            response.data["summary"] = summary
+
+            return response
+
+        serializer = self.get_serializer(
+            queryset,
+            many=True,
+        )
+
+        return Response({
+            "summary": summary,
+            "results": serializer.data,
+        })
 
     def get_serializer_class(self):
         if self.action == "list":

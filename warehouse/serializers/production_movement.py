@@ -54,6 +54,27 @@ class WarehouseProductionMovementItemSerializer(serializers.ModelSerializer):
 
 
 class WarehouseProductionMovementListSerializer(serializers.ModelSerializer):
+    production_order_serial_number = serializers.CharField(
+        source="production_order.serial_number",
+        read_only=True,
+        allow_null=True,
+    )
+
+    product = serializers.IntegerField(
+        source="production_order.sales_order.product_id",
+        read_only=True,
+    )
+
+    product_code = serializers.CharField(
+        source="production_order.sales_order.product.code",
+        read_only=True,
+    )
+
+    product_family_name = serializers.CharField(
+        source="production_order.sales_order.product.product_family.name",
+        read_only=True,
+    )
+
     production_order_step_name = serializers.CharField(
         source="production_order_step.name",
         read_only=True,
@@ -68,16 +89,37 @@ class WarehouseProductionMovementListSerializer(serializers.ModelSerializer):
     )
     items_count = serializers.IntegerField(read_only=True)
 
+    invoice_file = serializers.FileField(
+        read_only=True,
+        allow_null=True,
+    )
+
+    invoice_generated_at = serializers.DateTimeField(
+        read_only=True,
+        allow_null=True,
+    )
+
     class Meta:
         model = WarehouseProductionMovement
         fields = [
             "id",
             "production_order",
+            "production_order_serial_number",
+
             "sales_order",
+
+            "product",
+            "product_code",
+            "product_family_name",
+
             "production_order_step",
             "production_order_step_name",
             "production_order_step_sequence_number",
             "status",
+
+            "invoice_file",
+            "invoice_generated_at",
+
             "created_by",
             "comment",
             "created_at",
