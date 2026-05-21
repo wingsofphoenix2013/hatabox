@@ -8,6 +8,9 @@ from rest_framework.viewsets import ModelViewSet
 from production.models import ProductionOrderStep
 from production.services.steps import start_production_order_step
 from sales.models import SalesOrderEvent
+from warehouse.services.production_movement import (
+    create_production_movement_for_step,
+)
 from sales.services.events import create_sales_order_event
 from warehouse.services.production_reservation import (
     reserve_components_for_production_step_confirmation,
@@ -106,6 +109,17 @@ class ProductionOrderStepViewSet(ModelViewSet):
             step.status = ProductionOrderStep.Status.CONFIRMED
             step.save(update_fields=["status"])
 
+            created_movement = None
+
+            if (
+                step.production_order.status
+                == step.production_order.Status.IN_PROGRESS
+            ):
+                created_movement = create_production_movement_for_step(
+                    production_order_step=step,
+                    created_by=request.user,
+                )
+
             create_sales_order_event(
                 sales_order=step.production_order.sales_order,
                 event_type=SalesOrderEvent.EventType.PRODUCTION_ORDER_STEP_CONFIRMED,
@@ -136,4 +150,9 @@ class ProductionOrderStepViewSet(ModelViewSet):
             "production_order_step": step.id,
             "status": step.status,
             "reserved_components": result["components"],
+            "production_movement": (
+                created_movement.id
+                if created_movement
+                else None
+            ),
         })
