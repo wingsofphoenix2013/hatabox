@@ -47,6 +47,7 @@ from orders.api_views import (
 
 from warehouse.api_views import (
     WarehouseProductionMovementViewSet,
+    WarehouseProductionReservationViewSet,
     WarehouseLocationViewSet,
     WarehouseStoragePlaceViewSet,
     WarehouseUnitViewSet,
@@ -164,6 +165,12 @@ router.register(
     "warehouse-stock-detail",
     WarehouseStockDetailViewSet,
     basename="warehouse-stock-detail",
+)
+
+router.register(
+    "warehouse-production-reservations",
+    WarehouseProductionReservationViewSet,
+    basename="warehouse-production-reservations",
 )
 
 router.register(

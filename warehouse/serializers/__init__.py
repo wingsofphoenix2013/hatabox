@@ -23,6 +23,10 @@ from .production_movement import (
     WarehouseProductionMovementSerializer,
 )
 
+from .production_reservation import (
+    WarehouseProductionReservationListSerializer,
+)
+
 from .movement_plan import (
     MovementPlanSerializer,
     MovementPlanListSerializer,
