@@ -78,12 +78,35 @@ class WarehouseProductionMovementViewSet(ModelViewSet):
                 production_order_step_id=production_order_step,
             )
 
+        production_order_step_name = self.request.query_params.get(
+            "production_order_step_name"
+        )
+        if production_order_step_name:
+            queryset = queryset.filter(
+                production_order_step__name__icontains=(
+                    production_order_step_name
+                ),
+            )
+
         sales_order = self.request.query_params.get(
             "sales_order"
         )
         if sales_order:
             queryset = queryset.filter(
                 production_order__sales_order_id=sales_order,
+            )
+
+        production_order_serial_number = (
+            self.request.query_params.get(
+                "production_order_serial_number"
+            )
+        )
+
+        if production_order_serial_number:
+            queryset = queryset.filter(
+                production_order__serial_number__icontains=(
+                    production_order_serial_number
+                ),
             )
 
         status = self.request.query_params.getlist("status")
