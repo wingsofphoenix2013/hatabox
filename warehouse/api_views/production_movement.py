@@ -78,13 +78,13 @@ class WarehouseProductionMovementViewSet(ModelViewSet):
                 production_order_step_id=production_order_step,
             )
 
-        production_order_step_name = self.request.query_params.get(
+        production_order_step_names = self.request.query_params.getlist(
             "production_order_step_name"
         )
-        if production_order_step_name:
+        if production_order_step_names:
             queryset = queryset.filter(
-                production_order_step__name__icontains=(
-                    production_order_step_name
+                production_order_step__name__in=(
+                    production_order_step_names
                 ),
             )
 
@@ -114,6 +114,31 @@ class WarehouseProductionMovementViewSet(ModelViewSet):
             queryset = queryset.filter(status__in=status)
 
         return queryset
+
+    @action(detail=False, methods=["get"], url_path="step-options")
+    def step_options(self, request):
+        names = (
+            self.get_queryset()
+            .exclude(
+                production_order_step__name="",
+            )
+            .values_list(
+                "production_order_step__name",
+                flat=True,
+            )
+            .distinct()
+            .order_by(
+                "production_order_step__name",
+            )
+        )
+
+        return Response([
+            {
+                "value": name,
+                "label": name,
+            }
+            for name in names
+        ])
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(
