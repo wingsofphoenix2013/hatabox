@@ -1,3 +1,4 @@
+from django.db import models
 from django.db.models import Prefetch
 from django.utils import timezone
 
@@ -27,6 +28,11 @@ class ProductionOrderRegistryViewSet(ViewSet):
                 "sales_order__organization",
                 "sales_order__product",
                 "sales_order__product__product_family",
+            ).filter(
+                status__in=[
+                    ProductionOrder.Status.IN_PROGRESS,
+                    ProductionOrder.Status.READY,
+                ]
             ).prefetch_related(
                 Prefetch(
                     "steps",
@@ -35,16 +41,45 @@ class ProductionOrderRegistryViewSet(ViewSet):
                         "id",
                     ),
                 ),
-            ).filter(
-                status__in=[
-                    ProductionOrder.Status.IN_PROGRESS,
-                    ProductionOrder.Status.READY,
-                ]
             ).order_by(
-                "-created_at",
+                "-sales_order__created_at",
                 "-id",
             )
         )
+
+        production_order_status = request.query_params.getlist(
+            "production_order_status"
+        )
+        if production_order_status:
+            production_orders = production_orders.filter(
+                status__in=production_order_status,
+            )
+
+        sales_order_created_at_from = request.query_params.get(
+            "sales_order_created_at_from"
+        )
+        if sales_order_created_at_from:
+            production_orders = production_orders.filter(
+                sales_order__created_at__gte=sales_order_created_at_from,
+            )
+
+        sales_order_created_at_to = request.query_params.get(
+            "sales_order_created_at_to"
+        )
+        if sales_order_created_at_to:
+            production_orders = production_orders.filter(
+                sales_order__created_at__lte=sales_order_created_at_to,
+            )
+
+        search = request.query_params.get("search")
+        if search:
+            production_orders = production_orders.filter(
+                models.Q(sales_order__organization__name__icontains=search)
+                | models.Q(serial_number__icontains=search)
+                | models.Q(
+                    sales_order__product__product_family__name__icontains=search
+                )
+            )
 
         rows = []
 
@@ -171,6 +206,45 @@ class ProductionOrderRegistryViewSet(ViewSet):
                 "current_step_is_overdue": is_overdue,
                 "current_step_days_left": days_left,
             })
+
+        current_step = request.query_params.get("current_step")
+        if current_step:
+            rows = [
+                row
+                for row in rows
+                if row["current_step"] == int(current_step)
+            ]
+
+        current_step_components_transferred = request.query_params.get(
+            "current_step_components_transferred"
+        )
+        if current_step_components_transferred is not None:
+            transferred_value = (
+                current_step_components_transferred.lower() == "true"
+            )
+
+            rows = [
+                row
+                for row in rows
+                if (
+                    row["current_step_components_transferred"]
+                    == transferred_value
+                )
+            ]
+
+        current_step_is_overdue = request.query_params.get(
+            "current_step_is_overdue"
+        )
+        if current_step_is_overdue is not None:
+            overdue_value = (
+                current_step_is_overdue.lower() == "true"
+            )
+
+            rows = [
+                row
+                for row in rows
+                if row["current_step_is_overdue"] == overdue_value
+            ]
 
         serializer = ProductionOrderRegistrySerializer(
             rows,
