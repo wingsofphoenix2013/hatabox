@@ -101,26 +101,38 @@ class ProductionOrderViewSet(ModelViewSet):
 
     @action(detail=True, methods=["get"], url_path="detail")
     def detail(self, request, pk=None):
-        production_order = (
-            ProductionOrder.objects.select_related(
-                "sales_order",
-                "sales_order__organization",
-                "sales_order__product",
-                "sales_order__product__product_family",
-            ).prefetch_related(
-                "steps",
-            ).get(pk=pk)
-        )
+        try:
+            production_order = (
+                ProductionOrder.objects.select_related(
+                    "sales_order",
+                    "sales_order__organization",
+                    "sales_order__product",
+                    "sales_order__product__product_family",
+                ).prefetch_related(
+                    "steps",
+                ).get(pk=pk)
+            )
 
-        self.check_object_permissions(
-            request,
-            production_order,
-        )
+            self.check_object_permissions(
+                request,
+                production_order,
+            )
 
-        data = build_production_order_detail(
-            production_order=production_order,
-        )
+            data = build_production_order_detail(
+                production_order=production_order,
+            )
 
-        serializer = ProductionOrderDetailSerializer(data)
+            serializer = ProductionOrderDetailSerializer(data)
 
-        return Response(serializer.data)
+            return Response(serializer.data)
+
+        except Exception as exc:
+            import logging
+            import traceback
+
+            logger = logging.getLogger(__name__)
+
+            logger.error("ProductionOrder detail failed: %s", exc)
+            logger.error(traceback.format_exc())
+
+            raise
