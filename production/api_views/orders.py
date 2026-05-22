@@ -122,7 +122,7 @@ class ProductionOrderViewSet(ModelViewSet):
                 production_order=production_order,
             )
 
-            serializer = ProductionOrderDetailSerializer(data=data)
+            serializer = ProductionOrderDetailSerializer(data)
 
             return Response(serializer.data)
 
