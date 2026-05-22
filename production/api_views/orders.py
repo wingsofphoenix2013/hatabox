@@ -100,7 +100,7 @@ class ProductionOrderViewSet(ModelViewSet):
         })
 
     @action(detail=True, methods=["get"], url_path="detail")
-    def detail(self, request, pk=None):
+    def detail_view(self, request, pk=None):
         try:
             production_order = (
                 ProductionOrder.objects.select_related(
@@ -122,7 +122,7 @@ class ProductionOrderViewSet(ModelViewSet):
                 production_order=production_order,
             )
 
-            serializer = ProductionOrderDetailSerializer(data)
+            serializer = ProductionOrderDetailSerializer(data=data)
 
             return Response(serializer.data)
 
