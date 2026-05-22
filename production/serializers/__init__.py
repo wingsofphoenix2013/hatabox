@@ -4,3 +4,7 @@ from .diary import (
     ProductionDiaryEntrySerializer,
     UpdateProductionDiaryEntrySerializer,
 )
+
+from .registry import (
+    ProductionOrderRegistrySerializer,
+)

@@ -86,6 +86,7 @@ from production.api_views import (
     ProductionDiaryEntryViewSet,
     ProductionOrderStepViewSet,
     ProductionOrderViewSet,
+    ProductionOrderRegistryViewSet,
 )
 
 
@@ -198,6 +199,11 @@ router.register("sales-orders", SalesOrderViewSet)
 router.register("production-diary-entries", ProductionDiaryEntryViewSet)
 router.register("production-order-steps", ProductionOrderStepViewSet)
 router.register("production-orders", ProductionOrderViewSet)
+router.register(
+    "production-orders-registry",
+    ProductionOrderRegistryViewSet,
+    basename="production-orders-registry",
+)
 
 
 urlpatterns = [
