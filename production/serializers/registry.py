@@ -8,6 +8,7 @@ class ProductionOrderRegistrySerializer(serializers.Serializer):
 
     production_order = serializers.IntegerField(read_only=True)
     production_order_status = serializers.CharField(read_only=True)
+    production_order_status_display = serializers.CharField(read_only=True)
 
     organization = serializers.IntegerField(read_only=True)
     organization_name = serializers.CharField(read_only=True)
@@ -24,6 +25,7 @@ class ProductionOrderRegistrySerializer(serializers.Serializer):
     current_production_order_step = serializers.IntegerField(read_only=True, allow_null=True)
     current_step_name = serializers.CharField(read_only=True, allow_null=True)
     current_step_status = serializers.CharField(read_only=True, allow_null=True)
+    current_step_status_display = serializers.CharField(read_only=True, allow_null=True)
     current_step_sequence_number = serializers.IntegerField(read_only=True, allow_null=True)
 
     current_step_components_transferred = serializers.BooleanField(read_only=True)

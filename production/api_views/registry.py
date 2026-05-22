@@ -2,10 +2,14 @@ from django.db import models
 from django.db.models import Prefetch
 from django.utils import timezone
 
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
+from inventory.models import ProductStep
 from production.models import (
     ProductionOrder,
     ProductionOrderStep,
@@ -16,10 +20,27 @@ from production.serializers.registry import (
 from warehouse.models import WarehouseProductionMovement
 
 
+class ProductionOrderRegistryPagination(PageNumberPagination):
+    page_size = 50
+
+
 class ProductionOrderRegistryViewSet(ViewSet):
     permission_classes = [DjangoModelPermissions]
 
     queryset = ProductionOrder.objects.all()
+    pagination_class = ProductionOrderRegistryPagination
+
+    def paginate_queryset(self, queryset):
+        paginator = self.pagination_class()
+        self._paginator = paginator
+        return paginator.paginate_queryset(
+            queryset,
+            self.request,
+            view=self,
+        )
+
+    def get_paginated_response(self, data):
+        return self._paginator.get_paginated_response(data)
 
     def list(self, request):
         production_orders = (
@@ -146,6 +167,9 @@ class ProductionOrderRegistryViewSet(ViewSet):
 
                 "production_order": production_order.id,
                 "production_order_status": production_order.status,
+                "production_order_status_display": (
+                    production_order.get_status_display()
+                ),
 
                 "organization": (
                     production_order.sales_order.organization_id
@@ -190,6 +214,11 @@ class ProductionOrderRegistryViewSet(ViewSet):
                     if current_step
                     else None
                 ),
+                "current_step_status_display": (
+                    current_step.get_status_display()
+                    if current_step
+                    else None
+                ),
                 "current_step_sequence_number": (
                     current_step.sequence_number
                     if current_step
@@ -207,20 +236,35 @@ class ProductionOrderRegistryViewSet(ViewSet):
                 "current_step_days_left": days_left,
             })
 
-        current_step = request.query_params.get("current_step")
-        if current_step:
+        current_steps = request.query_params.getlist("current_step")
+        if current_steps:
+            current_step_ids = {
+                int(step_id)
+                for step_id in current_steps
+            }
+
             rows = [
                 row
                 for row in rows
-                if row["current_step"] == int(current_step)
+                if row["current_step"] in current_step_ids
             ]
 
         current_step_components_transferred = request.query_params.get(
             "current_step_components_transferred"
         )
         if current_step_components_transferred is not None:
+            if current_step_components_transferred not in [
+                "true",
+                "false",
+            ]:
+                raise ValidationError({
+                    "current_step_components_transferred": (
+                        "Expected true or false."
+                    )
+                })
+
             transferred_value = (
-                current_step_components_transferred.lower() == "true"
+                current_step_components_transferred == "true"
             )
 
             rows = [
@@ -236,8 +280,18 @@ class ProductionOrderRegistryViewSet(ViewSet):
             "current_step_is_overdue"
         )
         if current_step_is_overdue is not None:
+            if current_step_is_overdue not in [
+                "true",
+                "false",
+            ]:
+                raise ValidationError({
+                    "current_step_is_overdue": (
+                        "Expected true or false."
+                    )
+                })
+
             overdue_value = (
-                current_step_is_overdue.lower() == "true"
+                current_step_is_overdue == "true"
             )
 
             rows = [
@@ -246,9 +300,33 @@ class ProductionOrderRegistryViewSet(ViewSet):
                 if row["current_step_is_overdue"] == overdue_value
             ]
 
+        page = self.paginate_queryset(rows)
+
+        if page is not None:
+            serializer = ProductionOrderRegistrySerializer(
+                page,
+                many=True,
+            )
+            return self.get_paginated_response(serializer.data)
+
         serializer = ProductionOrderRegistrySerializer(
             rows,
             many=True,
         )
 
         return Response(serializer.data)
+
+    @action(detail=False, methods=["get"], url_path="current-step-options")
+    def current_step_options(self, request):
+        rows = ProductStep.objects.order_by(
+            "sort_order",
+            "id",
+        )
+
+        return Response([
+            {
+                "value": row.id,
+                "label": row.name,
+            }
+            for row in rows
+        ])
