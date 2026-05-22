@@ -8,3 +8,9 @@ from .diary import (
 from .registry import (
     ProductionOrderRegistrySerializer,
 )
+
+from .detail import (
+    ProductionOrderDetailSerializer,
+    ProductionOrderDetailSummarySerializer,
+    ProductionOrderDetailStepSerializer,
+)

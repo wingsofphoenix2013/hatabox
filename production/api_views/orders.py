@@ -4,8 +4,17 @@ from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
-from production.models import ProductionOrder
+from production.models import (
+    ProductionOrder,
+    ProductionOrderStep,
+)
 from production.services.orders import start_production_order
+from production.serializers.detail import (
+    ProductionOrderDetailSerializer,
+)
+from production.services.detail import (
+    build_production_order_detail,
+)
 
 
 class StartProductionOrderSerializer(serializers.Serializer):
@@ -89,3 +98,29 @@ class ProductionOrderViewSet(ModelViewSet):
             "sales_order_status": production_order.sales_order.status,
             "created_movements": result["created_movements"],
         })
+
+    @action(detail=True, methods=["get"], url_path="detail")
+    def detail(self, request, pk=None):
+        production_order = (
+            ProductionOrder.objects.select_related(
+                "sales_order",
+                "sales_order__organization",
+                "sales_order__product",
+                "sales_order__product__product_family",
+            ).prefetch_related(
+                "steps",
+            ).get(pk=pk)
+        )
+
+        self.check_object_permissions(
+            request,
+            production_order,
+        )
+
+        data = build_production_order_detail(
+            production_order=production_order,
+        )
+
+        serializer = ProductionOrderDetailSerializer(data)
+
+        return Response(serializer.data)
