@@ -21,6 +21,7 @@ class ProductionOrderRegistrySerializer(serializers.Serializer):
     serial_number = serializers.CharField(read_only=True, allow_null=True)
 
     current_step = serializers.IntegerField(read_only=True, allow_null=True)
+    current_production_order_step = serializers.IntegerField(read_only=True, allow_null=True)
     current_step_name = serializers.CharField(read_only=True, allow_null=True)
     current_step_status = serializers.CharField(read_only=True, allow_null=True)
     current_step_sequence_number = serializers.IntegerField(read_only=True, allow_null=True)

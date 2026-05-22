@@ -136,6 +136,11 @@ class ProductionOrderRegistryViewSet(ViewSet):
                 "serial_number": production_order.serial_number,
 
                 "current_step": (
+                    current_step.source_product_step_id
+                    if current_step
+                    else None
+                ),
+                "current_production_order_step": (
                     current_step.id
                     if current_step
                     else None
