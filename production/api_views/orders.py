@@ -127,12 +127,18 @@ class ProductionOrderViewSet(ModelViewSet):
             return Response(serializer.data)
 
         except Exception as exc:
-            import logging
+            import sys
             import traceback
 
-            logger = logging.getLogger(__name__)
-
-            logger.error("ProductionOrder detail failed: %s", exc)
-            logger.error(traceback.format_exc())
+            print(
+                f"ProductionOrder detail failed: {exc}",
+                file=sys.stderr,
+                flush=True,
+            )
+            print(
+                traceback.format_exc(),
+                file=sys.stderr,
+                flush=True,
+            )
 
             raise
