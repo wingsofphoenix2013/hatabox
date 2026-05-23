@@ -135,6 +135,33 @@ def build_production_order_detail(
     for step in steps:
         movement = movement_by_step_id.get(step.id)
 
+        current_is_overdue = False
+        current_days_left = None
+
+        final_is_overdue = False
+        final_overdue_days = None
+
+        if step.expected_finished_at is not None:
+            if step.finished_at is None:
+                current_days_left = (
+                    step.expected_finished_at.date()
+                    - timezone.now().date()
+                ).days
+
+                current_is_overdue = (
+                    current_days_left < 0
+                )
+
+            else:
+                final_overdue_days = (
+                    step.finished_at.date()
+                    - step.expected_finished_at.date()
+                ).days
+
+                final_is_overdue = (
+                    final_overdue_days > 0
+                )
+
         steps_payload.append({
             "production_order_step": step.id,
             "source_product_step": step.source_product_step_id,
@@ -147,6 +174,12 @@ def build_production_order_detail(
             "started_at": step.started_at,
             "expected_finished_at": step.expected_finished_at,
             "finished_at": step.finished_at,
+
+            "current_is_overdue": current_is_overdue,
+            "current_days_left": current_days_left,
+
+            "final_is_overdue": final_is_overdue,
+            "final_overdue_days": final_overdue_days,
 
             "production_movement": (
                 movement.id

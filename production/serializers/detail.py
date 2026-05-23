@@ -48,6 +48,12 @@ class ProductionOrderDetailStepSerializer(serializers.Serializer):
     expected_finished_at = serializers.DateTimeField(read_only=True, allow_null=True)
     finished_at = serializers.DateTimeField(read_only=True, allow_null=True)
 
+    current_is_overdue = serializers.BooleanField(read_only=True)
+    current_days_left = serializers.IntegerField(read_only=True, allow_null=True)
+
+    final_is_overdue = serializers.BooleanField(read_only=True)
+    final_overdue_days = serializers.IntegerField(read_only=True, allow_null=True)
+
     production_movement = serializers.IntegerField(read_only=True, allow_null=True)
     production_movement_status = serializers.CharField(read_only=True, allow_null=True)
 
