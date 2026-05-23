@@ -98,9 +98,15 @@ def update_production_order_steps_schedule(
                 "production_order_step": step.id,
                 "source_product_step": step.source_product_step_id,
                 "old_expected_finished_at": (
-                    step.expected_finished_at
+                    step.expected_finished_at.isoformat()
+                    if step.expected_finished_at
+                    else None
                 ),
-                "new_expected_finished_at": current_date,
+                "new_expected_finished_at": (
+                    current_date.isoformat()
+                    if current_date
+                    else None
+                ),
             })
 
     if not changed_steps:
