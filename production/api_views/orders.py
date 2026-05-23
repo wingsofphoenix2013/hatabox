@@ -12,8 +12,14 @@ from production.services.orders import start_production_order
 from production.serializers.detail import (
     ProductionOrderDetailSerializer,
 )
+from production.serializers.schedule import (
+    UpdateProductionOrderStepsScheduleSerializer,
+)
 from production.services.detail import (
     build_production_order_detail,
+)
+from production.services.schedule import (
+    update_production_order_steps_schedule,
 )
 
 
@@ -142,3 +148,33 @@ class ProductionOrderViewSet(ModelViewSet):
             )
 
             raise
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="update-steps-schedule",
+    )
+    def update_steps_schedule(self, request, pk=None):
+        production_order = self.get_object()
+
+        serializer = UpdateProductionOrderStepsScheduleSerializer(
+            data=request.data,
+        )
+        serializer.is_valid(raise_exception=True)
+
+        result = update_production_order_steps_schedule(
+            production_order=production_order,
+            steps_data=serializer.validated_data["steps"],
+            created_by=request.user,
+        )
+
+        data = build_production_order_detail(
+            production_order=production_order,
+        )
+
+        response_serializer = ProductionOrderDetailSerializer(data)
+
+        return Response({
+            "updated_steps": result["updated_steps"],
+            "detail": response_serializer.data,
+        })
