@@ -59,6 +59,8 @@ class ProductionOrderDetailStepSerializer(serializers.Serializer):
 
     components_transferred = serializers.BooleanField(read_only=True)
 
+    can_start = serializers.BooleanField(read_only=True)
+
     production_movement_invoice_file = serializers.CharField(
         read_only=True,
         allow_null=True,

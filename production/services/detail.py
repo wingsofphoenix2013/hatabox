@@ -134,8 +134,24 @@ def build_production_order_detail(
 
     steps_payload = []
 
+    previous_step = None
+
     for step in steps:
         movement = movement_by_step_id.get(step.id)
+
+        can_start = (
+            production_order.status == ProductionOrder.Status.IN_PROGRESS
+            and step.status == ProductionOrderStep.Status.CONFIRMED
+            and movement is not None
+            and movement.status
+            == WarehouseProductionMovement.Status.EXECUTED
+            and step.expected_finished_at is not None
+            and (
+                previous_step is None
+                or previous_step.status
+                == ProductionOrderStep.Status.FINISHED
+            )
+        )
 
         current_is_overdue = False
         current_days_left = None
@@ -200,12 +216,16 @@ def build_production_order_detail(
                 == WarehouseProductionMovement.Status.EXECUTED
             ),
 
+            "can_start": can_start,
+
             "production_movement_invoice_file": (
                 movement.invoice_file.url
                 if movement and movement.invoice_file
                 else None
             ),
         })
+
+        previous_step = step
 
     return {
         "summary": summary,
