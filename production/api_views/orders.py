@@ -155,26 +155,44 @@ class ProductionOrderViewSet(ModelViewSet):
         url_path="update-steps-schedule",
     )
     def update_steps_schedule(self, request, pk=None):
-        production_order = self.get_object()
+        try:
+            production_order = self.get_object()
 
-        serializer = UpdateProductionOrderStepsScheduleSerializer(
-            data=request.data,
-        )
-        serializer.is_valid(raise_exception=True)
+            serializer = UpdateProductionOrderStepsScheduleSerializer(
+                data=request.data,
+            )
+            serializer.is_valid(raise_exception=True)
 
-        result = update_production_order_steps_schedule(
-            production_order=production_order,
-            steps_data=serializer.validated_data["steps"],
-            created_by=request.user,
-        )
+            result = update_production_order_steps_schedule(
+                production_order=production_order,
+                steps_data=serializer.validated_data["steps"],
+                created_by=request.user,
+            )
 
-        data = build_production_order_detail(
-            production_order=production_order,
-        )
+            data = build_production_order_detail(
+                production_order=production_order,
+            )
 
-        response_serializer = ProductionOrderDetailSerializer(data)
+            response_serializer = ProductionOrderDetailSerializer(data)
 
-        return Response({
-            "updated_steps": result["updated_steps"],
-            "detail": response_serializer.data,
-        })
+            return Response({
+                "updated_steps": result["updated_steps"],
+                "detail": response_serializer.data,
+            })
+
+        except Exception as exc:
+            import sys
+            import traceback
+
+            print(
+                f"ProductionOrder update_steps_schedule failed: {exc}",
+                file=sys.stderr,
+                flush=True,
+            )
+            print(
+                traceback.format_exc(),
+                file=sys.stderr,
+                flush=True,
+            )
+
+            raise
