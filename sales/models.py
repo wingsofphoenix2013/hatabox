@@ -329,6 +329,11 @@ class SalesOrderEvent(models.Model):
             "Виробництво запущено",
         )
 
+        PRODUCTION_STEP_SCHEDULE_UPDATED = (
+            "production_step_schedule_updated",
+            "Оновлено графік виробничих етапів",
+        )
+
         PRODUCTION_MOVEMENT_INVOICE_GENERATED = (
             "production_movement_invoice_generated",
             "Сформовано накладну видачі у виробництво",

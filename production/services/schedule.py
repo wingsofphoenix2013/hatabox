@@ -130,7 +130,7 @@ def update_production_order_steps_schedule(
 
         create_sales_order_event(
             sales_order=production_order.sales_order,
-            event_type=SalesOrderEvent.EventType.SALES_ORDER_DETAILS_UPDATED,
+            event_type=SalesOrderEvent.EventType.PRODUCTION_STEP_SCHEDULE_UPDATED,
             source=SalesOrderEvent.Source.PRODUCTION,
             title="Оновлено графік виробництва",
             message="Оновлено планові дати виробничих етапів.",
