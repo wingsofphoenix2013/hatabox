@@ -143,6 +143,72 @@ def finish_production_order_step(
             created_by=created_by,
         )
 
+        reset_steps = []
+
+        if (
+            step.expected_finished_at is not None
+            and now > step.expected_finished_at
+        ):
+            future_steps = list(
+                ProductionOrderStep.objects.filter(
+                    production_order=production_order,
+                    sequence_number__gt=step.sequence_number,
+                    status__in=[
+                        ProductionOrderStep.Status.CONFIRMED,
+                    ],
+                ).exclude(
+                    expected_finished_at=None,
+                ).order_by(
+                    "sequence_number",
+                    "id",
+                )
+            )
+
+            for future_step in future_steps:
+                reset_steps.append({
+                    "production_order_step": future_step.id,
+                    "source_product_step": (
+                        future_step.source_product_step_id
+                    ),
+                    "old_expected_finished_at": (
+                        future_step.expected_finished_at.isoformat()
+                    ),
+                    "new_expected_finished_at": None,
+                })
+
+                future_step.expected_finished_at = None
+
+            if future_steps:
+                ProductionOrderStep.objects.bulk_update(
+                    future_steps,
+                    [
+                        "expected_finished_at",
+                    ],
+                )
+
+            if reset_steps:
+                create_sales_order_event(
+                    sales_order=production_order.sales_order,
+                    event_type=(
+                        SalesOrderEvent.EventType.PRODUCTION_FUTURE_STEP_SCHEDULE_RESET
+                    ),
+                    source=SalesOrderEvent.Source.PRODUCTION,
+                    title="Скинуто графік наступних етапів",
+                    message=(
+                        "Графік наступних етапів скинуто через прострочення поточного етапу."
+                    ),
+                    payload={
+                        "production_order_id": (
+                            production_order.id
+                        ),
+                        "overdue_production_order_step_id": (
+                            step.id
+                        ),
+                        "reset_steps": reset_steps,
+                    },
+                    created_by=created_by,
+                )
+
         all_steps_finished = not ProductionOrderStep.objects.filter(
             production_order=production_order,
         ).exclude(

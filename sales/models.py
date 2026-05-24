@@ -334,6 +334,11 @@ class SalesOrderEvent(models.Model):
             "Завершено етап виробництва",
         )
 
+        PRODUCTION_FUTURE_STEP_SCHEDULE_RESET = (
+            "production_future_step_schedule_reset",
+            "Скинуто графік наступних етапів",
+        )
+
         PRODUCTION_ORDER_READY = (
             "production_order_ready",
             "Виробництво завершено",
