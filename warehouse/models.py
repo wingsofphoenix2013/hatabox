@@ -337,6 +337,7 @@ class WarehouseUnitEvent(models.Model):
         MOVE = "move", "Переміщення"
         SPLIT_MOVE = "split_move", "Переміщення з розділенням"
         PRODUCTION_TRANSFER = "production_transfer", "Передача у виробництво"
+        PRODUCTION_CONSUME = "production_consume", "Використання у виробництві"
 
     operation_type = models.CharField(
         max_length=20,

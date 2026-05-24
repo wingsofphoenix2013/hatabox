@@ -7,6 +7,9 @@ from rest_framework.viewsets import ModelViewSet
 
 from production.models import ProductionOrderStep
 from production.services.steps import start_production_order_step
+from production.services.finish import (
+    finish_production_order_step,
+)
 from sales.models import SalesOrderEvent
 from warehouse.services.production_movement import (
     create_production_movement_for_step,
@@ -71,6 +74,24 @@ class ProductionOrderStepViewSet(ModelViewSet):
             "production_order_step": step.id,
             "status": step.status,
             "started_at": step.started_at,
+        })
+
+    @action(detail=True, methods=["post"], url_path="finish")
+    def finish(self, request, pk=None):
+        step = self.get_object()
+
+        result = finish_production_order_step(
+            production_order_step=step,
+            created_by=request.user,
+        )
+
+        step = self.get_queryset().get(pk=step.pk)
+
+        return Response({
+            "production_order_step": step.id,
+            "status": step.status,
+            "finished_at": step.finished_at,
+            "result": result,
         })
 
     @action(detail=True, methods=["post"], url_path="confirm")

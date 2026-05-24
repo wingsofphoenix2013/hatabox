@@ -329,6 +329,16 @@ class SalesOrderEvent(models.Model):
             "Запущено етап виробництва",
         )
 
+        PRODUCTION_ORDER_STEP_FINISHED = (
+            "production_order_step_finished",
+            "Завершено етап виробництва",
+        )
+
+        PRODUCTION_ORDER_READY = (
+            "production_order_ready",
+            "Виробництво завершено",
+        )
+
         PRODUCTION_ORDER_STARTED = (
             "production_order_started",
             "Виробництво запущено",
