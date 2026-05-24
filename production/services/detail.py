@@ -153,6 +153,13 @@ def build_production_order_detail(
             )
         )
 
+        can_finish = (
+            production_order.status == ProductionOrder.Status.IN_PROGRESS
+            and step.status == ProductionOrderStep.Status.IN_PROGRESS
+            and production_order.use_work_tracking is False
+            and production_order.use_hr_tracking is False
+        )
+
         current_is_overdue = False
         current_days_left = None
 
@@ -217,6 +224,7 @@ def build_production_order_detail(
             ),
 
             "can_start": can_start,
+            "can_finish": can_finish,
 
             "production_movement_invoice_file": (
                 movement.invoice_file.url
