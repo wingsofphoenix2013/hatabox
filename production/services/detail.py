@@ -168,7 +168,7 @@ def build_production_order_detail(
 
         if step.expected_finished_at is None:
             can_start_reasons.append(
-                "Не заповнено expected_finished_at."
+                "Не заповнено планову дату завершення етапу."
             )
 
         if (
