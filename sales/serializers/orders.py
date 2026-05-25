@@ -127,7 +127,7 @@ class SalesOrderSerializer(serializers.ModelSerializer):
         source="product.code",
         read_only=True,
     )
-    product_family = serializers.IntegerField(
+    product_family_id = serializers.IntegerField(
         source="product.product_family_id",
         read_only=True,
     )
@@ -170,6 +170,7 @@ class SalesOrderSerializer(serializers.ModelSerializer):
             "product",
             "product_code",
             "product_family",
+            "product_family_id",
             "product_family_name",
             "status",
             "status_display",
