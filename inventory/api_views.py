@@ -140,6 +140,10 @@ class ProductOptionsView(ListAPIView):
     def get_queryset(self):
         queryset = Product.objects.select_related("product_family").filter(is_active=True)
 
+        product_family = self.request.query_params.getlist("product_family")
+        if product_family:
+            queryset = queryset.filter(product_family_id__in=product_family)
+
         search = self.request.query_params.get("search")
         if search:
             queryset = queryset.filter(
