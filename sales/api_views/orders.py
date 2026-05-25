@@ -141,6 +141,7 @@ class SalesOrderViewSet(ModelViewSet):
                 models.Q(organization__name__icontains=search)
                 | models.Q(product__code__icontains=search)
                 | models.Q(product__product_family__name__icontains=search)
+                | models.Q(production_order__serial_number__icontains=search)
             )
 
         return queryset

@@ -45,6 +45,11 @@ class SalesOrderListSerializer(serializers.ModelSerializer):
         read_only=True,
         allow_null=True,
     )
+    production_order_serial_number = serializers.CharField(
+        source="production_order.serial_number",
+        read_only=True,
+        allow_null=True,
+    )
     production_order_can_start = serializers.SerializerMethodField()
 
     organization_name = serializers.CharField(
@@ -84,6 +89,7 @@ class SalesOrderListSerializer(serializers.ModelSerializer):
             "status",
             "production_order",
             "production_order_status",
+            "production_order_serial_number",
             "production_order_can_start",
             "created_by",
             "created_at",
