@@ -139,19 +139,48 @@ def build_production_order_detail(
     for step in steps:
         movement = movement_by_step_id.get(step.id)
 
-        can_start = (
-            production_order.status == ProductionOrder.Status.IN_PROGRESS
-            and step.status == ProductionOrderStep.Status.CONFIRMED
-            and movement is not None
-            and movement.status
-            == WarehouseProductionMovement.Status.EXECUTED
-            and step.expected_finished_at is not None
-            and (
-                previous_step is None
-                or previous_step.status
-                == ProductionOrderStep.Status.FINISHED
+        can_start_reasons = []
+
+        if (
+            production_order.status
+            != ProductionOrder.Status.IN_PROGRESS
+        ):
+            can_start_reasons.append(
+                "ProductionOrder ще не запущено."
             )
-        )
+
+        if step.status != ProductionOrderStep.Status.CONFIRMED:
+            can_start_reasons.append(
+                "Етап не перебуває у статусі confirmed."
+            )
+
+        if movement is None:
+            can_start_reasons.append(
+                "Для етапу не створено накладну передачі."
+            )
+        elif (
+            movement.status
+            != WarehouseProductionMovement.Status.EXECUTED
+        ):
+            can_start_reasons.append(
+                "Комплектуючі ще не передані у виробництво."
+            )
+
+        if step.expected_finished_at is None:
+            can_start_reasons.append(
+                "Не заповнено expected_finished_at."
+            )
+
+        if (
+            previous_step is not None
+            and previous_step.status
+            != ProductionOrderStep.Status.FINISHED
+        ):
+            can_start_reasons.append(
+                "Попередній етап ще не завершено."
+            )
+
+        can_start = len(can_start_reasons) == 0
 
         can_finish = (
             production_order.status == ProductionOrder.Status.IN_PROGRESS
@@ -224,6 +253,8 @@ def build_production_order_detail(
             ),
 
             "can_start": can_start,
+            "can_start_reasons": can_start_reasons,
+
             "can_finish": can_finish,
 
             "production_movement_invoice_file": (
