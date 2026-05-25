@@ -284,6 +284,11 @@ class SalesOrderEvent(models.Model):
             "Оновлено деталі SalesOrder",
         )
 
+        SALES_ORDER_PRODUCT_CHANGED = (
+            "sales_order_product_changed",
+            "Змінено версію виробу",
+        )
+
         SALES_ORDER_CONFIRMED = (
             "sales_order_confirmed",
             "SalesOrder підтверджено",

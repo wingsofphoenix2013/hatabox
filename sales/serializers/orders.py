@@ -371,6 +371,12 @@ class SalesOrderProductionReadinessSerializer(serializers.Serializer):
     )
 
 
+class ChangeSalesOrderProductSerializer(serializers.Serializer):
+    product = serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.all(),
+    )
+
+
 class UpdateSalesOrderDetailsSerializer(serializers.Serializer):
     comment = serializers.CharField(
         required=False,

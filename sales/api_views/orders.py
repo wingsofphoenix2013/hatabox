@@ -42,6 +42,7 @@ from sales.serializers import (
     UpdateSalesOrderDetailsSerializer,
     SalesOrderProductionReadinessSerializer,
     SalesOrderEventSerializer,
+    ChangeSalesOrderProductSerializer,
 )
 from sales.models import (
     SalesOrder,
@@ -49,9 +50,12 @@ from sales.models import (
     SalesOrderIssue,
     SalesOrderEvent,
 )
-from sales.services.events import (
-    create_sales_order_event,
-    build_sales_order_events,
+from sales.services.orders import (
+    create_sales_order,
+    check_sales_order_can_confirm,
+)
+from sales.services.change_product import (
+    change_sales_order_product,
 )
 from sales.services.orders import create_sales_order
 from sales.services.production_readiness import (
@@ -343,6 +347,32 @@ class SalesOrderViewSet(ModelViewSet):
         sales_order = self.get_queryset().get(pk=sales_order.pk)
 
         return Response(self.get_serializer(sales_order).data)
+
+    @action(detail=True, methods=["post"], url_path="change-product")
+    def change_product(self, request, pk=None):
+        sales_order = self.get_object()
+
+        serializer = ChangeSalesOrderProductSerializer(
+            data=request.data,
+        )
+        serializer.is_valid(raise_exception=True)
+
+        result = change_sales_order_product(
+            sales_order=sales_order,
+            new_product=serializer.validated_data["product"],
+            created_by=request.user,
+        )
+
+        sales_order = self.get_queryset().get(
+            pk=sales_order.pk,
+        )
+
+        return Response({
+            "sales_order": self.get_serializer(
+                sales_order,
+            ).data,
+            "result": result,
+        })
 
     @action(detail=True, methods=["post"], url_path="cancel")
     def cancel(self, request, pk=None):
