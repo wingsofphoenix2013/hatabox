@@ -182,6 +182,13 @@ def build_production_order_detail(
 
         can_start = len(can_start_reasons) == 0
 
+        components_issue_requested = (
+            movement is not None
+            and movement.status
+            == WarehouseProductionMovement.Status.CREATED
+            and movement.issue_requested
+        )
+
         can_finish = (
             production_order.status == ProductionOrder.Status.IN_PROGRESS
             and step.status == ProductionOrderStep.Status.IN_PROGRESS
@@ -250,6 +257,10 @@ def build_production_order_detail(
                 movement is not None
                 and movement.status
                 == WarehouseProductionMovement.Status.EXECUTED
+            ),
+
+            "components_issue_requested": (
+                components_issue_requested
             ),
 
             "can_start": can_start,

@@ -58,6 +58,7 @@ class ProductionOrderDetailStepSerializer(serializers.Serializer):
     production_movement_status = serializers.CharField(read_only=True, allow_null=True)
 
     components_transferred = serializers.BooleanField(read_only=True)
+    components_issue_requested = serializers.BooleanField(read_only=True)
 
     can_start = serializers.BooleanField(read_only=True)
     can_start_reasons = serializers.ListField(
