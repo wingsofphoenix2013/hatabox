@@ -551,27 +551,45 @@ class SalesOrderViewSet(ModelViewSet):
 
     @action(detail=True, methods=["get"], url_path="events")
     def events(self, request, pk=None):
-        sales_order = self.get_object()
+        try:
+            sales_order = self.get_object()
 
-        rows = build_sales_order_events(
-            sales_order=sales_order,
-        )
+            rows = build_sales_order_events(
+                sales_order=sales_order,
+            )
 
-        page = self.paginate_queryset(rows)
+            page = self.paginate_queryset(rows)
 
-        if page is not None:
+            if page is not None:
+                serializer = SalesOrderEventSerializer(
+                    page,
+                    many=True,
+                )
+                return self.get_paginated_response(serializer.data)
+
             serializer = SalesOrderEventSerializer(
-                page,
+                rows,
                 many=True,
             )
-            return self.get_paginated_response(serializer.data)
 
-        serializer = SalesOrderEventSerializer(
-            rows,
-            many=True,
-        )
+            return Response(serializer.data)
 
-        return Response(serializer.data)
+        except Exception as exc:
+            import sys
+            import traceback
+
+            print(
+                f"SalesOrder events failed: sales_order_id={pk} error={exc}",
+                file=sys.stderr,
+                flush=True,
+            )
+            print(
+                traceback.format_exc(),
+                file=sys.stderr,
+                flush=True,
+            )
+
+            raise
 
     @action(detail=True, methods=["post"], url_path="confirm")
     def confirm(self, request, pk=None):
@@ -720,6 +738,18 @@ class SalesOrderViewSet(ModelViewSet):
             return Response(self.get_serializer(sales_order).data)
 
         except Exception as exc:
-            logger.error("SalesOrder confirm failed: %s", exc)
-            logger.error(traceback.format_exc())
+            import sys
+            import traceback
+
+            print(
+                f"SalesOrder confirm failed: sales_order_id={pk} error={exc}",
+                file=sys.stderr,
+                flush=True,
+            )
+            print(
+                traceback.format_exc(),
+                file=sys.stderr,
+                flush=True,
+            )
+
             raise
