@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
 
@@ -160,7 +162,7 @@ class WarehouseProductionReservationViewSet(ReadOnlyModelViewSet):
         total_quantity = queryset.aggregate(
             total_quantity=Coalesce(
                 Sum("quantity"),
-                0,
+                Decimal("0.000"),
             )
         )["total_quantity"]
 
