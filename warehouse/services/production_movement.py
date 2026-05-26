@@ -367,10 +367,14 @@ def execute_production_movement(
 
         movement.status = WarehouseProductionMovement.Status.EXECUTED
         movement.executed_at = now
+
+        movement.issue_requested = False
+
         movement.save(
             update_fields=[
                 "status",
                 "executed_at",
+                "issue_requested",
             ]
         )
 

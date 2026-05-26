@@ -1047,6 +1047,23 @@ class WarehouseProductionMovement(models.Model):
         blank=True,
     )
 
+    issue_requested = models.BooleanField(
+        default=False,
+    )
+
+    issue_requested_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    issue_requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="requested_warehouse_production_movements",
+        null=True,
+        blank=True,
+    )
+
     comment = models.TextField(
         blank=True,
     )

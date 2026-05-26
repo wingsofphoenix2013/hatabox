@@ -16,6 +16,9 @@ from warehouse.services.production_movement import (
     cancel_production_movement,
     execute_production_movement,
 )
+from warehouse.services.production_movement_request import (
+    request_production_movement_issue,
+)
 from sales.models import SalesOrderEvent
 from sales.services.events import create_sales_order_event
 from warehouse.services.production_movement_invoice import (
@@ -218,6 +221,25 @@ class WarehouseProductionMovementViewSet(ModelViewSet):
 
         movement.comment = serializer.validated_data["comment"]
         movement.save(update_fields=["comment"])
+
+        movement = self.get_queryset().get(pk=movement.pk)
+
+        return Response(
+            self.get_serializer(movement).data
+        )
+
+    @action(detail=True, methods=["post"], url_path="request-issue")
+    def request_issue(self, request, pk=None):
+        movement = self.get_object()
+
+        movement = request_production_movement_issue(
+            movement=movement,
+            requested_by=(
+                request.user
+                if request.user.is_authenticated
+                else None
+            ),
+        )
 
         movement = self.get_queryset().get(pk=movement.pk)
 

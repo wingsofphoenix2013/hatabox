@@ -361,12 +361,17 @@ class SalesOrderEvent(models.Model):
 
         PRODUCTION_MOVEMENT_INVOICE_GENERATED = (
             "production_movement_invoice_generated",
-            "Сформовано накладну видачі у виробництво",
+            "Сформовано накладну видачі",
         )
 
         PRODUCTION_MOVEMENT_EXECUTED = (
             "production_movement_executed",
             "Компоненти передано у виробництво",
+        )
+
+        PRODUCTION_MOVEMENT_ISSUE_REQUESTED = (
+            "production_movement_issue_requested",
+            "Запрошено видачу комплектації",
         )
 
     sales_order = models.ForeignKey(
