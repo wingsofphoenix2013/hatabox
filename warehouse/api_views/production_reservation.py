@@ -1,5 +1,7 @@
 from django.db.models import Sum
+from django.db.models.functions import Coalesce
 
+from rest_framework.decorators import action
 from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.response import Response
 from rest_framework.viewsets import ReadOnlyModelViewSet
@@ -13,6 +15,17 @@ from warehouse.serializers import (
 
 class WarehouseProductionReservationViewSet(ReadOnlyModelViewSet):
     pagination_class = None
+
+    def _get_base_queryset(self):
+        queryset = self.queryset
+
+        inv_item = self.request.query_params.get("inv_item")
+        if inv_item:
+            queryset = queryset.filter(
+                sales_order_component__inv_item_id=inv_item,
+            )
+
+        return queryset
 
     def list(self, request, *args, **kwargs):
         rows = []
@@ -106,13 +119,7 @@ class WarehouseProductionReservationViewSet(ReadOnlyModelViewSet):
     )
 
     def get_queryset(self):
-        queryset = self.queryset
-
-        inv_item = self.request.query_params.get("inv_item")
-        if inv_item:
-            queryset = queryset.filter(
-                sales_order_component__inv_item_id=inv_item,
-            )
+        queryset = self._get_base_queryset()
 
         return queryset.values(
             "sales_order__production_order__serial_number",
@@ -145,3 +152,64 @@ class WarehouseProductionReservationViewSet(ReadOnlyModelViewSet):
             "-sales_order__production_order__serial_number",
             "-sales_order_id",
         )
+
+    @action(detail=False, methods=["get"], url_path="summary")
+    def summary(self, request):
+        queryset = self._get_base_queryset()
+
+        total_quantity = queryset.aggregate(
+            total_quantity=Coalesce(
+                Sum("quantity"),
+                0,
+            )
+        )["total_quantity"]
+
+        by_reservation_status = []
+
+        for row in queryset.values(
+            "status",
+        ).annotate(
+            quantity=Sum("quantity"),
+        ).order_by(
+            "status",
+        ):
+            by_reservation_status.append({
+                "status": row["status"],
+                "status_display": (
+                    WarehouseProductionReservation.Status(
+                        row["status"]
+                    ).label
+                ),
+                "quantity": row["quantity"],
+            })
+
+        by_production_order_step_status = []
+
+        for row in queryset.values(
+            "production_order_step_component__production_order_step__status",
+        ).annotate(
+            quantity=Sum("quantity"),
+        ).order_by(
+            "production_order_step_component__production_order_step__status",
+        ):
+            step_status = row[
+                "production_order_step_component__production_order_step__status"
+            ]
+
+            by_production_order_step_status.append({
+                "status": step_status,
+                "status_display": (
+                    ProductionOrderStep.Status(step_status).label
+                    if step_status
+                    else None
+                ),
+                "quantity": row["quantity"],
+            })
+
+        return Response({
+            "total_quantity": total_quantity,
+            "by_reservation_status": by_reservation_status,
+            "by_production_order_step_status": (
+                by_production_order_step_status
+            ),
+        })
