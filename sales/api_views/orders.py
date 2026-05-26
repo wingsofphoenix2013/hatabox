@@ -61,6 +61,10 @@ from sales.services.orders import create_sales_order
 from sales.services.production_readiness import (
     build_sales_order_production_readiness,
 )
+from sales.services.events import (
+    create_sales_order_event,
+    build_sales_order_events,
+)
 
 
 class SalesOrderViewSet(ModelViewSet):
