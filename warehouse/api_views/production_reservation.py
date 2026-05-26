@@ -4,6 +4,7 @@ from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.response import Response
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
+from production.models import ProductionOrderStep
 from warehouse.models import WarehouseProductionReservation
 from warehouse.serializers import (
     WarehouseProductionReservationListSerializer,
@@ -53,6 +54,24 @@ class WarehouseProductionReservationViewSet(ReadOnlyModelViewSet):
                 "source_product_step_name": row[
                     "production_order_step_component__production_order_step__source_product_step__name"
                 ],
+
+                "production_order_step": row[
+                    "production_order_step_component__production_order_step_id"
+                ],
+                "production_order_step_status": row[
+                    "production_order_step_component__production_order_step__status"
+                ],
+                "production_order_step_status_display": (
+                    ProductionOrderStep.Status(
+                        row[
+                            "production_order_step_component__production_order_step__status"
+                        ]
+                    ).label
+                    if row[
+                        "production_order_step_component__production_order_step__status"
+                    ]
+                    else None
+                ),
 
                 "quantity": row["quantity"],
                 "reservation_status": row["status"],
@@ -111,6 +130,9 @@ class WarehouseProductionReservationViewSet(ReadOnlyModelViewSet):
 
             "production_order_step_component__production_order_step__source_product_step_id",
             "production_order_step_component__production_order_step__source_product_step__name",
+
+            "production_order_step_component__production_order_step_id",
+            "production_order_step_component__production_order_step__status",
 
             "status",
 

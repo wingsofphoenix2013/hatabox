@@ -26,6 +26,19 @@ class WarehouseProductionReservationListSerializer(serializers.Serializer):
         allow_null=True,
     )
 
+    production_order_step = serializers.IntegerField(
+        read_only=True,
+        allow_null=True,
+    )
+    production_order_step_status = serializers.CharField(
+        read_only=True,
+        allow_null=True,
+    )
+    production_order_step_status_display = serializers.CharField(
+        read_only=True,
+        allow_null=True,
+    )
+
     quantity = serializers.DecimalField(
         max_digits=12,
         decimal_places=3,
