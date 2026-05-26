@@ -120,6 +120,10 @@ class WarehouseProductionMovementListSerializer(serializers.ModelSerializer):
             "invoice_file",
             "invoice_generated_at",
 
+            "issue_requested",
+            "issue_requested_at",
+            "issue_requested_by",
+
             "created_by",
             "comment",
             "created_at",
@@ -171,6 +175,9 @@ class WarehouseProductionMovementSerializer(serializers.ModelSerializer):
             "comment",
             "invoice_file",
             "invoice_generated_at",
+            "issue_requested",
+            "issue_requested_at",
+            "issue_requested_by",
             "created_at",
             "executed_at",
             "cancelled_at",
