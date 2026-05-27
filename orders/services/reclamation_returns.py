@@ -1,15 +1,18 @@
 from decimal import Decimal
 
-from django.db import transaction
+from django.db import models, transaction
 from rest_framework.exceptions import ValidationError
 
 from orders.models import (
     ExternalOrder,
     ExternalOrderItem,
     ReclamationReturnDocument,
+    ReclamationReturnItem,
 )
-from orders.serializers.reclamation_returns import ReclamationReturnItemSerializer
-from warehouse.models import WarehouseUnit
+from warehouse.models import (
+    WarehouseUnit,
+    WarehouseUnitEvent,
+)
 from warehouse.tasks import recalculate_warehouse_shortages_task
 
 
@@ -67,7 +70,11 @@ def create_reclamation_return_draft_from_cart(
                 })
 
             available_units = list(
-                WarehouseUnit.objects.select_for_update().filter(
+                WarehouseUnit.objects.select_for_update().select_related(
+                    "location",
+                    "storage_place",
+                    "storage_place__location",
+                ).filter(
                     source_order_item=order_item,
                     status=WarehouseUnit.Status.ON_STOCK,
                 ).order_by("id")
@@ -93,13 +100,69 @@ def create_reclamation_return_draft_from_cart(
 
             affected_inv_item_ids.add(order_item.vendor_item.item_id)
 
-            for unit in selected_units:
-                serializer = ReclamationReturnItemSerializer(data={
-                    "return_document": reclamation_document.id,
-                    "warehouse_unit": unit.id,
+            selected_unit_ids = [
+                unit.id
+                for unit in selected_units
+            ]
+
+            split_events = WarehouseUnitEvent.objects.filter(
+                operation_type=WarehouseUnitEvent.OperationType.SPLIT_MOVE,
+            ).filter(
+                models.Q(source_unit_id__in=selected_unit_ids)
+                | models.Q(result_unit_id__in=selected_unit_ids)
+            )
+
+            if split_events.exists():
+                raise ValidationError({
+                    "items": (
+                        f"Деякі складські одиниці по позиції {order_item.id} "
+                        f"брали участь у split і не можуть бути повернені."
+                    )
                 })
-                serializer.is_valid(raise_exception=True)
-                serializer.save()
+
+            return_items_to_create = []
+
+            for unit in selected_units:
+                source_location = unit.location
+                source_storage_place = unit.storage_place
+
+                if source_storage_place is not None:
+                    source_location = source_storage_place.location
+
+                return_items_to_create.append(
+                    ReclamationReturnItem(
+                        return_document=reclamation_document,
+                        order_item=order_item,
+                        warehouse_unit=unit,
+                        quantity=unit.quantity,
+                        source_location=source_location,
+                        source_storage_place=source_storage_place,
+                        source_location_code=source_location.code if source_location else "",
+                        source_location_name=source_location.name if source_location else "",
+                        source_storage_place_code=source_storage_place.code if source_storage_place else "",
+                        source_storage_place_display_name=(
+                            source_storage_place.get_display_name()
+                            if source_storage_place
+                            else ""
+                        ),
+                        source_storage_place_full_display=(
+                            source_storage_place.get_display_name_verbose()
+                            if source_storage_place
+                            else ""
+                        ),
+                    )
+                )
+
+                unit.status = WarehouseUnit.Status.BLOCKED
+
+            WarehouseUnit.objects.bulk_update(
+                selected_units,
+                ["status", "updated_at"],
+            )
+
+            ReclamationReturnItem.objects.bulk_create(
+                return_items_to_create,
+            )
 
         if affected_inv_item_ids:
             recalculate_warehouse_shortages_task.delay(
