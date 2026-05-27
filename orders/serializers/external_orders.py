@@ -6,6 +6,7 @@ from rest_framework import serializers
 from orders.models import (
     ExternalOrder,
     ExternalPaymentDocument,
+    ReclamationReturnDocument,
 )
 
 from .external_order_items import ExternalOrderItemNestedSerializer
@@ -41,6 +42,7 @@ class ExternalOrderRegisterLightSerializer(serializers.ModelSerializer):
             "status_name",
             "created_at",
             "comment",
+            "has_reclamation",
             "order_total_amount",
             "payment_percent",
             "receipt_percent",
@@ -103,6 +105,7 @@ class ExternalOrderRegistrySerializer(serializers.ModelSerializer):
             "status_name",
             "created_at",
             "comment",
+            "has_reclamation",
             "order_total_amount",
             "paid_amount",
             "payment_percent",
@@ -146,6 +149,44 @@ class ExternalOrderRegistrySerializer(serializers.ModelSerializer):
 
         return (obj.expected_delivery_date_min - date.today()).days
 
+class ExternalOrderReclamationReturnItemSerializer(serializers.Serializer):
+    inventory_item_id = serializers.IntegerField(
+        source="warehouse_unit.inventory_item.id",
+        read_only=True,
+    )
+    inventory_item_code = serializers.CharField(
+        source="warehouse_unit.inventory_item.internal_code",
+        read_only=True,
+    )
+    inventory_item_name = serializers.CharField(
+        source="warehouse_unit.inventory_item.name",
+        read_only=True,
+    )
+    quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
+
+
+class ExternalOrderReclamationReturnSerializer(serializers.ModelSerializer):
+    items = ExternalOrderReclamationReturnItemSerializer(
+        many=True,
+        read_only=True,
+    )
+
+    class Meta:
+        model = ReclamationReturnDocument
+        fields = [
+            "id",
+            "return_no",
+            "status",
+            "return_date",
+            "reason",
+            "items",
+        ]
+
+
 class ExternalOrderSerializer(serializers.ModelSerializer):
     clear_image = serializers.BooleanField(write_only=True, required=False, default=False)
     vendor_code = serializers.CharField(source="vendor.code", read_only=True)
@@ -159,6 +200,11 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
         many=True,
         read_only=True,
         source="prefetched_payment_documents",
+    )
+
+    reclamation_returns = ExternalOrderReclamationReturnSerializer(
+        many=True,
+        read_only=True,
     )
 
     items_total_amount = serializers.SerializerMethodField()
@@ -194,6 +240,7 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "comment",
+            "has_reclamation",
             "image",
             "clear_image",
             "items_total_amount",
@@ -209,6 +256,7 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
             "receipt_expected_days",
             "items",
             "payment_documents",
+            "reclamation_returns",
         ]
         read_only_fields = ("created_by", "created_at", "updated_at", "vat_amount")
 
