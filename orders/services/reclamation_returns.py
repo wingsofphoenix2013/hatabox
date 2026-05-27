@@ -69,14 +69,20 @@ def create_reclamation_return_draft_from_cart(
                     "items": "Позиція повернення не належить цьому замовленню."
                 })
 
+            available_unit_ids = list(
+                WarehouseUnit.objects.select_for_update().filter(
+                    source_order_item=order_item,
+                    status=WarehouseUnit.Status.ON_STOCK,
+                ).order_by("id").values_list("id", flat=True)
+            )
+
             available_units = list(
-                WarehouseUnit.objects.select_for_update().select_related(
+                WarehouseUnit.objects.select_related(
                     "location",
                     "storage_place",
                     "storage_place__location",
                 ).filter(
-                    source_order_item=order_item,
-                    status=WarehouseUnit.Status.ON_STOCK,
+                    id__in=available_unit_ids,
                 ).order_by("id")
             )
 
