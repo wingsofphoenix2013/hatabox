@@ -171,10 +171,7 @@ class ReclamationReturnDocumentSerializer(serializers.ModelSerializer):
         read_only=True,
     )
 
-    items = ReclamationReturnItemSerializer(
-        many=True,
-        read_only=True,
-    )
+    items = serializers.SerializerMethodField()
 
     library = serializers.SerializerMethodField()
     
@@ -203,6 +200,48 @@ class ReclamationReturnDocumentSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
+
+    def get_items(self, obj):
+        grouped = {}
+
+        for item in obj.items.select_related(
+            "order_item",
+            "order_item__vendor_item",
+            "order_item__vendor_item__item",
+            "source_location",
+            "source_storage_place",
+        ):
+            vendor_item = item.order_item.vendor_item
+            inventory_item = vendor_item.item
+
+            key = (
+                item.order_item_id,
+                inventory_item.id,
+                item.source_location_id,
+                item.source_storage_place_id,
+            )
+
+            if key not in grouped:
+                grouped[key] = {
+                    "order_item_id": item.order_item_id,
+                    "vendor_item_id": vendor_item.id,
+                    "vendor_item_name": vendor_item.name,
+                    "inventory_item_id": inventory_item.id,
+                    "inventory_item_code": inventory_item.internal_code,
+                    "inventory_item_name": inventory_item.name,
+                    "quantity": item.quantity,
+                    "source_location": item.source_location_id,
+                    "source_storage_place": item.source_storage_place_id,
+                    "source_location_code": item.source_location_code,
+                    "source_location_name": item.source_location_name,
+                    "source_storage_place_code": item.source_storage_place_code,
+                    "source_storage_place_display_name": item.source_storage_place_display_name,
+                    "source_storage_place_full_display": item.source_storage_place_full_display,
+                }
+            else:
+                grouped[key]["quantity"] += item.quantity
+
+        return list(grouped.values())
 
     def get_library(self, obj):
         library = getattr(obj, "library", None)
