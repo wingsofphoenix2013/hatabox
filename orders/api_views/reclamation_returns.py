@@ -4,6 +4,7 @@ from django.db import models, transaction
 
 from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
@@ -90,6 +91,10 @@ class ReclamationReturnDocumentViewSet(ModelViewSet):
             order.has_reclamation = True
             order.save(update_fields=["has_reclamation"])
 
+        ReclamationReturnDocumentLibrary.objects.get_or_create(
+            return_document=reclamation_document,
+        )
+
     @action(detail=False, methods=["post"], url_path="create-from-cart")
     def create_from_cart(self, request):
         serializer = CreateReclamationReturnDocumentSerializer(data=request.data)
@@ -107,6 +112,10 @@ class ReclamationReturnDocumentViewSet(ModelViewSet):
         except Exception:
             logger.exception("Reclamation return create-from-cart failed")
             raise
+
+        ReclamationReturnDocumentLibrary.objects.get_or_create(
+            return_document=reclamation_document,
+        )
 
         response_serializer = self.get_serializer(reclamation_document)
         return Response(response_serializer.data)
@@ -330,3 +339,4 @@ class ReclamationReturnDocumentLibraryItemViewSet(ModelViewSet):
 
     serializer_class = ReclamationReturnDocumentLibraryItemSerializer
     permission_classes = [DjangoModelPermissions]
+    parser_classes = [MultiPartParser, FormParser]

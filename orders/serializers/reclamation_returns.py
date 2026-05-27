@@ -176,6 +176,8 @@ class ReclamationReturnDocumentSerializer(serializers.ModelSerializer):
         read_only=True,
     )
 
+    library = serializers.SerializerMethodField()
+    
     class Meta:
         model = ReclamationReturnDocument
         fields = [
@@ -194,12 +196,21 @@ class ReclamationReturnDocumentSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "items",
+            "library",
         ]
         read_only_fields = (
             "created_by",
             "created_at",
             "updated_at",
         )
+
+    def get_library(self, obj):
+        library = getattr(obj, "library", None)
+
+        if library is None:
+            return None
+
+        return ReclamationReturnDocumentLibrarySerializer(library).data
 
     def validate(self, attrs):
         if (
