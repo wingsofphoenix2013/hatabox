@@ -1,10 +1,13 @@
 from django.db import models, transaction
 
 from rest_framework.exceptions import ValidationError
+from rest_framework.decorators import action
 from rest_framework.permissions import DjangoModelPermissions
+from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 from orders.models import (
+    ExternalOrder,
     ExternalOrderEvent,
     ReclamationReturnDocument,
     ReclamationReturnItem,
@@ -22,6 +25,13 @@ from orders.serializers import (
     ReclamationReturnItemSerializer,
     ReclamationReturnDocumentLibrarySerializer,
     ReclamationReturnDocumentLibraryItemSerializer,
+    CreateReclamationReturnDocumentSerializer,
+    ReclamationReturnAvailabilityItemSerializer,
+)
+
+from orders.services.reclamation_returns import (
+    create_reclamation_return_draft_from_cart,
+    get_reclamation_return_availability,
 )
 
 from orders.services.external_order_events import create_external_order_event
@@ -75,6 +85,90 @@ class ReclamationReturnDocumentViewSet(ModelViewSet):
             order.has_reclamation = True
             order.save(update_fields=["has_reclamation"])
 
+    @action(detail=False, methods=["post"], url_path="create-from-cart")
+    def create_from_cart(self, request):
+        serializer = CreateReclamationReturnDocumentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        reclamation_document = create_reclamation_return_draft_from_cart(
+            order=serializer.validated_data["order"],
+            reason=serializer.validated_data["reason"],
+            return_date=serializer.validated_data["return_date"],
+            comment=serializer.validated_data.get("comment", ""),
+            items=serializer.validated_data["items"],
+            created_by=request.user,
+        )
+
+        response_serializer = self.get_serializer(reclamation_document)
+        return Response(response_serializer.data)
+
+    @action(detail=True, methods=["post"], url_path="execute")
+    def execute(self, request, pk=None):
+        reclamation_document = self.get_object()
+
+        serializer = self.get_serializer(
+            reclamation_document,
+            data={
+                "status": ReclamationReturnDocument.StatusChoices.COMPLETED,
+            },
+            partial=True,
+            context={
+                **self.get_serializer_context(),
+                "allow_status_change": True,
+            },
+        )
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        reclamation_document.refresh_from_db()
+        response_serializer = self.get_serializer(reclamation_document)
+        return Response(response_serializer.data)
+
+    @action(detail=True, methods=["post"], url_path="cancel")
+    def cancel(self, request, pk=None):
+        reclamation_document = self.get_object()
+
+        serializer = self.get_serializer(
+            reclamation_document,
+            data={
+                "status": ReclamationReturnDocument.StatusChoices.CANCELLED,
+            },
+            partial=True,
+            context={
+                **self.get_serializer_context(),
+                "allow_status_change": True,
+            },
+        )
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        reclamation_document.refresh_from_db()
+        response_serializer = self.get_serializer(reclamation_document)
+        return Response(response_serializer.data)
+
+    @action(detail=False, methods=["get"], url_path="availability")
+    def availability(self, request):
+        order_id = request.query_params.get("order")
+
+        if not order_id:
+            raise ValidationError({
+                "order": "Потрібно вказати замовлення."
+            })
+
+        try:
+            order = ExternalOrder.objects.get(id=order_id)
+        except ExternalOrder.DoesNotExist:
+            raise ValidationError({
+                "order": "Замовлення не знайдено."
+            })
+
+        data = get_reclamation_return_availability(
+            order=order,
+        )
+
+        serializer = ReclamationReturnAvailabilityItemSerializer(data, many=True)
+        return Response(serializer.data)
+
     def perform_update(self, serializer):
         if serializer.instance.status in [
             ReclamationReturnDocument.StatusChoices.COMPLETED,
@@ -88,6 +182,31 @@ class ReclamationReturnDocumentViewSet(ModelViewSet):
 
         with transaction.atomic():
             reclamation_document = serializer.save()
+
+            if (
+                old_status != ReclamationReturnDocument.StatusChoices.CANCELLED
+                and reclamation_document.status == ReclamationReturnDocument.StatusChoices.CANCELLED
+            ):
+                items = list(
+                    reclamation_document.items.select_related(
+                        "warehouse_unit",
+                        "source_location",
+                        "source_storage_place",
+                    )
+                )
+
+                for item in items:
+                    unit = item.warehouse_unit
+
+                    if unit.status != WarehouseUnit.Status.BLOCKED:
+                        raise ValidationError(
+                            "Усі складські одиниці рекламації повинні бути заблоковані перед скасуванням."
+                        )
+
+                    unit.status = WarehouseUnit.Status.ON_STOCK
+                    unit.location = item.source_location if item.source_storage_place is None else None
+                    unit.storage_place = item.source_storage_place
+                    unit.save()
 
             if (
                 old_status != ReclamationReturnDocument.StatusChoices.COMPLETED
@@ -106,8 +225,11 @@ class ReclamationReturnDocumentViewSet(ModelViewSet):
 
                 for item in items:
                     unit = item.warehouse_unit
-                    from_location = unit.location
-                    from_storage_place = unit.storage_place
+
+                    if unit.status != WarehouseUnit.Status.BLOCKED:
+                        raise ValidationError(
+                            "Усі складські одиниці рекламації повинні бути заблоковані перед завершенням."
+                        )
 
                     unit.status = WarehouseUnit.Status.RETURNED
                     unit.location = None
@@ -119,8 +241,8 @@ class ReclamationReturnDocumentViewSet(ModelViewSet):
                         source_unit=unit,
                         result_unit=unit,
                         quantity=item.quantity,
-                        from_location=from_location,
-                        from_storage_place=from_storage_place,
+                        from_location=item.source_location,
+                        from_storage_place=item.source_storage_place,
                         to_location=None,
                         to_storage_place=None,
                         created_by=self.request.user,

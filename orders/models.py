@@ -680,6 +680,15 @@ class ReclamationReturnItem(models.Model):
         verbose_name="Документ рекламації",
     )
 
+    order_item = models.ForeignKey(
+        ExternalOrderItem,
+        on_delete=models.PROTECT,
+        related_name="reclamation_return_items",
+        null=True,
+        blank=True,
+        verbose_name="Рядок замовлення",
+    )
+
     warehouse_unit = models.ForeignKey(
         "warehouse.WarehouseUnit",
         on_delete=models.PROTECT,
@@ -692,6 +701,30 @@ class ReclamationReturnItem(models.Model):
         decimal_places=3,
         verbose_name="Кількість",
     )
+
+    source_location = models.ForeignKey(
+        "warehouse.WarehouseLocation",
+        on_delete=models.PROTECT,
+        related_name="reclamation_return_items",
+        null=True,
+        blank=True,
+        verbose_name="Локація повернення",
+    )
+
+    source_storage_place = models.ForeignKey(
+        "warehouse.WarehouseStoragePlace",
+        on_delete=models.PROTECT,
+        related_name="reclamation_return_items",
+        null=True,
+        blank=True,
+        verbose_name="Місце зберігання повернення",
+    )
+
+    source_location_code = models.CharField(max_length=3, blank=True)
+    source_location_name = models.CharField(max_length=255, blank=True)
+    source_storage_place_code = models.CharField(max_length=3, blank=True)
+    source_storage_place_display_name = models.CharField(max_length=255, blank=True)
+    source_storage_place_full_display = models.CharField(max_length=500, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

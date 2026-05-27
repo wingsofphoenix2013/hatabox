@@ -51,4 +51,6 @@ from .reclamation_returns import (
     ReclamationReturnItemSerializer,
     ReclamationReturnDocumentLibrarySerializer,
     ReclamationReturnDocumentLibraryItemSerializer,
+    CreateReclamationReturnDocumentSerializer,
+    ReclamationReturnAvailabilityItemSerializer,
 )

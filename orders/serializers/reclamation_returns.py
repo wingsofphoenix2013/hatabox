@@ -1,3 +1,5 @@
+from django.db import transaction
+
 from rest_framework import serializers
 
 from orders.models import (
@@ -19,18 +21,49 @@ class ReclamationReturnItemSerializer(serializers.ModelSerializer):
         read_only=True,
     )
 
+    order_item_id = serializers.IntegerField(
+        source="order_item.id",
+        read_only=True,
+    )
+
+    order_item_vendor_item_name = serializers.CharField(
+        source="order_item.vendor_item.name",
+        read_only=True,
+    )
+
     class Meta:
         model = ReclamationReturnItem
         fields = [
             "id",
             "return_document",
+            "order_item_id",
+            "order_item_vendor_item_name",
             "warehouse_unit",
             "warehouse_unit_inventory_item_name",
             "warehouse_unit_inventory_item_code",
             "quantity",
+            "source_location",
+            "source_storage_place",
+            "source_location_code",
+            "source_location_name",
+            "source_storage_place_code",
+            "source_storage_place_display_name",
+            "source_storage_place_full_display",
             "created_at",
             "updated_at",
         ]
+        read_only_fields = (
+            "quantity",
+            "source_location",
+            "source_storage_place",
+            "source_location_code",
+            "source_location_name",
+            "source_storage_place_code",
+            "source_storage_place_display_name",
+            "source_storage_place_full_display",
+            "created_at",
+            "updated_at",
+        )
 
     def validate(self, attrs):
         return_document = attrs.get("return_document")
@@ -51,9 +84,9 @@ class ReclamationReturnItemSerializer(serializers.ModelSerializer):
                 "Можна змінювати рядки лише для рекламації у статусі 'Чернетка'."
             )
 
-        if warehouse_unit.status == warehouse_unit.Status.RETURNED:
+        if warehouse_unit.status != warehouse_unit.Status.ON_STOCK:
             raise serializers.ValidationError(
-                "Складська одиниця вже повернена постачальнику."
+                "Можна повертати лише складські одиниці у статусі 'На складі'."
             )
 
         if warehouse_unit.source_order_item_id is None:
@@ -81,6 +114,40 @@ class ReclamationReturnItemSerializer(serializers.ModelSerializer):
             )
 
         return attrs
+
+    def create(self, validated_data):
+        warehouse_unit = validated_data["warehouse_unit"]
+
+        source_location = warehouse_unit.location
+        source_storage_place = warehouse_unit.storage_place
+
+        if source_storage_place is not None:
+            source_location = source_storage_place.location
+
+        with transaction.atomic():
+            warehouse_unit.status = warehouse_unit.Status.BLOCKED
+            warehouse_unit.save(update_fields=["status", "updated_at"])
+
+            return super().create({
+                **validated_data,
+                "order_item": warehouse_unit.source_order_item,
+                "quantity": warehouse_unit.quantity,
+                "source_location": source_location,
+                "source_storage_place": source_storage_place,
+                "source_location_code": source_location.code if source_location else "",
+                "source_location_name": source_location.name if source_location else "",
+                "source_storage_place_code": source_storage_place.code if source_storage_place else "",
+                "source_storage_place_display_name": (
+                    source_storage_place.get_display_name()
+                    if source_storage_place
+                    else ""
+                ),
+                "source_storage_place_full_display": (
+                    source_storage_place.get_display_name_verbose()
+                    if source_storage_place
+                    else ""
+                ),
+            })
 
 
 class ReclamationReturnDocumentSerializer(serializers.ModelSerializer):
@@ -134,6 +201,18 @@ class ReclamationReturnDocumentSerializer(serializers.ModelSerializer):
             "updated_at",
         )
 
+    def validate(self, attrs):
+        if (
+            self.instance is not None
+            and "status" in attrs
+            and not self.context.get("allow_status_change")
+        ):
+            raise serializers.ValidationError({
+                "status": "Статус рекламації змінюється лише через окрему дію."
+            })
+
+        return attrs
+
 
 class ReclamationReturnDocumentLibraryItemSerializer(serializers.ModelSerializer):
     attachment_type_name = serializers.CharField(
@@ -173,3 +252,67 @@ class ReclamationReturnDocumentLibrarySerializer(serializers.ModelSerializer):
         read_only_fields = (
             "created_at",
         )
+        
+class ReclamationReturnCartItemSerializer(serializers.Serializer):
+    order_item = serializers.IntegerField(min_value=1)
+
+    quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+    )
+
+
+class CreateReclamationReturnDocumentSerializer(serializers.Serializer):
+    order = serializers.PrimaryKeyRelatedField(
+        queryset=ReclamationReturnDocument._meta.get_field("order").remote_field.model.objects.all()
+    )
+
+    return_date = serializers.DateField()
+
+    reason = serializers.ChoiceField(
+        choices=ReclamationReturnDocument.ReasonChoices.choices,
+    )
+
+    comment = serializers.CharField(
+        required=False,
+        allow_blank=True,
+    )
+
+    items = ReclamationReturnCartItemSerializer(
+        many=True,
+        allow_empty=False,
+    )
+    
+class ReclamationReturnAvailabilityItemSerializer(serializers.Serializer):
+    order_item_id = serializers.IntegerField(read_only=True)
+    vendor_item_id = serializers.IntegerField(read_only=True)
+    vendor_item_name = serializers.CharField(read_only=True)
+    inventory_item_id = serializers.IntegerField(read_only=True)
+    inventory_item_code = serializers.CharField(read_only=True)
+    inventory_item_name = serializers.CharField(read_only=True)
+
+    ordered_quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
+    received_quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
+    available_quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
+    blocked_quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
+    returned_quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        read_only=True,
+    )
