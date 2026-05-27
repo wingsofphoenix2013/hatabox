@@ -180,10 +180,7 @@ class ExternalOrderReclamationReturnSerializer(serializers.ModelSerializer):
         read_only=True,
     )
 
-    items = ExternalOrderReclamationReturnItemSerializer(
-        many=True,
-        read_only=True,
-    )
+    items = serializers.SerializerMethodField()
 
     class Meta:
         model = ReclamationReturnDocument
@@ -197,6 +194,25 @@ class ExternalOrderReclamationReturnSerializer(serializers.ModelSerializer):
             "reason_name",
             "items",
         ]
+
+    def get_items(self, obj):
+        grouped = {}
+
+        for item in obj.items.all():
+            inventory_item = item.warehouse_unit.inventory_item
+            inventory_item_id = inventory_item.id
+
+            if inventory_item_id not in grouped:
+                grouped[inventory_item_id] = {
+                    "inventory_item_id": inventory_item.id,
+                    "inventory_item_code": inventory_item.internal_code,
+                    "inventory_item_name": inventory_item.name,
+                    "quantity": item.quantity,
+                }
+            else:
+                grouped[inventory_item_id]["quantity"] += item.quantity
+
+        return list(grouped.values())
 
 
 class ExternalOrderSerializer(serializers.ModelSerializer):
