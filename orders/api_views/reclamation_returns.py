@@ -19,6 +19,7 @@ from warehouse.models import (
     WarehouseUnit,
     WarehouseUnitEvent,
 )
+from warehouse.tasks import recalculate_warehouse_shortages_task
 
 from orders.serializers import (
     ReclamationReturnDocumentSerializer,
@@ -183,6 +184,8 @@ class ReclamationReturnDocumentViewSet(ModelViewSet):
         with transaction.atomic():
             reclamation_document = serializer.save()
 
+            affected_inv_item_ids = set()
+
             if (
                 old_status != ReclamationReturnDocument.StatusChoices.CANCELLED
                 and reclamation_document.status == ReclamationReturnDocument.StatusChoices.CANCELLED
@@ -207,6 +210,8 @@ class ReclamationReturnDocumentViewSet(ModelViewSet):
                     unit.location = item.source_location if item.source_storage_place is None else None
                     unit.storage_place = item.source_storage_place
                     unit.save()
+
+                    affected_inv_item_ids.add(unit.inventory_item_id)
 
             if (
                 old_status != ReclamationReturnDocument.StatusChoices.COMPLETED
@@ -248,6 +253,8 @@ class ReclamationReturnDocumentViewSet(ModelViewSet):
                         created_by=self.request.user,
                     )
 
+                    affected_inv_item_ids.add(unit.inventory_item_id)
+
                 create_external_order_event(
                     order=reclamation_document.order,
                     event_type=ExternalOrderEvent.EventType.RECLAMATION_RETURN_COMPLETED,
@@ -259,6 +266,11 @@ class ReclamationReturnDocumentViewSet(ModelViewSet):
                         "return_no": reclamation_document.return_no,
                     },
                     created_by=self.request.user,
+                )
+
+            if affected_inv_item_ids:
+                recalculate_warehouse_shortages_task.delay(
+                    inv_item_ids=list(affected_inv_item_ids),
                 )
 
 

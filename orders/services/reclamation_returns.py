@@ -10,6 +10,7 @@ from orders.models import (
 )
 from orders.serializers.reclamation_returns import ReclamationReturnItemSerializer
 from warehouse.models import WarehouseUnit
+from warehouse.tasks import recalculate_warehouse_shortages_task
 
 
 def create_reclamation_return_draft_from_cart(
@@ -40,6 +41,8 @@ def create_reclamation_return_draft_from_cart(
         if not order.has_reclamation:
             order.has_reclamation = True
             order.save(update_fields=["has_reclamation"])
+
+        affected_inv_item_ids = set()
 
         for row in items:
             order_item_id = row["order_item"]
@@ -88,6 +91,8 @@ def create_reclamation_return_draft_from_cart(
                     )
                 })
 
+            affected_inv_item_ids.add(order_item.vendor_item.item_id)
+
             for unit in selected_units:
                 serializer = ReclamationReturnItemSerializer(data={
                     "return_document": reclamation_document.id,
@@ -95,6 +100,11 @@ def create_reclamation_return_draft_from_cart(
                 })
                 serializer.is_valid(raise_exception=True)
                 serializer.save()
+
+        if affected_inv_item_ids:
+            recalculate_warehouse_shortages_task.delay(
+                inv_item_ids=list(affected_inv_item_ids),
+            )
 
         return reclamation_document
         
