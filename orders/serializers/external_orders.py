@@ -170,6 +170,16 @@ class ExternalOrderReclamationReturnItemSerializer(serializers.Serializer):
 
 
 class ExternalOrderReclamationReturnSerializer(serializers.ModelSerializer):
+    status_name = serializers.CharField(
+        source="get_status_display",
+        read_only=True,
+    )
+
+    reason_name = serializers.CharField(
+        source="get_reason_display",
+        read_only=True,
+    )
+
     items = ExternalOrderReclamationReturnItemSerializer(
         many=True,
         read_only=True,
@@ -181,8 +191,10 @@ class ExternalOrderReclamationReturnSerializer(serializers.ModelSerializer):
             "id",
             "return_no",
             "status",
+            "status_name",
             "return_date",
             "reason",
+            "reason_name",
             "items",
         ]
 
