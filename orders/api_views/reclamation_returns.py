@@ -1,3 +1,5 @@
+import logging
+
 from django.db import models, transaction
 
 from rest_framework.exceptions import ValidationError
@@ -36,6 +38,8 @@ from orders.services.reclamation_returns import (
 )
 
 from orders.services.external_order_events import create_external_order_event
+
+logger = logging.getLogger(__name__)
 
 
 class ReclamationReturnDocumentViewSet(ModelViewSet):
@@ -91,14 +95,18 @@ class ReclamationReturnDocumentViewSet(ModelViewSet):
         serializer = CreateReclamationReturnDocumentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        reclamation_document = create_reclamation_return_draft_from_cart(
-            order=serializer.validated_data["order"],
-            reason=serializer.validated_data["reason"],
-            return_date=serializer.validated_data["return_date"],
-            comment=serializer.validated_data.get("comment", ""),
-            items=serializer.validated_data["items"],
-            created_by=request.user,
-        )
+        try:
+            reclamation_document = create_reclamation_return_draft_from_cart(
+                order=serializer.validated_data["order"],
+                reason=serializer.validated_data["reason"],
+                return_date=serializer.validated_data["return_date"],
+                comment=serializer.validated_data.get("comment", ""),
+                items=serializer.validated_data["items"],
+                created_by=request.user,
+            )
+        except Exception:
+            logger.exception("Reclamation return create-from-cart failed")
+            raise
 
         response_serializer = self.get_serializer(reclamation_document)
         return Response(response_serializer.data)
