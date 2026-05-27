@@ -338,6 +338,7 @@ class WarehouseUnitEvent(models.Model):
         SPLIT_MOVE = "split_move", "Переміщення з розділенням"
         PRODUCTION_TRANSFER = "production_transfer", "Передача у виробництво"
         PRODUCTION_CONSUME = "production_consume", "Використання у виробництві"
+        RECLAMATION_RETURN = "reclamation_return", "Повернення постачальнику"
 
     operation_type = models.CharField(
         max_length=20,
@@ -434,10 +435,13 @@ class WarehouseUnitEvent(models.Model):
                 "quantity": "Кількість повинна бути більше 0."
             })
 
-        if self.operation_type == self.OperationType.PRODUCTION_TRANSFER:
+        if self.operation_type in [
+            self.OperationType.PRODUCTION_TRANSFER,
+            self.OperationType.RECLAMATION_RETURN,
+        ]:
             if self.to_location is not None or self.to_storage_place is not None:
                 raise ValidationError(
-                    "Для передачі у виробництво не потрібно вказувати to_location або to_storage_place."
+                    "Для цієї операції не потрібно вказувати to_location або to_storage_place."
                 )
         elif (self.to_location is None) == (self.to_storage_place is None):
             raise ValidationError(
@@ -582,10 +586,14 @@ class WarehouseUnit(models.Model):
                     "Неможливо змінювати складську одиницю, яка зарезервована в активному плані переміщення."
                 )
 
-        if self.status == self.Status.IN_PRODUCTION:
+        if self.status in [
+            self.Status.IN_PRODUCTION,
+            self.Status.CONSUMED,
+            self.Status.RETURNED,
+        ]:
             if self.location is not None or self.storage_place is not None:
                 raise ValidationError(
-                    "Складська одиниця у виробництві не повинна мати складську локацію або місце зберігання."
+                    "Складська одиниця з цим статусом не повинна мати складську локацію або місце зберігання."
                 )
         elif (self.location is None) == (self.storage_place is None):
             raise ValidationError(

@@ -63,6 +63,11 @@ class ExternalOrder(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     comment = models.TextField(blank=True, verbose_name="Коментар")
 
+    has_reclamation = models.BooleanField(
+        default=False,
+        verbose_name="Є рекламація",
+    )
+
     image = models.FileField(
         upload_to="orders/",
         db_column="image_path",
@@ -95,6 +100,8 @@ class ExternalOrderEvent(models.Model):
         RECEIPT_DOCUMENT_CREATED = "receipt_document_created", "Створено документ приходу"
         RECEIPT_DOCUMENT_COMPLETED = "receipt_document_completed", "Документ приходу завершено"
         RECEIPT_DOCUMENT_SENT_TO_WAREHOUSE = "receipt_document_sent_to_warehouse", "Документ приходу передано на склад"
+
+        RECLAMATION_RETURN_COMPLETED = "reclamation_return_completed", "Рекламацію завершено"
 
         COMMENT_ADDED = "comment_added", "Додано коментар"
         COMMENT_UPDATED = "comment_updated", "Оновлено коментар"
@@ -601,3 +608,140 @@ class TollingReceiptItem(models.Model):
 
     def __str__(self):
         return f"{self.receipt_document} → {self.order_item}"
+        
+class ReclamationReturnDocument(models.Model):
+    class StatusChoices(models.TextChoices):
+        DRAFT = "draft", "Чернетка"
+        COMPLETED = "completed", "Завершено"
+        CANCELLED = "cancelled", "Скасовано"
+
+    class ReasonChoices(models.TextChoices):
+        DEFECTIVE_PRODUCT = "defective_product", "Бракована продукція"
+        PROCUREMENT_ERROR = "procurement_error", "Помилка у закупівлі"
+
+    return_no = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name="Номер рекламації",
+    )
+
+    order = models.ForeignKey(
+        ExternalOrder,
+        on_delete=models.PROTECT,
+        related_name="reclamation_returns",
+        verbose_name="Замовлення",
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=StatusChoices.choices,
+        default=StatusChoices.DRAFT,
+        verbose_name="Статус",
+    )
+
+    return_date = models.DateField(
+        verbose_name="Дата повернення",
+    )
+
+    reason = models.CharField(
+        max_length=30,
+        choices=ReasonChoices.choices,
+        verbose_name="Причина",
+    )
+
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="created_reclamation_return_documents",
+        verbose_name="Створено користувачем",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    comment = models.TextField(
+        blank=True,
+        verbose_name="Коментар",
+    )
+
+    class Meta:
+        db_table = "reclamation_return_documents"
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return self.return_no
+
+
+class ReclamationReturnItem(models.Model):
+    return_document = models.ForeignKey(
+        ReclamationReturnDocument,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name="Документ рекламації",
+    )
+
+    warehouse_unit = models.ForeignKey(
+        "warehouse.WarehouseUnit",
+        on_delete=models.PROTECT,
+        related_name="reclamation_return_items",
+        verbose_name="Складська одиниця",
+    )
+
+    quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        verbose_name="Кількість",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "reclamation_return_items"
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.return_document} → {self.warehouse_unit}"
+
+
+class ReclamationReturnDocumentLibrary(models.Model):
+    return_document = models.OneToOneField(
+        ReclamationReturnDocument,
+        on_delete=models.CASCADE,
+        related_name="library",
+        verbose_name="Документ рекламації",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "reclamation_return_document_libraries"
+
+
+class ReclamationReturnDocumentLibraryItem(models.Model):
+    class AttachmentTypeChoices(models.TextChoices):
+        PHOTO = "photo", "Фотографія"
+        VIDEO = "video", "Відео"
+
+    library = models.ForeignKey(
+        ReclamationReturnDocumentLibrary,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name="Бібліотека",
+    )
+
+    file = models.FileField(
+        upload_to="reclamation_return_library/",
+    )
+
+    attachment_type = models.CharField(
+        max_length=20,
+        choices=AttachmentTypeChoices.choices,
+        verbose_name="Тип вкладення",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "reclamation_return_document_library_items"
+        ordering = ["id"]

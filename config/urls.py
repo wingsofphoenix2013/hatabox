@@ -43,6 +43,10 @@ from orders.api_views import (
     TollingOrderItemViewSet,
     TollingReceiptDocumentViewSet,
     TollingReceiptItemViewSet,
+    ReclamationReturnDocumentViewSet,
+    ReclamationReturnItemViewSet,
+    ReclamationReturnDocumentLibraryViewSet,
+    ReclamationReturnDocumentLibraryItemViewSet,
 )
 
 from warehouse.api_views import (
@@ -126,6 +130,11 @@ router.register("tolling-orders-register", TollingOrderRegisterLightViewSet, bas
 router.register("tolling-order-items", TollingOrderItemViewSet)
 router.register("tolling-receipt-documents", TollingReceiptDocumentViewSet)
 router.register("tolling-receipt-items", TollingReceiptItemViewSet)
+
+router.register("reclamation-return-documents", ReclamationReturnDocumentViewSet)
+router.register("reclamation-return-items", ReclamationReturnItemViewSet)
+router.register("reclamation-return-libraries", ReclamationReturnDocumentLibraryViewSet)
+router.register("reclamation-return-library-items", ReclamationReturnDocumentLibraryItemViewSet)
 
 router.register("tax-types", TaxTypeViewSet)
 

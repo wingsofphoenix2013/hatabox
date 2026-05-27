@@ -12,6 +12,10 @@ from .models import (
     TollingOrderItem,
     TollingReceiptDocument,
     TollingReceiptItem,
+    ReclamationReturnDocument,
+    ReclamationReturnItem,
+    ReclamationReturnDocumentLibrary,
+    ReclamationReturnDocumentLibraryItem,
 )
 
 
@@ -322,3 +326,92 @@ class TollingReceiptItemAdmin(admin.ModelAdmin):
         "order_item__inv_item__name",
     )
     autocomplete_fields = ("receipt_document", "order_item")
+    
+class ReclamationReturnItemInline(admin.TabularInline):
+    model = ReclamationReturnItem
+    extra = 0
+    autocomplete_fields = ("warehouse_unit",)
+
+
+@admin.register(ReclamationReturnDocument)
+class ReclamationReturnDocumentAdmin(admin.ModelAdmin):
+    list_display = (
+        "return_no",
+        "order",
+        "status",
+        "reason",
+        "return_date",
+        "created_by",
+        "created_at",
+    )
+    search_fields = (
+        "return_no",
+        "order__order_no",
+        "comment",
+    )
+    list_filter = (
+        "status",
+        "reason",
+        "return_date",
+        "created_by",
+    )
+    autocomplete_fields = (
+        "order",
+        "created_by",
+    )
+    inlines = (
+        ReclamationReturnItemInline,
+    )
+
+
+@admin.register(ReclamationReturnItem)
+class ReclamationReturnItemAdmin(admin.ModelAdmin):
+    list_display = (
+        "return_document",
+        "warehouse_unit",
+        "quantity",
+    )
+    autocomplete_fields = (
+        "return_document",
+        "warehouse_unit",
+    )
+
+
+class ReclamationReturnDocumentLibraryItemInline(admin.TabularInline):
+    model = ReclamationReturnDocumentLibraryItem
+    extra = 0
+
+
+@admin.register(ReclamationReturnDocumentLibrary)
+class ReclamationReturnDocumentLibraryAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "return_document",
+        "created_at",
+    )
+    search_fields = (
+        "return_document__return_no",
+        "return_document__order__order_no",
+    )
+    autocomplete_fields = (
+        "return_document",
+    )
+    inlines = (
+        ReclamationReturnDocumentLibraryItemInline,
+    )
+
+
+@admin.register(ReclamationReturnDocumentLibraryItem)
+class ReclamationReturnDocumentLibraryItemAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "library",
+        "attachment_type",
+        "created_at",
+    )
+    list_filter = (
+        "attachment_type",
+    )
+    autocomplete_fields = (
+        "library",
+    )

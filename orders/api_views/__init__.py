@@ -50,3 +50,10 @@ from .tolling_receipts import (
     TollingReceiptDocumentViewSet,
     TollingReceiptItemViewSet,
 )
+
+from .reclamation_returns import (
+    ReclamationReturnDocumentViewSet,
+    ReclamationReturnItemViewSet,
+    ReclamationReturnDocumentLibraryViewSet,
+    ReclamationReturnDocumentLibraryItemViewSet,
+)
