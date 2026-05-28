@@ -249,6 +249,7 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
     is_receipt_overdue = serializers.SerializerMethodField()
     receipt_overdue_days = serializers.SerializerMethodField()
     receipt_expected_days = serializers.SerializerMethodField()
+    can_start_reclamation_flow = serializers.SerializerMethodField()
 
     class Meta:
         model = ExternalOrder
@@ -269,6 +270,7 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
             "updated_at",
             "comment",
             "has_reclamation",
+            "can_start_reclamation_flow",
             "image",
             "clear_image",
             "items_total_amount",
@@ -330,6 +332,18 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
         if value is not None:
             return value
         return None
+
+    def get_can_start_reclamation_flow(self, obj):
+        receipt_documents = getattr(obj, "prefetched_receipt_documents", None)
+
+        if receipt_documents is None:
+            receipt_documents = obj.receipt_documents.all()
+
+        for receipt_document in receipt_documents:
+            if receipt_document.completed and receipt_document.sent_to_warehouse:
+                return True
+
+        return False
 
     def get_items_total_amount(self, obj):
         annotated = self._get_annotated_value(obj, "items_total_amount")

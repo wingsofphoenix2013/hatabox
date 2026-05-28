@@ -30,6 +30,7 @@ from orders.models import (
     ExternalOrderEvent,
     ExternalOrderItem,
     ExternalPaymentDocument,
+    ExternalReceiptDocument,
     ExternalReceiptItem,
 )
 
@@ -338,6 +339,16 @@ class ExternalOrderViewSet(ModelViewSet):
             "payment_documents",
             queryset=ExternalPaymentDocument.objects.select_related("created_by"),
             to_attr="prefetched_payment_documents",
+        ),
+        Prefetch(
+            "receipt_documents",
+            queryset=ExternalReceiptDocument.objects.only(
+                "id",
+                "order_id",
+                "completed",
+                "sent_to_warehouse",
+            ),
+            to_attr="prefetched_receipt_documents",
         ),
     ).order_by("-created_at", "-id")
     serializer_class = ExternalOrderSerializer
