@@ -18,6 +18,9 @@ from .external_orders import try_complete_order
 
 from orders.services.external_order_events import create_external_order_event
 
+PAYMENT_COMPLETION_TOLERANCE = Decimal("0.01")
+
+
 class ExternalPaymentDocumentViewSet(ModelViewSet):
     queryset = ExternalPaymentDocument.objects.select_related(
         "order",
