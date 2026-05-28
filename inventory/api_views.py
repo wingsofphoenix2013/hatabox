@@ -4,6 +4,7 @@ from django.db.models import Sum
 from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
 from rest_framework.generics import ListAPIView
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
@@ -159,6 +160,12 @@ class ProductViewSet(ModelViewSet):
     serializer_class = ProductSerializer
     permission_classes = [DjangoModelPermissions]
 
+    def perform_update(self, serializer):
+        if self.get_object().development_status == Product.DevelopmentStatus.FINISHED:
+            raise ValidationError("Finished products cannot be modified.")
+
+        serializer.save()
+
     def get_queryset(self):
         queryset = self.queryset.prefetch_related("library_items")
 
@@ -303,6 +310,26 @@ class ProductLibraryViewSet(ModelViewSet):
     serializer_class = ProductLibrarySerializer
     permission_classes = [DjangoModelPermissions]
 
+    def perform_create(self, serializer):
+        product = serializer.validated_data["product"]
+
+        if product.development_status == Product.DevelopmentStatus.FINISHED:
+            raise ValidationError("Finished product libraries cannot be modified.")
+
+        serializer.save()
+
+    def perform_update(self, serializer):
+        if self.get_object().product.development_status == Product.DevelopmentStatus.FINISHED:
+            raise ValidationError("Finished product libraries cannot be modified.")
+
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if instance.product.development_status == Product.DevelopmentStatus.FINISHED:
+            raise ValidationError("Finished product libraries cannot be modified.")
+
+        instance.delete()
+
     def get_queryset(self):
         queryset = self.queryset
 
@@ -339,6 +366,26 @@ class ProductStepViewSet(ModelViewSet):
     serializer_class = ProductStepSerializer
     permission_classes = [DjangoModelPermissions]
 
+    def perform_create(self, serializer):
+        product = serializer.validated_data["product"]
+
+        if product.development_status == Product.DevelopmentStatus.FINISHED:
+            raise ValidationError("Finished product steps cannot be modified.")
+
+        serializer.save()
+
+    def perform_update(self, serializer):
+        if self.get_object().product.development_status == Product.DevelopmentStatus.FINISHED:
+            raise ValidationError("Finished product steps cannot be modified.")
+
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if instance.product.development_status == Product.DevelopmentStatus.FINISHED:
+            raise ValidationError("Finished product steps cannot be modified.")
+
+        instance.delete()
+
     def get_queryset(self):
         queryset = self.queryset.prefetch_related("library_items", "step_items__inv_item__unit")
 
@@ -371,6 +418,26 @@ class ProductStepLibraryViewSet(ModelViewSet):
     )
     serializer_class = ProductStepLibrarySerializer
     permission_classes = [DjangoModelPermissions]
+
+    def perform_create(self, serializer):
+        product_step = serializer.validated_data["product_step"]
+
+        if product_step.product.development_status == Product.DevelopmentStatus.FINISHED:
+            raise ValidationError("Finished product step libraries cannot be modified.")
+
+        serializer.save()
+
+    def perform_update(self, serializer):
+        if self.get_object().product_step.product.development_status == Product.DevelopmentStatus.FINISHED:
+            raise ValidationError("Finished product step libraries cannot be modified.")
+
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if instance.product_step.product.development_status == Product.DevelopmentStatus.FINISHED:
+            raise ValidationError("Finished product step libraries cannot be modified.")
+
+        instance.delete()
 
     def get_queryset(self):
         queryset = self.queryset
@@ -416,6 +483,26 @@ class ProductStepItemViewSet(ModelViewSet):
     )
     serializer_class = ProductStepItemSerializer
     permission_classes = [DjangoModelPermissions]
+
+    def perform_create(self, serializer):
+        product_step = serializer.validated_data["product_step"]
+
+        if product_step.product.development_status == Product.DevelopmentStatus.FINISHED:
+            raise ValidationError("Finished product step items cannot be modified.")
+
+        serializer.save()
+
+    def perform_update(self, serializer):
+        if self.get_object().product_step.product.development_status == Product.DevelopmentStatus.FINISHED:
+            raise ValidationError("Finished product step items cannot be modified.")
+
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if instance.product_step.product.development_status == Product.DevelopmentStatus.FINISHED:
+            raise ValidationError("Finished product step items cannot be modified.")
+
+        instance.delete()
 
     def get_queryset(self):
         queryset = self.queryset

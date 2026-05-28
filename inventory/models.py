@@ -145,6 +145,10 @@ class ProductFamilyLibrary(models.Model):
         return f"{self.product_family.code} — {self.name}"
         
 class Product(models.Model):
+    class DevelopmentStatus(models.TextChoices):
+        IN_DEVELOPMENT = "in_development", "В розробці"
+        FINISHED = "finished", "Завершено"
+
     product_family = models.ForeignKey(
         "ProductFamily",
         on_delete=models.PROTECT,
@@ -155,8 +159,13 @@ class Product(models.Model):
     code = models.CharField(max_length=150, unique=True)
     description = models.TextField(blank=True, null=True)
     is_base_modification = models.BooleanField(default=False)
+    development_status = models.CharField(
+        max_length=30,
+        choices=DevelopmentStatus.choices,
+        default=DevelopmentStatus.IN_DEVELOPMENT,
+    )
     development_started_at = models.DateField()
-    development_finished_at = models.DateField()
+    development_finished_at = models.DateField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -174,6 +183,20 @@ class Product(models.Model):
                 fields=["product_family"],
                 condition=models.Q(is_base_modification=True),
                 name="uq_product_family_single_base_modification",
+            ),
+            models.CheckConstraint(
+                check=(
+                    models.Q(
+                        development_status="in_development",
+                        development_finished_at__isnull=True,
+                    )
+                    | models.Q(
+                        development_status="finished",
+                        development_finished_at__isnull=False,
+                        development_finished_at__gte=models.F("development_started_at"),
+                    )
+                ),
+                name="ck_product_development_status_dates",
             ),
         ]
 

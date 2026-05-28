@@ -228,6 +228,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "code",
             "description",
             "is_base_modification",
+            "development_status",
             "development_started_at",
             "development_finished_at",
             "is_active",
@@ -458,6 +459,7 @@ class ProductMaterialPlanProductSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     code = serializers.CharField()
     version = serializers.CharField()
+    development_status = serializers.CharField()
     product_family_id = serializers.IntegerField()
     product_family_code = serializers.CharField()
     product_family_name = serializers.CharField()
