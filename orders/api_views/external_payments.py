@@ -136,7 +136,7 @@ class ExternalPaymentDocumentViewSet(ModelViewSet):
 
                 remaining_amount = order_total_amount - committed_total
 
-                if remaining_amount > 0:
+                if remaining_amount > PAYMENT_COMPLETION_TOLERANCE:
                     existing_draft = ExternalPaymentDocument.objects.filter(
                         order=order,
                         status=ExternalPaymentDocument.StatusChoices.DRAFT,
