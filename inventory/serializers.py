@@ -1,3 +1,5 @@
+from django.utils import timezone
+
 from rest_framework import serializers
 
 from .models import (
@@ -210,6 +212,9 @@ class ProductOptionSerializer(serializers.ModelSerializer):
 
 class ProductSerializer(serializers.ModelSerializer):
     code = serializers.CharField(read_only=True)
+    development_started_at = serializers.DateField(required=False)
+    development_finished_at = serializers.DateField(required=False, allow_null=True)
+
     development_status_display = serializers.CharField(
         source="get_development_status_display",
         read_only=True,
@@ -251,6 +256,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
         validated_data["code"] = f"{product_family.code}-{version}"
         validated_data["development_status"] = Product.DevelopmentStatus.IN_DEVELOPMENT
+        validated_data["development_started_at"] = timezone.localdate()
         validated_data["development_finished_at"] = None
         validated_data["hr_tracking"] = False
 
