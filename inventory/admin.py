@@ -10,6 +10,8 @@ from .models import (
     ProductLibrary,
     ProductStep,
     ProductStepLibrary,
+    ProductWork,
+    ProductWorkItem,
     ProductStepItem,
 )
 
@@ -191,6 +193,20 @@ class ProductStepLibraryInline(admin.TabularInline):
     show_change_link = True
 
 
+class ProductWorkItemInline(admin.TabularInline):
+    model = ProductWorkItem
+    extra = 0
+    fields = (
+        "inv_item",
+        "quantity",
+        "created_at",
+        "updated_at",
+    )
+    autocomplete_fields = ("inv_item",)
+    readonly_fields = ("created_at", "updated_at")
+    show_change_link = True
+
+
 class ProductStepItemInline(admin.TabularInline):
     model = ProductStepItem
     extra = 0
@@ -230,6 +246,30 @@ class ProductStepAdmin(admin.ModelAdmin):
     inlines = [ProductStepLibraryInline, ProductStepItemInline]
 
 
+@admin.register(ProductWork)
+class ProductWorkAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "product_step",
+        "sort_order",
+        "name",
+        "created_at",
+        "updated_at",
+    )
+    list_filter = ("product_step",)
+    search_fields = (
+        "name",
+        "description",
+        "product_step__name",
+        "product_step__product__code",
+        "product_step__product__version",
+    )
+    autocomplete_fields = ("product_step",)
+    ordering = ("product_step", "sort_order", "id")
+    readonly_fields = ("created_at", "updated_at")
+    inlines = [ProductWorkItemInline]
+
+
 @admin.register(ProductStepLibrary)
 class ProductStepLibraryAdmin(admin.ModelAdmin):
     list_display = (
@@ -252,6 +292,30 @@ class ProductStepLibraryAdmin(admin.ModelAdmin):
     )
     autocomplete_fields = ("product_step",)
     ordering = ("name", "id")
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(ProductWorkItem)
+class ProductWorkItemAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "product_work",
+        "inv_item",
+        "quantity",
+        "created_at",
+        "updated_at",
+    )
+    list_filter = ("product_work", "inv_item")
+    search_fields = (
+        "product_work__name",
+        "product_work__product_step__name",
+        "product_work__product_step__product__code",
+        "product_work__product_step__product__version",
+        "inv_item__internal_code",
+        "inv_item__name",
+    )
+    autocomplete_fields = ("product_work", "inv_item")
+    ordering = ("product_work", "inv_item")
     readonly_fields = ("created_at", "updated_at")
 
 

@@ -298,6 +298,70 @@ class ProductStepLibrary(models.Model):
         return f"{self.product_step} — {self.name}"
 
 
+class ProductWork(models.Model):
+    product_step = models.ForeignKey(
+        "ProductStep",
+        on_delete=models.CASCADE,
+        db_column="product_step_id",
+        related_name="works",
+    )
+    name = models.CharField(max_length=255)
+    sort_order = models.PositiveIntegerField()
+    description = models.TextField(blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "product_works"
+        ordering = ["product_step", "sort_order", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["product_step", "sort_order"],
+                name="uq_product_work_product_step_sort_order",
+            ),
+            models.UniqueConstraint(
+                fields=["product_step", "name"],
+                name="uq_product_work_product_step_name",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.product_step} — {self.sort_order}. {self.name}"
+
+
+class ProductWorkItem(models.Model):
+    product_work = models.ForeignKey(
+        "ProductWork",
+        on_delete=models.CASCADE,
+        db_column="product_work_id",
+        related_name="work_items",
+    )
+    inv_item = models.ForeignKey(
+        "InvItem",
+        on_delete=models.PROTECT,
+        db_column="inv_item_id",
+        related_name="product_work_items",
+    )
+    quantity = models.DecimalField(max_digits=12, decimal_places=3)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "product_work_items"
+        ordering = ["product_work", "inv_item"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["product_work", "inv_item"],
+                name="uq_product_work_item_product_work_inv_item",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.product_work} — {self.inv_item.name} ({self.quantity})"
+
+
 class ProductStepItem(models.Model):
     product_step = models.ForeignKey(
         "ProductStep",

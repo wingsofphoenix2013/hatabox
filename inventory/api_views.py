@@ -19,6 +19,8 @@ from .models import (
     ProductLibrary,
     ProductStep,
     ProductStepLibrary,
+    ProductWork,
+    ProductWorkItem,
     ProductStepItem,
 )
 from .serializers import (
@@ -33,6 +35,8 @@ from .serializers import (
     ProductLibrarySerializer,
     ProductStepSerializer,
     ProductStepLibrarySerializer,
+    ProductWorkSerializer,
+    ProductWorkItemSerializer,
     ProductStepItemSerializer,
     ProductMaterialPlanSerializer,
 )
@@ -224,88 +228,185 @@ class ProductViewSet(ModelViewSet):
     def material_plan(self, request, pk=None):
         product = self.get_object()
 
-        step_items_queryset = (
-            ProductStepItem.objects.filter(product_step__product=product)
-            .select_related(
-                "product_step",
-                "inv_item",
-                "inv_item__category",
-                "inv_item__unit",
-            )
-            .order_by(
-                "inv_item__name",
-                "inv_item_id",
-                "product_step__sort_order",
-                "product_step_id",
-            )
-        )
-
-        summary_map = {}
-        for step_item in step_items_queryset:
-            inv_item = step_item.inv_item
-            product_step = step_item.product_step
-
-            key = inv_item.id
-            if key not in summary_map:
-                summary_map[key] = {
-                    "inv_item_id": inv_item.id,
-                    "inv_item_internal_code": inv_item.internal_code,
-                    "inv_item_name": inv_item.name,
-                    "inv_item_category_id": inv_item.category_id,
-                    "inv_item_category_name": inv_item.category.name,
-                    "unit_id": inv_item.unit_id,
-                    "unit_name": inv_item.unit.name,
-                    "unit_symbol": inv_item.unit.symbol,
-                    "total_quantity": step_item.quantity,
-                    "steps": [],
-                }
-            else:
-                summary_map[key]["total_quantity"] += step_item.quantity
-
-            summary_map[key]["steps"].append(
-                {
-                    "product_step_id": product_step.id,
-                    "product_step_name": product_step.name,
-                    "sort_order": product_step.sort_order,
-                    "quantity": step_item.quantity,
-                }
+        if product.work_tracking:
+            work_items_queryset = (
+                ProductWorkItem.objects.filter(product_work__product_step__product=product)
+                .select_related(
+                    "product_work",
+                    "product_work__product_step",
+                    "inv_item",
+                    "inv_item__category",
+                    "inv_item__unit",
+                )
+                .order_by(
+                    "inv_item__name",
+                    "inv_item_id",
+                    "product_work__product_step__sort_order",
+                    "product_work__product_step_id",
+                )
             )
 
-        summary_items = list(summary_map.values())
-        summary_items.sort(key=lambda x: (x["inv_item_name"], x["inv_item_id"]))
+            summary_map = {}
+            for work_item in work_items_queryset:
+                inv_item = work_item.inv_item
+                product_step = work_item.product_work.product_step
 
-        steps_queryset = (
-            ProductStep.objects.filter(product=product)
-            .prefetch_related("step_items__inv_item__category", "step_items__inv_item__unit")
-            .order_by("sort_order", "id")
-        )
+                key = inv_item.id
+                if key not in summary_map:
+                    summary_map[key] = {
+                        "inv_item_id": inv_item.id,
+                        "inv_item_internal_code": inv_item.internal_code,
+                        "inv_item_name": inv_item.name,
+                        "inv_item_category_id": inv_item.category_id,
+                        "inv_item_category_name": inv_item.category.name,
+                        "unit_id": inv_item.unit_id,
+                        "unit_name": inv_item.unit.name,
+                        "unit_symbol": inv_item.unit.symbol,
+                        "total_quantity": work_item.quantity,
+                        "steps": [],
+                    }
+                else:
+                    summary_map[key]["total_quantity"] += work_item.quantity
 
-        steps = []
-        for step in steps_queryset:
-            step_items = []
-            for step_item in step.step_items.all():
-                step_items.append(
+                summary_map[key]["steps"].append(
                     {
-                        "inv_item_id": step_item.inv_item_id,
-                        "inv_item_internal_code": step_item.inv_item.internal_code,
-                        "inv_item_name": step_item.inv_item.name,
-                        "inv_item_category_id": step_item.inv_item.category_id,
-                        "inv_item_category_name": step_item.inv_item.category.name,
-                        "unit_id": step_item.inv_item.unit_id,
-                        "unit_name": step_item.inv_item.unit.name,
-                        "unit_symbol": step_item.inv_item.unit.symbol,
+                        "product_step_id": product_step.id,
+                        "product_step_name": product_step.name,
+                        "sort_order": product_step.sort_order,
+                        "quantity": work_item.quantity,
+                    }
+                )
+
+            summary_items = list(summary_map.values())
+            summary_items.sort(key=lambda x: (x["inv_item_name"], x["inv_item_id"]))
+
+            steps_queryset = (
+                ProductStep.objects.filter(product=product)
+                .prefetch_related(
+                    "works__work_items__inv_item__category",
+                    "works__work_items__inv_item__unit",
+                )
+                .order_by("sort_order", "id")
+            )
+
+            steps = []
+            for step in steps_queryset:
+                step_items_map = {}
+
+                for work in step.works.all():
+                    for work_item in work.work_items.all():
+                        inv_item = work_item.inv_item
+                        key = inv_item.id
+
+                        if key not in step_items_map:
+                            step_items_map[key] = {
+                                "inv_item_id": inv_item.id,
+                                "inv_item_internal_code": inv_item.internal_code,
+                                "inv_item_name": inv_item.name,
+                                "inv_item_category_id": inv_item.category_id,
+                                "inv_item_category_name": inv_item.category.name,
+                                "unit_id": inv_item.unit_id,
+                                "unit_name": inv_item.unit.name,
+                                "unit_symbol": inv_item.unit.symbol,
+                                "quantity": work_item.quantity,
+                            }
+                        else:
+                            step_items_map[key]["quantity"] += work_item.quantity
+
+                steps.append(
+                    {
+                        "id": step.id,
+                        "name": step.name,
+                        "sort_order": step.sort_order,
+                        "items": list(step_items_map.values()),
+                    }
+                )
+        else:
+            step_items_queryset = (
+                ProductStepItem.objects.filter(product_step__product=product)
+                .select_related(
+                    "product_step",
+                    "inv_item",
+                    "inv_item__category",
+                    "inv_item__unit",
+                )
+                .order_by(
+                    "inv_item__name",
+                    "inv_item_id",
+                    "product_step__sort_order",
+                    "product_step_id",
+                )
+            )
+
+            summary_map = {}
+            for step_item in step_items_queryset:
+                inv_item = step_item.inv_item
+                product_step = step_item.product_step
+
+                key = inv_item.id
+                if key not in summary_map:
+                    summary_map[key] = {
+                        "inv_item_id": inv_item.id,
+                        "inv_item_internal_code": inv_item.internal_code,
+                        "inv_item_name": inv_item.name,
+                        "inv_item_category_id": inv_item.category_id,
+                        "inv_item_category_name": inv_item.category.name,
+                        "unit_id": inv_item.unit_id,
+                        "unit_name": inv_item.unit.name,
+                        "unit_symbol": inv_item.unit.symbol,
+                        "total_quantity": step_item.quantity,
+                        "steps": [],
+                    }
+                else:
+                    summary_map[key]["total_quantity"] += step_item.quantity
+
+                summary_map[key]["steps"].append(
+                    {
+                        "product_step_id": product_step.id,
+                        "product_step_name": product_step.name,
+                        "sort_order": product_step.sort_order,
                         "quantity": step_item.quantity,
                     }
                 )
 
-            steps.append(
-                {
-                    "id": step.id,
-                    "name": step.name,
-                    "sort_order": step.sort_order,
-                    "items": step_items,
-                }
+            summary_items = list(summary_map.values())
+            summary_items.sort(key=lambda x: (x["inv_item_name"], x["inv_item_id"]))
+
+            steps_queryset = (
+                ProductStep.objects.filter(product=product)
+                .prefetch_related(
+                    "step_items__inv_item__category",
+                    "step_items__inv_item__unit",
+                )
+                .order_by("sort_order", "id")
             )
+
+            steps = []
+            for step in steps_queryset:
+                step_items = []
+                for step_item in step.step_items.all():
+                    step_items.append(
+                        {
+                            "inv_item_id": step_item.inv_item_id,
+                            "inv_item_internal_code": step_item.inv_item.internal_code,
+                            "inv_item_name": step_item.inv_item.name,
+                            "inv_item_category_id": step_item.inv_item.category_id,
+                            "inv_item_category_name": step_item.inv_item.category.name,
+                            "unit_id": step_item.inv_item.unit_id,
+                            "unit_name": step_item.inv_item.unit.name,
+                            "unit_symbol": step_item.inv_item.unit.symbol,
+                            "quantity": step_item.quantity,
+                        }
+                    )
+
+                steps.append(
+                    {
+                        "id": step.id,
+                        "name": step.name,
+                        "sort_order": step.sort_order,
+                        "items": step_items,
+                    }
+                )
 
         payload = {
             "product": {
@@ -496,6 +597,157 @@ class ProductStepLibraryViewSet(ModelViewSet):
         return queryset
 
 
+class ProductWorkViewSet(ModelViewSet):
+    queryset = ProductWork.objects.select_related(
+        "product_step",
+        "product_step__product",
+        "product_step__product__product_family",
+    ).prefetch_related(
+        "work_items__inv_item__unit",
+    )
+    serializer_class = ProductWorkSerializer
+    permission_classes = [DjangoModelPermissions]
+
+    def perform_create(self, serializer):
+        product_step = serializer.validated_data["product_step"]
+        product = product_step.product
+
+        if not product.work_tracking:
+            raise ValidationError("Work tracking is disabled for this product.")
+
+        if product.development_status == Product.DevelopmentStatus.FINISHED:
+            raise ValidationError("Finished products cannot be modified.")
+
+        serializer.save()
+
+    def perform_update(self, serializer):
+        product = self.get_object().product_step.product
+
+        if not product.work_tracking:
+            raise ValidationError("Work tracking is disabled for this product.")
+
+        if product.development_status == Product.DevelopmentStatus.FINISHED:
+            raise ValidationError("Finished products cannot be modified.")
+
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        product = instance.product_step.product
+
+        if not product.work_tracking:
+            raise ValidationError("Work tracking is disabled for this product.")
+
+        if product.development_status == Product.DevelopmentStatus.FINISHED:
+            raise ValidationError("Finished products cannot be modified.")
+
+        instance.delete()
+
+    def get_queryset(self):
+        queryset = self.queryset
+
+        product_step = self.request.query_params.getlist("product_step")
+        if product_step:
+            queryset = queryset.filter(product_step_id__in=product_step)
+
+        product = self.request.query_params.getlist("product")
+        if product:
+            queryset = queryset.filter(product_step__product_id__in=product)
+
+        product_family = self.request.query_params.getlist("product_family")
+        if product_family:
+            queryset = queryset.filter(
+                product_step__product__product_family_id__in=product_family
+            )
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(name__icontains=search)
+                | models.Q(product_step__name__icontains=search)
+                | models.Q(product_step__product__code__icontains=search)
+            )
+
+        return queryset
+
+
+class ProductWorkItemViewSet(ModelViewSet):
+    queryset = ProductWorkItem.objects.select_related(
+        "product_work",
+        "product_work__product_step",
+        "product_work__product_step__product",
+        "product_work__product_step__product__product_family",
+        "inv_item",
+        "inv_item__unit",
+    )
+    serializer_class = ProductWorkItemSerializer
+    permission_classes = [DjangoModelPermissions]
+
+    def perform_create(self, serializer):
+        product_work = serializer.validated_data["product_work"]
+        product = product_work.product_step.product
+
+        if not product.work_tracking:
+            raise ValidationError("Work tracking is disabled for this product.")
+
+        if product.development_status == Product.DevelopmentStatus.FINISHED:
+            raise ValidationError("Finished products cannot be modified.")
+
+        serializer.save()
+
+    def perform_update(self, serializer):
+        product = self.get_object().product_work.product_step.product
+
+        if not product.work_tracking:
+            raise ValidationError("Work tracking is disabled for this product.")
+
+        if product.development_status == Product.DevelopmentStatus.FINISHED:
+            raise ValidationError("Finished products cannot be modified.")
+
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        product = instance.product_work.product_step.product
+
+        if not product.work_tracking:
+            raise ValidationError("Work tracking is disabled for this product.")
+
+        if product.development_status == Product.DevelopmentStatus.FINISHED:
+            raise ValidationError("Finished products cannot be modified.")
+
+        instance.delete()
+
+    def get_queryset(self):
+        queryset = self.queryset
+
+        product_work = self.request.query_params.getlist("product_work")
+        if product_work:
+            queryset = queryset.filter(product_work_id__in=product_work)
+
+        product_step = self.request.query_params.getlist("product_step")
+        if product_step:
+            queryset = queryset.filter(product_work__product_step_id__in=product_step)
+
+        product = self.request.query_params.getlist("product")
+        if product:
+            queryset = queryset.filter(product_work__product_step__product_id__in=product)
+
+        inv_item = self.request.query_params.getlist("inv_item")
+        if inv_item:
+            queryset = queryset.filter(inv_item_id__in=inv_item)
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(inv_item__internal_code__icontains=search)
+                | models.Q(inv_item__name__icontains=search)
+                | models.Q(product_work__name__icontains=search)
+                | models.Q(product_work__product_step__name__icontains=search)
+                | models.Q(product_work__product_step__product__code__icontains=search)
+            )
+
+        return queryset
+
+
 class ProductStepItemViewSet(ModelViewSet):
     queryset = ProductStepItem.objects.select_related(
         "product_step",
@@ -510,18 +762,27 @@ class ProductStepItemViewSet(ModelViewSet):
     def perform_create(self, serializer):
         product_step = serializer.validated_data["product_step"]
 
+        if product_step.product.work_tracking:
+            raise ValidationError("Step items are not available when work tracking is enabled.")
+
         if product_step.product.development_status == Product.DevelopmentStatus.FINISHED:
             raise ValidationError("Finished product step items cannot be modified.")
 
         serializer.save()
 
     def perform_update(self, serializer):
+        if self.get_object().product_step.product.work_tracking:
+            raise ValidationError("Step items are not available when work tracking is enabled.")
+
         if self.get_object().product_step.product.development_status == Product.DevelopmentStatus.FINISHED:
             raise ValidationError("Finished product step items cannot be modified.")
 
         serializer.save()
 
     def perform_destroy(self, instance):
+        if instance.product_step.product.work_tracking:
+            raise ValidationError("Step items are not available when work tracking is enabled.")
+
         if instance.product_step.product.development_status == Product.DevelopmentStatus.FINISHED:
             raise ValidationError("Finished product step items cannot be modified.")
 

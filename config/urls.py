@@ -18,6 +18,8 @@ from inventory.api_views import (
     ProductLibraryViewSet,
     ProductStepViewSet,
     ProductStepLibraryViewSet,
+    ProductWorkViewSet,
+    ProductWorkItemViewSet,
     ProductStepItemViewSet,
 )
 
@@ -111,6 +113,8 @@ router.register("products", ProductViewSet)
 router.register("product-library", ProductLibraryViewSet)
 router.register("product-steps", ProductStepViewSet)
 router.register("product-step-library", ProductStepLibraryViewSet)
+router.register("product-works", ProductWorkViewSet)
+router.register("product-work-items", ProductWorkItemViewSet)
 router.register("product-step-items", ProductStepItemViewSet)
 router.register("vendors", VendorViewSet)
 router.register("vendor-payment-details", VendorPaymentDetailsViewSet)

@@ -10,6 +10,8 @@ from .models import (
     ProductLibrary,
     ProductStep,
     ProductStepLibrary,
+    ProductWork,
+    ProductWorkItem,
     ProductStepItem,
 )
 
@@ -376,6 +378,82 @@ class ProductStepItemSerializer(serializers.ModelSerializer):
         ]
 
 
+class ProductWorkItemSerializer(serializers.ModelSerializer):
+    inv_item_internal_code = serializers.CharField(
+        source="inv_item.internal_code",
+        read_only=True,
+    )
+    inv_item_name = serializers.CharField(
+        source="inv_item.name",
+        read_only=True,
+    )
+    inv_item_unit_id = serializers.IntegerField(
+        source="inv_item.unit.id",
+        read_only=True,
+    )
+    inv_item_unit_name = serializers.CharField(
+        source="inv_item.unit.name",
+        read_only=True,
+    )
+    inv_item_unit_symbol = serializers.CharField(
+        source="inv_item.unit.symbol",
+        read_only=True,
+    )
+
+    class Meta:
+        model = ProductWorkItem
+        fields = [
+            "id",
+            "product_work",
+            "inv_item",
+            "inv_item_internal_code",
+            "inv_item_name",
+            "inv_item_unit_id",
+            "inv_item_unit_name",
+            "inv_item_unit_symbol",
+            "quantity",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class ProductWorkSerializer(serializers.ModelSerializer):
+    product_step_name = serializers.CharField(
+        source="product_step.name",
+        read_only=True,
+    )
+    product_step_sort_order = serializers.IntegerField(
+        source="product_step.sort_order",
+        read_only=True,
+    )
+    product_id = serializers.IntegerField(
+        source="product_step.product.id",
+        read_only=True,
+    )
+    product_code = serializers.CharField(
+        source="product_step.product.code",
+        read_only=True,
+    )
+    work_items = ProductWorkItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ProductWork
+        fields = [
+            "id",
+            "product_step",
+            "product_step_name",
+            "product_step_sort_order",
+            "product_id",
+            "product_code",
+            "name",
+            "sort_order",
+            "description",
+            "created_at",
+            "updated_at",
+            "work_items",
+        ]
+
+
 class ProductStepSerializer(serializers.ModelSerializer):
     product_id = serializers.IntegerField(
         source="product.id",
@@ -403,6 +481,7 @@ class ProductStepSerializer(serializers.ModelSerializer):
     )
     library_items = ProductStepLibrarySerializer(many=True, read_only=True)
     step_items = ProductStepItemSerializer(many=True, read_only=True)
+    works = ProductWorkSerializer(many=True, read_only=True)
 
     class Meta:
         model = ProductStep
@@ -422,6 +501,7 @@ class ProductStepSerializer(serializers.ModelSerializer):
             "updated_at",
             "library_items",
             "step_items",
+            "works",
         ]
         
 class ProductMaterialPlanSummaryItemStepSerializer(serializers.Serializer):
