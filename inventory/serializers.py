@@ -228,7 +228,27 @@ class ProductSerializer(serializers.ModelSerializer):
         source="product_family.name",
         read_only=True,
     )
-    library_items = ProductLibrarySerializer(many=True, read_only=True)
+    steps = serializers.SerializerMethodField()
+
+    def get_steps(self, obj):
+        return [
+            {
+                "id": step.id,
+                "name": step.name,
+                "sort_order": step.sort_order,
+                "description": step.description,
+                "works": [
+                    {
+                        "id": work.id,
+                        "name": work.name,
+                        "sort_order": work.sort_order,
+                        "description": work.description,
+                    }
+                    for work in step.works.all()
+                ],
+            }
+            for step in obj.steps.all()
+        ]
 
     def validate(self, attrs):
         product_family = attrs.get("product_family") or getattr(self.instance, "product_family", None)
@@ -282,7 +302,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "is_active",
             "created_at",
             "updated_at",
-            "library_items",
+            "steps",
         ]
         
 class ProductStepLibrarySerializer(serializers.ModelSerializer):

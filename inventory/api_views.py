@@ -181,7 +181,7 @@ class ProductViewSet(ModelViewSet):
         serializer.save()
 
     def get_queryset(self):
-        queryset = self.queryset.prefetch_related("library_items")
+        queryset = self.queryset.prefetch_related("steps__works")
 
         product_family = self.request.query_params.getlist("product_family")
         if product_family:
