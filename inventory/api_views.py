@@ -166,8 +166,17 @@ class ProductViewSet(ModelViewSet):
     permission_classes = [DjangoModelPermissions]
 
     def perform_update(self, serializer):
-        if self.get_object().development_status == Product.DevelopmentStatus.FINISHED:
+        product = self.get_object()
+
+        if product.development_status == Product.DevelopmentStatus.FINISHED:
             raise ValidationError("Finished products cannot be modified.")
+
+        if (
+            "work_tracking" in serializer.validated_data
+            and serializer.validated_data["work_tracking"] != product.work_tracking
+            and product.steps.exists()
+        ):
+            raise ValidationError("Work tracking cannot be changed after product steps are created.")
 
         serializer.save()
 
