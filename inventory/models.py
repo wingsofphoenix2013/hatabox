@@ -159,6 +159,8 @@ class Product(models.Model):
     code = models.CharField(max_length=150, unique=True)
     description = models.TextField(blank=True, null=True)
     is_base_modification = models.BooleanField(default=False)
+    work_tracking = models.BooleanField(default=False)
+    hr_tracking = models.BooleanField(default=False)
     development_status = models.CharField(
         max_length=30,
         choices=DevelopmentStatus.choices,

@@ -233,6 +233,8 @@ class ProductSerializer(serializers.ModelSerializer):
             "code",
             "description",
             "is_base_modification",
+            "work_tracking",
+            "hr_tracking",
             "development_status",
             "development_status_display",
             "development_started_at",
