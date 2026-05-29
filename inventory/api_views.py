@@ -533,6 +533,24 @@ class ProductStepViewSet(ModelViewSet):
     serializer_class = ProductStepSerializer
     permission_classes = [DjangoModelPermissions]
 
+    @action(detail=False, methods=["get"], url_path="used-sort-orders")
+    def used_sort_orders(self, request):
+        product_id = request.query_params.get("product")
+
+        if not product_id:
+            raise ValidationError({"product": "This query parameter is required."})
+
+        sort_orders = list(
+            ProductStep.objects.filter(product_id=product_id)
+            .order_by("sort_order")
+            .values_list("sort_order", flat=True)
+        )
+
+        return Response({
+            "product": int(product_id),
+            "used_sort_orders": sort_orders,
+        })
+
     def perform_create(self, serializer):
         product = serializer.validated_data["product"]
 
