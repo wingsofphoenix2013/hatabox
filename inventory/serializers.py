@@ -207,6 +207,11 @@ class ProductOptionSerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
+    development_status_display = serializers.CharField(
+        source="get_development_status_display",
+        read_only=True,
+    )
+
     product_family_code = serializers.CharField(
         source="product_family.code",
         read_only=True,
@@ -229,6 +234,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "description",
             "is_base_modification",
             "development_status",
+            "development_status_display",
             "development_started_at",
             "development_finished_at",
             "is_active",
@@ -460,6 +466,7 @@ class ProductMaterialPlanProductSerializer(serializers.Serializer):
     code = serializers.CharField()
     version = serializers.CharField()
     development_status = serializers.CharField()
+    development_status_display = serializers.CharField()
     product_family_id = serializers.IntegerField()
     product_family_code = serializers.CharField()
     product_family_name = serializers.CharField()

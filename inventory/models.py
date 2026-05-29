@@ -147,7 +147,7 @@ class ProductFamilyLibrary(models.Model):
 class Product(models.Model):
     class DevelopmentStatus(models.TextChoices):
         IN_DEVELOPMENT = "in_development", "В розробці"
-        FINISHED = "finished", "Завершено"
+        FINISHED = "finished", "Розробку завершено"
 
     product_family = models.ForeignKey(
         "ProductFamily",
