@@ -1,5 +1,6 @@
 from django.db import models
 from django.db.models import Sum
+from django.utils import timezone
 
 from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.decorators import action
@@ -198,6 +199,26 @@ class ProductViewSet(ModelViewSet):
             )
 
         return queryset
+
+    @action(detail=True, methods=["post"], url_path="finish-development")
+    def finish_development(self, request, pk=None):
+        product = self.get_object()
+
+        if product.development_status == Product.DevelopmentStatus.FINISHED:
+            raise ValidationError("Product development is already finished.")
+
+        product.development_status = Product.DevelopmentStatus.FINISHED
+        product.development_finished_at = timezone.localdate()
+        product.save(
+            update_fields=[
+                "development_status",
+                "development_finished_at",
+                "updated_at",
+            ]
+        )
+
+        serializer = self.get_serializer(product)
+        return Response(serializer.data)
 
     @action(detail=True, methods=["get"], url_path="material-plan")
     def material_plan(self, request, pk=None):
