@@ -291,6 +291,7 @@ class ProductViewSet(ModelViewSet):
                 "id": product.id,
                 "code": product.code,
                 "version": product.version,
+                "development_status": product.development_status,
                 "product_family_id": product.product_family_id,
                 "product_family_code": product.product_family.code,
                 "product_family_name": product.product_family.name,
