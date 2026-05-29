@@ -209,6 +209,7 @@ class ProductOptionSerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
+    code = serializers.CharField(read_only=True)
     development_status_display = serializers.CharField(
         source="get_development_status_display",
         read_only=True,
@@ -223,6 +224,37 @@ class ProductSerializer(serializers.ModelSerializer):
         read_only=True,
     )
     library_items = ProductLibrarySerializer(many=True, read_only=True)
+
+    def validate(self, attrs):
+        product_family = attrs.get("product_family") or getattr(self.instance, "product_family", None)
+        version = attrs.get("version") or getattr(self.instance, "version", None)
+
+        if product_family and version:
+            queryset = Product.objects.filter(
+                product_family=product_family,
+                version=version,
+            )
+
+            if self.instance:
+                queryset = queryset.exclude(pk=self.instance.pk)
+
+            if queryset.exists():
+                raise serializers.ValidationError({
+                    "version": "Product with this version already exists in this product family."
+                })
+
+        return attrs
+
+    def create(self, validated_data):
+        product_family = validated_data["product_family"]
+        version = validated_data["version"]
+
+        validated_data["code"] = f"{product_family.code}-{version}"
+        validated_data["development_status"] = Product.DevelopmentStatus.IN_DEVELOPMENT
+        validated_data["development_finished_at"] = None
+        validated_data["hr_tracking"] = False
+
+        return super().create(validated_data)
 
     class Meta:
         model = Product

@@ -213,6 +213,40 @@ class ProductViewSet(ModelViewSet):
 
         return queryset
 
+    @action(detail=False, methods=["get"], url_path="create-info")
+    def create_info(self, request):
+        product_family_id = request.query_params.get("product_family")
+        version = request.query_params.get("version")
+
+        if not product_family_id:
+            raise ValidationError({"product_family": "This query parameter is required."})
+
+        product_family = ProductFamily.objects.get(pk=product_family_id)
+
+        base_product = Product.objects.filter(
+            product_family=product_family,
+            is_base_modification=True,
+        ).first()
+
+        generated_code = None
+        version_available = None
+
+        if version:
+            generated_code = f"{product_family.code}-{version}"
+            version_available = not Product.objects.filter(
+                product_family=product_family,
+                version=version,
+            ).exists()
+
+        return Response({
+            "product_family_id": product_family.id,
+            "product_family_code": product_family.code,
+            "product_family_name": product_family.name,
+            "base_version": base_product.version if base_product else None,
+            "generated_code": generated_code,
+            "version_available": version_available,
+        })
+
     @action(detail=True, methods=["post"], url_path="finish-development")
     def finish_development(self, request, pk=None):
         product = self.get_object()
