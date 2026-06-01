@@ -560,6 +560,11 @@ class ProductStepViewSet(ModelViewSet):
 
         for index, step_id in enumerate(steps, start=1):
             ProductStep.objects.filter(pk=step_id).update(
+                sort_order=1000000 + index
+            )
+
+        for index, step_id in enumerate(steps, start=1):
+            ProductStep.objects.filter(pk=step_id).update(
                 sort_order=index * 10
             )
 
