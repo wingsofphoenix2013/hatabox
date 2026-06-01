@@ -669,6 +669,24 @@ class ProductWorkViewSet(ModelViewSet):
     serializer_class = ProductWorkSerializer
     permission_classes = [DjangoModelPermissions]
 
+    @action(detail=False, methods=["get"], url_path="used-sort-orders")
+    def used_sort_orders(self, request):
+        product_step_id = request.query_params.get("product_step")
+
+        if not product_step_id:
+            raise ValidationError({"product_step": "This query parameter is required."})
+
+        sort_orders = list(
+            ProductWork.objects.filter(product_step_id=product_step_id)
+            .order_by("sort_order")
+            .values_list("sort_order", flat=True)
+        )
+
+        return Response({
+            "product_step": int(product_step_id),
+            "used_sort_orders": sort_orders,
+        })
+
     def perform_create(self, serializer):
         product_step = serializer.validated_data["product_step"]
         product = product_step.product
