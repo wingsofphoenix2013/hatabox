@@ -551,6 +551,20 @@ class ProductStepViewSet(ModelViewSet):
             "used_sort_orders": sort_orders,
         })
 
+    @action(detail=False, methods=["post"], url_path="reorder")
+    def reorder(self, request):
+        steps = request.data.get("steps", [])
+
+        if not steps:
+            raise ValidationError({"steps": "This field is required."})
+
+        for index, step_id in enumerate(steps, start=1):
+            ProductStep.objects.filter(pk=step_id).update(
+                sort_order=index * 10
+            )
+
+        return Response({"success": True})
+
     def perform_create(self, serializer):
         product = serializer.validated_data["product"]
 
