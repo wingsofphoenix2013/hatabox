@@ -706,6 +706,25 @@ class ProductWorkViewSet(ModelViewSet):
             "used_sort_orders": sort_orders,
         })
 
+    @action(detail=False, methods=["post"], url_path="reorder")
+    def reorder(self, request):
+        works = request.data.get("works", [])
+
+        if not works:
+            raise ValidationError({"works": "This field is required."})
+
+        for index, work_id in enumerate(works, start=1):
+            ProductWork.objects.filter(pk=work_id).update(
+                sort_order=1000000 + index
+            )
+
+        for index, work_id in enumerate(works, start=1):
+            ProductWork.objects.filter(pk=work_id).update(
+                sort_order=index * 10
+            )
+
+        return Response({"success": True})
+
     def perform_create(self, serializer):
         product_step = serializer.validated_data["product_step"]
         product = product_step.product
