@@ -565,7 +565,7 @@ class ProductStepViewSet(ModelViewSet):
 
         for index, step_id in enumerate(steps, start=1):
             ProductStep.objects.filter(pk=step_id).update(
-                sort_order=index * 10
+                sort_order=index
             )
 
         return Response({"success": True})
@@ -720,7 +720,7 @@ class ProductWorkViewSet(ModelViewSet):
 
         for index, work_id in enumerate(works, start=1):
             ProductWork.objects.filter(pk=work_id).update(
-                sort_order=index * 10
+                sort_order=index
             )
 
         return Response({"success": True})
