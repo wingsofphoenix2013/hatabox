@@ -180,6 +180,12 @@ class ProductViewSet(ModelViewSet):
 
         serializer.save()
 
+    def perform_destroy(self, instance):
+        if instance.development_status == Product.DevelopmentStatus.FINISHED:
+            raise ValidationError("Finished products cannot be deleted.")
+
+        instance.delete()
+
     def get_queryset(self):
         queryset = self.queryset.prefetch_related("steps__works")
 
