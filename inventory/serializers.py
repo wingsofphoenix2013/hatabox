@@ -541,6 +541,14 @@ class ProductStepSerializer(serializers.ModelSerializer):
         source="product.work_tracking",
         read_only=True,
     )
+    product_development_status = serializers.CharField(
+        source="product.development_status",
+        read_only=True,
+    )
+    product_development_status_display = serializers.CharField(
+        source="product.get_development_status_display",
+        read_only=True,
+    )
     library_items = ProductStepLibrarySerializer(many=True, read_only=True)
     step_items = ProductStepItemSerializer(many=True, read_only=True)
     works = ProductWorkSerializer(many=True, read_only=True)
@@ -557,6 +565,8 @@ class ProductStepSerializer(serializers.ModelSerializer):
             "product_family_code",
             "product_family_name",
             "product_work_tracking",
+            "product_development_status",
+            "product_development_status_display",
             "name",
             "sort_order",
             "description",
