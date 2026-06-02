@@ -537,6 +537,10 @@ class ProductStepSerializer(serializers.ModelSerializer):
         source="product.product_family.name",
         read_only=True,
     )
+    product_work_tracking = serializers.BooleanField(
+        source="product.work_tracking",
+        read_only=True,
+    )
     library_items = ProductStepLibrarySerializer(many=True, read_only=True)
     step_items = ProductStepItemSerializer(many=True, read_only=True)
     works = ProductWorkSerializer(many=True, read_only=True)
@@ -552,6 +556,7 @@ class ProductStepSerializer(serializers.ModelSerializer):
             "product_family_id",
             "product_family_code",
             "product_family_name",
+            "product_work_tracking",
             "name",
             "sort_order",
             "description",
