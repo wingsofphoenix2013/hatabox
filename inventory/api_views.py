@@ -1,5 +1,6 @@
 from django.db import models
 from django.db.models import Sum
+from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 
 from rest_framework.permissions import DjangoModelPermissions
@@ -909,7 +910,10 @@ class ProductStepItemViewSet(ModelViewSet):
         if instance.product_step.product.development_status == Product.DevelopmentStatus.FINISHED:
             raise ValidationError("Finished product step items cannot be modified.")
 
-        instance.delete()
+        try:
+            instance.delete()
+        except ProtectedError:
+            raise ValidationError("This step item is already used and cannot be deleted.")
 
     def get_queryset(self):
         queryset = self.queryset
