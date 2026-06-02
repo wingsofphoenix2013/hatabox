@@ -620,6 +620,7 @@ class ProductMaterialPlanProductSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     code = serializers.CharField()
     version = serializers.CharField()
+    work_tracking = serializers.BooleanField()
     development_status = serializers.CharField()
     development_status_display = serializers.CharField()
     product_family_id = serializers.IntegerField()

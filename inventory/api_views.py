@@ -463,6 +463,7 @@ class ProductViewSet(ModelViewSet):
                 "id": product.id,
                 "code": product.code,
                 "version": product.version,
+                "work_tracking": product.work_tracking,
                 "development_status": product.development_status,
                 "development_status_display": product.get_development_status_display(),
                 "product_family_id": product.product_family_id,
