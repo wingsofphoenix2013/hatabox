@@ -1131,6 +1131,16 @@ class ProductAttachmentViewSet(ModelViewSet):
     permission_classes = [DjangoModelPermissions]
     parser_classes = [MultiPartParser, FormParser]
 
+    @action(detail=False, methods=["get"], url_path="attachment-types")
+    def attachment_types(self, request):
+        return Response([
+            {
+                "value": value,
+                "label": label,
+            }
+            for value, label in ProductAttachment.AttachmentTypeChoices.choices
+        ])
+
     @action(detail=False, methods=["post"], url_path="bulk-upload")
     def bulk_upload(self, request):
         files = request.FILES.getlist("files")
