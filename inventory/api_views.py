@@ -40,6 +40,7 @@ from .serializers import (
     ProductWorkItemSerializer,
     ProductStepItemSerializer,
     ProductMaterialPlanSerializer,
+    ProductWorkMaterialPlanSerializer,
 )
 
 
@@ -272,6 +273,111 @@ class ProductViewSet(ModelViewSet):
         )
 
         serializer = self.get_serializer(product)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["get"], url_path="work-material-plan")
+    def work_material_plan(self, request, pk=None):
+        product = self.get_object()
+
+        if not product.work_tracking:
+            raise ValidationError("Work material plan is available only when work tracking is enabled.")
+
+        work_items_queryset = (
+            ProductWorkItem.objects.filter(product_work__product_step__product=product)
+            .select_related(
+                "product_work",
+                "product_work__product_step",
+                "inv_item",
+                "inv_item__category",
+                "inv_item__unit",
+            )
+            .order_by(
+                "inv_item__name",
+                "inv_item_id",
+                "product_work__product_step__sort_order",
+                "product_work__product_step_id",
+                "product_work__sort_order",
+                "product_work_id",
+            )
+        )
+
+        items_map = {}
+
+        for work_item in work_items_queryset:
+            inv_item = work_item.inv_item
+            product_work = work_item.product_work
+            product_step = product_work.product_step
+
+            item_key = inv_item.id
+            if item_key not in items_map:
+                items_map[item_key] = {
+                    "inv_item_id": inv_item.id,
+                    "inv_item_internal_code": inv_item.internal_code,
+                    "inv_item_name": inv_item.name,
+                    "inv_item_category_id": inv_item.category_id,
+                    "inv_item_category_name": inv_item.category.name,
+                    "unit_id": inv_item.unit_id,
+                    "unit_name": inv_item.unit.name,
+                    "unit_symbol": inv_item.unit.symbol,
+                    "total_quantity": work_item.quantity,
+                    "steps_map": {},
+                }
+            else:
+                items_map[item_key]["total_quantity"] += work_item.quantity
+
+            step_key = product_step.id
+            if step_key not in items_map[item_key]["steps_map"]:
+                items_map[item_key]["steps_map"][step_key] = {
+                    "product_step_id": product_step.id,
+                    "product_step_name": product_step.name,
+                    "product_step_sort_order": product_step.sort_order,
+                    "total_quantity": work_item.quantity,
+                    "works": [],
+                }
+            else:
+                items_map[item_key]["steps_map"][step_key]["total_quantity"] += work_item.quantity
+
+            items_map[item_key]["steps_map"][step_key]["works"].append(
+                {
+                    "product_work_id": product_work.id,
+                    "product_work_name": product_work.name,
+                    "product_work_sort_order": product_work.sort_order,
+                    "quantity": work_item.quantity,
+                }
+            )
+
+        items = []
+        for item in items_map.values():
+            steps = list(item["steps_map"].values())
+            steps.sort(key=lambda x: (x["product_step_sort_order"], x["product_step_id"]))
+
+            item.pop("steps_map")
+            item["steps"] = steps
+            items.append(item)
+
+        items.sort(key=lambda x: (x["inv_item_name"], x["inv_item_id"]))
+
+        payload = {
+            "product": {
+                "id": product.id,
+                "code": product.code,
+                "version": product.version,
+                "description": product.description,
+                "work_tracking": product.work_tracking,
+                "hr_tracking": product.hr_tracking,
+                "development_status": product.development_status,
+                "development_status_display": product.get_development_status_display(),
+                "development_started_at": product.development_started_at,
+                "development_finished_at": product.development_finished_at,
+                "is_base_modification": product.is_base_modification,
+                "product_family_id": product.product_family_id,
+                "product_family_code": product.product_family.code,
+                "product_family_name": product.product_family.name,
+            },
+            "items": items,
+        }
+
+        serializer = ProductWorkMaterialPlanSerializer(payload)
         return Response(serializer.data)
 
     @action(detail=True, methods=["get"], url_path="material-plan")
