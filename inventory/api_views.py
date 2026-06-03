@@ -355,7 +355,12 @@ class ProductViewSet(ModelViewSet):
             item["steps"] = steps
             items.append(item)
 
-        items.sort(key=lambda x: (x["inv_item_name"], x["inv_item_id"]))
+        items.sort(
+            key=lambda x: (
+                x["inv_item_internal_code"],
+                x["inv_item_id"],
+            )
+        )
 
         payload = {
             "product": {
