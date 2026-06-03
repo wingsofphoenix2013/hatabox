@@ -15,11 +15,8 @@ from .models import (
     InvItemCategory,
     InvItem,
     ProductFamily,
-    ProductFamilyLibrary,
     Product,
-    ProductLibrary,
     ProductStep,
-    ProductStepLibrary,
     ProductWork,
     ProductWorkItem,
     ProductStepItem,
@@ -30,12 +27,9 @@ from .serializers import (
     InvItemSerializer,
     InvItemOptionSerializer,
     ProductFamilySerializer,
-    ProductFamilyLibrarySerializer,
     ProductSerializer,
     ProductOptionSerializer,
-    ProductLibrarySerializer,
     ProductStepSerializer,
-    ProductStepLibrarySerializer,
     ProductWorkSerializer,
     ProductWorkItemSerializer,
     ProductStepItemSerializer,
@@ -98,7 +92,7 @@ class ProductFamilyViewSet(ModelViewSet):
     permission_classes = [DjangoModelPermissions]
 
     def get_queryset(self):
-        queryset = self.queryset.prefetch_related("library_items")
+        queryset = self.queryset
 
         developer = self.request.query_params.getlist("developer")
         if developer:
@@ -115,33 +109,6 @@ class ProductFamilyViewSet(ModelViewSet):
         return queryset
 
 
-class ProductFamilyLibraryViewSet(ModelViewSet):
-    queryset = ProductFamilyLibrary.objects.filter(is_active=True).select_related("product_family")
-    serializer_class = ProductFamilyLibrarySerializer
-    permission_classes = [DjangoModelPermissions]
-
-    def get_queryset(self):
-        queryset = self.queryset
-
-        product_family = self.request.query_params.getlist("product_family")
-        if product_family:
-            queryset = queryset.filter(product_family_id__in=product_family)
-
-        attachment_type = self.request.query_params.getlist("attachment_type")
-        if attachment_type:
-            queryset = queryset.filter(attachment_type__in=attachment_type)
-
-        search = self.request.query_params.get("search")
-        if search:
-            queryset = queryset.filter(
-                models.Q(name__icontains=search)
-                | models.Q(description__icontains=search)
-                | models.Q(product_family__code__icontains=search)
-                | models.Q(product_family__name__icontains=search)
-            )
-
-        return queryset
-        
 class ProductOptionsView(ListAPIView):
     serializer_class = ProductOptionSerializer
     pagination_class = None
@@ -679,61 +646,6 @@ class ProductViewSet(ModelViewSet):
         serializer = ProductMaterialPlanSerializer(payload)
         return Response(serializer.data)
 
-class ProductLibraryViewSet(ModelViewSet):
-    queryset = ProductLibrary.objects.filter(is_active=True).select_related(
-        "product",
-        "product__product_family",
-    )
-    serializer_class = ProductLibrarySerializer
-    permission_classes = [DjangoModelPermissions]
-
-    def perform_create(self, serializer):
-        product = serializer.validated_data["product"]
-
-        if product.development_status == Product.DevelopmentStatus.FINISHED:
-            raise ValidationError("Finished product libraries cannot be modified.")
-
-        serializer.save()
-
-    def perform_update(self, serializer):
-        if self.get_object().product.development_status == Product.DevelopmentStatus.FINISHED:
-            raise ValidationError("Finished product libraries cannot be modified.")
-
-        serializer.save()
-
-    def perform_destroy(self, instance):
-        if instance.product.development_status == Product.DevelopmentStatus.FINISHED:
-            raise ValidationError("Finished product libraries cannot be modified.")
-
-        instance.delete()
-
-    def get_queryset(self):
-        queryset = self.queryset
-
-        product = self.request.query_params.getlist("product")
-        if product:
-            queryset = queryset.filter(product_id__in=product)
-
-        product_family = self.request.query_params.getlist("product_family")
-        if product_family:
-            queryset = queryset.filter(product__product_family_id__in=product_family)
-
-        attachment_type = self.request.query_params.getlist("attachment_type")
-        if attachment_type:
-            queryset = queryset.filter(attachment_type__in=attachment_type)
-
-        search = self.request.query_params.get("search")
-        if search:
-            queryset = queryset.filter(
-                models.Q(name__icontains=search)
-                | models.Q(description__icontains=search)
-                | models.Q(product__code__icontains=search)
-                | models.Q(product__version__icontains=search)
-                | models.Q(product__product_family__code__icontains=search)
-                | models.Q(product__product_family__name__icontains=search)
-            )
-
-        return queryset
         
 class ProductStepViewSet(ModelViewSet):
     queryset = ProductStep.objects.select_related(
@@ -801,7 +713,7 @@ class ProductStepViewSet(ModelViewSet):
         instance.delete()
 
     def get_queryset(self):
-        queryset = self.queryset.prefetch_related("library_items", "step_items__inv_item__unit")
+        queryset = self.queryset.prefetch_related("step_items__inv_item__unit")
 
         product = self.request.query_params.getlist("product")
         if product:
@@ -819,69 +731,6 @@ class ProductStepViewSet(ModelViewSet):
                 | models.Q(product__version__icontains=search)
                 | models.Q(product__product_family__code__icontains=search)
                 | models.Q(product__product_family__name__icontains=search)
-            )
-
-        return queryset
-
-
-class ProductStepLibraryViewSet(ModelViewSet):
-    queryset = ProductStepLibrary.objects.filter(is_active=True).select_related(
-        "product_step",
-        "product_step__product",
-        "product_step__product__product_family",
-    )
-    serializer_class = ProductStepLibrarySerializer
-    permission_classes = [DjangoModelPermissions]
-
-    def perform_create(self, serializer):
-        product_step = serializer.validated_data["product_step"]
-
-        if product_step.product.development_status == Product.DevelopmentStatus.FINISHED:
-            raise ValidationError("Finished product step libraries cannot be modified.")
-
-        serializer.save()
-
-    def perform_update(self, serializer):
-        if self.get_object().product_step.product.development_status == Product.DevelopmentStatus.FINISHED:
-            raise ValidationError("Finished product step libraries cannot be modified.")
-
-        serializer.save()
-
-    def perform_destroy(self, instance):
-        if instance.product_step.product.development_status == Product.DevelopmentStatus.FINISHED:
-            raise ValidationError("Finished product step libraries cannot be modified.")
-
-        instance.delete()
-
-    def get_queryset(self):
-        queryset = self.queryset
-
-        product_step = self.request.query_params.getlist("product_step")
-        if product_step:
-            queryset = queryset.filter(product_step_id__in=product_step)
-
-        product = self.request.query_params.getlist("product")
-        if product:
-            queryset = queryset.filter(product_step__product_id__in=product)
-
-        product_family = self.request.query_params.getlist("product_family")
-        if product_family:
-            queryset = queryset.filter(product_step__product__product_family_id__in=product_family)
-
-        attachment_type = self.request.query_params.getlist("attachment_type")
-        if attachment_type:
-            queryset = queryset.filter(attachment_type__in=attachment_type)
-
-        search = self.request.query_params.get("search")
-        if search:
-            queryset = queryset.filter(
-                models.Q(name__icontains=search)
-                | models.Q(description__icontains=search)
-                | models.Q(product_step__name__icontains=search)
-                | models.Q(product_step__product__code__icontains=search)
-                | models.Q(product_step__product__version__icontains=search)
-                | models.Q(product_step__product__product_family__code__icontains=search)
-                | models.Q(product_step__product__product_family__name__icontains=search)
             )
 
         return queryset

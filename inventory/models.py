@@ -107,42 +107,6 @@ class ProductFamily(models.Model):
     def __str__(self):
         return f"{self.code} — {self.name}"
 
-
-class ProductFamilyLibrary(models.Model):
-    class AttachmentTypeChoices(models.TextChoices):
-        PHOTO = "photo", "Фотографія"
-        VIDEO = "video", "Відео"
-        DRAWING = "drawing", "Креслення"
-        DOCUMENTATION = "documentation", "Документація"
-
-    product_family = models.ForeignKey(
-        "ProductFamily",
-        on_delete=models.CASCADE,
-        db_column="product_family_id",
-        related_name="library_items",
-    )
-    file = models.FileField(
-        upload_to="product_family_library/",
-        blank=True,
-        null=True,
-    )
-    name = models.CharField(max_length=255)
-    description = models.TextField(blank=True, null=True)
-    attachment_type = models.CharField(
-        max_length=30,
-        choices=AttachmentTypeChoices.choices,
-    )
-    is_active = models.BooleanField(default=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = "product_family_library"
-        ordering = ["name", "id"]
-
-    def __str__(self):
-        return f"{self.product_family.code} — {self.name}"
         
 class Product(models.Model):
     class DevelopmentStatus(models.TextChoices):
@@ -192,42 +156,6 @@ class Product(models.Model):
         return f"{self.code}"
 
 
-class ProductLibrary(models.Model):
-    class AttachmentTypeChoices(models.TextChoices):
-        PHOTO = "photo", "Фотографія"
-        VIDEO = "video", "Відео"
-        DRAWING = "drawing", "Креслення"
-        DOCUMENTATION = "documentation", "Документація"
-
-    product = models.ForeignKey(
-        "Product",
-        on_delete=models.CASCADE,
-        db_column="product_id",
-        related_name="library_items",
-    )
-    file = models.FileField(
-        upload_to="product_library/",
-        blank=True,
-        null=True,
-    )
-    name = models.CharField(max_length=255)
-    description = models.TextField(blank=True, null=True)
-    attachment_type = models.CharField(
-        max_length=30,
-        choices=AttachmentTypeChoices.choices,
-    )
-    is_active = models.BooleanField(default=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = "product_library"
-        ordering = ["name", "id"]
-
-    def __str__(self):
-        return f"{self.product.code} — {self.name}"
-
 class ProductStep(models.Model):
     product = models.ForeignKey(
         "Product",
@@ -259,43 +187,6 @@ class ProductStep(models.Model):
 
     def __str__(self):
         return f"{self.product.code} — {self.sort_order}. {self.name}"
-
-
-class ProductStepLibrary(models.Model):
-    class AttachmentTypeChoices(models.TextChoices):
-        PHOTO = "photo", "Фотографія"
-        VIDEO = "video", "Відео"
-        DRAWING = "drawing", "Креслення"
-        DOCUMENTATION = "documentation", "Документація"
-
-    product_step = models.ForeignKey(
-        "ProductStep",
-        on_delete=models.CASCADE,
-        db_column="product_step_id",
-        related_name="library_items",
-    )
-    file = models.FileField(
-        upload_to="product_step_library/",
-        blank=True,
-        null=True,
-    )
-    name = models.CharField(max_length=255)
-    description = models.TextField(blank=True, null=True)
-    attachment_type = models.CharField(
-        max_length=30,
-        choices=AttachmentTypeChoices.choices,
-    )
-    is_active = models.BooleanField(default=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = "product_step_library"
-        ordering = ["name", "id"]
-
-    def __str__(self):
-        return f"{self.product_step} — {self.name}"
 
 
 class ProductWork(models.Model):

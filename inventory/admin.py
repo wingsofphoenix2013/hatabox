@@ -5,11 +5,8 @@ from .models import (
     InvItemCategory,
     InvItem,
     ProductFamily,
-    ProductFamilyLibrary,
     Product,
-    ProductLibrary,
     ProductStep,
-    ProductStepLibrary,
     ProductWork,
     ProductWorkItem,
     ProductStepItem,
@@ -64,21 +61,6 @@ class InvItemAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at")
 
 
-class ProductFamilyLibraryInline(admin.TabularInline):
-    model = ProductFamilyLibrary
-    extra = 0
-    fields = (
-        "name",
-        "attachment_type",
-        "file",
-        "is_active",
-        "created_at",
-        "updated_at",
-    )
-    readonly_fields = ("created_at", "updated_at")
-    show_change_link = True
-
-
 @admin.register(ProductFamily)
 class ProductFamilyAdmin(admin.ModelAdmin):
     list_display = ("id", "code", "name", "developer", "is_active")
@@ -86,45 +68,8 @@ class ProductFamilyAdmin(admin.ModelAdmin):
     search_fields = ("code", "name", "description")
     ordering = ("name",)
     readonly_fields = ("created_at", "updated_at")
-    inlines = [ProductFamilyLibraryInline]
 
-
-@admin.register(ProductFamilyLibrary)
-class ProductFamilyLibraryAdmin(admin.ModelAdmin):
-    list_display = (
-        "id",
-        "name",
-        "product_family",
-        "attachment_type",
-        "is_active",
-        "file",
-    )
-    list_filter = ("attachment_type", "is_active", "product_family")
-    search_fields = (
-        "name",
-        "description",
-        "product_family__code",
-        "product_family__name",
-    )
-    autocomplete_fields = ("product_family",)
-    ordering = ("name", "id")
-    readonly_fields = ("created_at", "updated_at")
     
-class ProductLibraryInline(admin.TabularInline):
-    model = ProductLibrary
-    extra = 0
-    fields = (
-        "name",
-        "attachment_type",
-        "file",
-        "is_active",
-        "created_at",
-        "updated_at",
-    )
-    readonly_fields = ("created_at", "updated_at")
-    show_change_link = True
-
-
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
@@ -152,45 +97,6 @@ class ProductAdmin(admin.ModelAdmin):
     autocomplete_fields = ("product_family",)
     ordering = ("product_family__name", "version")
     readonly_fields = ("created_at", "updated_at")
-    inlines = [ProductLibraryInline]
-
-
-@admin.register(ProductLibrary)
-class ProductLibraryAdmin(admin.ModelAdmin):
-    list_display = (
-        "id",
-        "name",
-        "product",
-        "attachment_type",
-        "is_active",
-        "file",
-    )
-    list_filter = ("attachment_type", "is_active", "product")
-    search_fields = (
-        "name",
-        "description",
-        "product__code",
-        "product__version",
-        "product__product_family__code",
-        "product__product_family__name",
-    )
-    autocomplete_fields = ("product",)
-    ordering = ("name", "id")
-    readonly_fields = ("created_at", "updated_at")
-    
-class ProductStepLibraryInline(admin.TabularInline):
-    model = ProductStepLibrary
-    extra = 0
-    fields = (
-        "name",
-        "attachment_type",
-        "file",
-        "is_active",
-        "created_at",
-        "updated_at",
-    )
-    readonly_fields = ("created_at", "updated_at")
-    show_change_link = True
 
 
 class ProductWorkItemInline(admin.TabularInline):
@@ -243,7 +149,7 @@ class ProductStepAdmin(admin.ModelAdmin):
     autocomplete_fields = ("product",)
     ordering = ("product", "sort_order", "id")
     readonly_fields = ("created_at", "updated_at")
-    inlines = [ProductStepLibraryInline, ProductStepItemInline]
+    inlines = [ProductStepItemInline]
 
 
 @admin.register(ProductWork)
@@ -268,31 +174,6 @@ class ProductWorkAdmin(admin.ModelAdmin):
     ordering = ("product_step", "sort_order", "id")
     readonly_fields = ("created_at", "updated_at")
     inlines = [ProductWorkItemInline]
-
-
-@admin.register(ProductStepLibrary)
-class ProductStepLibraryAdmin(admin.ModelAdmin):
-    list_display = (
-        "id",
-        "name",
-        "product_step",
-        "attachment_type",
-        "is_active",
-        "file",
-    )
-    list_filter = ("attachment_type", "is_active", "product_step")
-    search_fields = (
-        "name",
-        "description",
-        "product_step__name",
-        "product_step__product__code",
-        "product_step__product__version",
-        "product_step__product__product_family__code",
-        "product_step__product__product_family__name",
-    )
-    autocomplete_fields = ("product_step",)
-    ordering = ("name", "id")
-    readonly_fields = ("created_at", "updated_at")
 
 
 @admin.register(ProductWorkItem)

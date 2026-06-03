@@ -12,12 +12,9 @@ from inventory.api_views import (
     InvItemViewSet,
     InvItemOptionsView,
     ProductFamilyViewSet,
-    ProductFamilyLibraryViewSet,
     ProductViewSet,
     ProductOptionsView,
-    ProductLibraryViewSet,
     ProductStepViewSet,
-    ProductStepLibraryViewSet,
     ProductWorkViewSet,
     ProductWorkItemViewSet,
     ProductStepItemViewSet,
@@ -108,11 +105,8 @@ router.register("units", InvUnitViewSet)
 router.register("categories", InvItemCategoryViewSet)
 router.register("items", InvItemViewSet)
 router.register("product-families", ProductFamilyViewSet)
-router.register("product-family-library", ProductFamilyLibraryViewSet)
 router.register("products", ProductViewSet)
-router.register("product-library", ProductLibraryViewSet)
 router.register("product-steps", ProductStepViewSet)
-router.register("product-step-library", ProductStepLibraryViewSet)
 router.register("product-works", ProductWorkViewSet)
 router.register("product-work-items", ProductWorkItemViewSet)
 router.register("product-step-items", ProductStepItemViewSet)
