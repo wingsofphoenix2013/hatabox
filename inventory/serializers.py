@@ -325,6 +325,21 @@ class ProductAttachmentSerializer(serializers.ModelSerializer):
             "created_at",
         ]
 
+    def get_extra_kwargs(self):
+        extra_kwargs = super().get_extra_kwargs()
+
+        if self.instance is not None:
+            for field_name in [
+                "product",
+                "product_step",
+                "product_work",
+                "file",
+                "attachment_type",
+            ]:
+                extra_kwargs[field_name] = {"read_only": True}
+
+        return extra_kwargs
+
 
 class ProductWorkSerializer(serializers.ModelSerializer):
     product_step_name = serializers.CharField(

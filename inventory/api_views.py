@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import ListAPIView
@@ -937,6 +938,36 @@ class ProductAttachmentViewSet(ModelViewSet):
     )
     serializer_class = ProductAttachmentSerializer
     permission_classes = [DjangoModelPermissions]
+    parser_classes = [MultiPartParser, FormParser]
+
+    @action(detail=False, methods=["post"], url_path="bulk-upload")
+    def bulk_upload(self, request):
+        files = request.FILES.getlist("files")
+
+        if not files:
+            raise ValidationError({"files": "This field is required."})
+
+        base_data = {
+            "product": request.data.get("product"),
+            "product_step": request.data.get("product_step"),
+            "product_work": request.data.get("product_work"),
+            "attachment_type": request.data.get("attachment_type"),
+        }
+
+        created_items = []
+
+        for file in files:
+            serializer = self.get_serializer(
+                data={
+                    **base_data,
+                    "file": file,
+                }
+            )
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            created_items.append(serializer.data)
+
+        return Response(created_items)
 
     def _get_attachment_product(self, attachment):
         if attachment.product_id:
@@ -957,11 +988,13 @@ class ProductAttachmentViewSet(ModelViewSet):
     def perform_create(self, serializer):
         validated_data = serializer.validated_data
 
-        product = (
-            validated_data.get("product")
-            or validated_data.get("product_step").product
-            or validated_data.get("product_work").product_step.product
-        )
+        product = validated_data.get("product")
+
+        if product is None and validated_data.get("product_step"):
+            product = validated_data["product_step"].product
+
+        if product is None and validated_data.get("product_work"):
+            product = validated_data["product_work"].product_step.product
 
         self._validate_product_not_finished(product)
 

@@ -1,3 +1,4 @@
+import os
 import uuid
 
 from django.core.exceptions import ValidationError
@@ -263,6 +264,25 @@ class ProductAttachment(models.Model):
         INSTRUCTION = "instruction", "Інструкція"
         OTHER = "other", "Інше"
 
+    ALLOWED_FILE_EXTENSIONS = {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp",
+        ".gif",
+        ".pdf",
+        ".doc",
+        ".docx",
+        ".xls",
+        ".xlsx",
+        ".ppt",
+        ".pptx",
+        ".mp4",
+        ".mov",
+        ".avi",
+        ".webm",
+    }
+
     product = models.ForeignKey(
         "Product",
         on_delete=models.CASCADE,
@@ -326,6 +346,14 @@ class ProductAttachment(models.Model):
             raise ValidationError(
                 "Attachment must be linked to exactly one target."
             )
+
+        if self.file:
+            extension = os.path.splitext(self.file.name)[1].lower()
+
+            if extension not in self.ALLOWED_FILE_EXTENSIONS:
+                raise ValidationError({
+                    "file": "Unsupported file type."
+                })
 
     def save(self, *args, **kwargs):
         self.full_clean()
