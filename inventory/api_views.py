@@ -798,6 +798,48 @@ class ProductViewSet(ModelViewSet):
         serializer = ProductAttachmentOverviewSerializer(payload)
         return Response(serializer.data)
 
+    @action(detail=True, methods=["get"], url_path="attachment-targets")
+    def attachment_targets(self, request, pk=None):
+        product = self.get_object()
+
+        steps = (
+            ProductStep.objects.filter(product=product)
+            .prefetch_related("works")
+            .order_by("sort_order", "id")
+        )
+
+        payload = {
+            "product": {
+                "id": product.id,
+                "target_type": "product",
+                "code": product.code,
+                "version": product.version,
+                "label": product.code,
+            },
+            "steps": [
+                {
+                    "id": step.id,
+                    "target_type": "step",
+                    "name": step.name,
+                    "sort_order": step.sort_order,
+                    "label": f"{step.sort_order}. {step.name}",
+                    "works": [
+                        {
+                            "id": work.id,
+                            "target_type": "work",
+                            "name": work.name,
+                            "sort_order": work.sort_order,
+                            "label": f"{step.sort_order}.{work.sort_order}. {work.name}",
+                        }
+                        for work in step.works.all()
+                    ],
+                }
+                for step in steps
+            ],
+        }
+
+        return Response(payload)
+
         
 class ProductStepViewSet(ModelViewSet):
     queryset = ProductStep.objects.select_related(
