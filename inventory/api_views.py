@@ -41,6 +41,7 @@ from .serializers import (
     ProductStepItemSerializer,
     ProductMaterialPlanSerializer,
     ProductWorkMaterialPlanSerializer,
+    ProductStepMaterialPlanSerializer,
 )
 
 
@@ -273,6 +274,96 @@ class ProductViewSet(ModelViewSet):
         )
 
         serializer = self.get_serializer(product)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["get"], url_path="step-material-plan")
+    def step_material_plan(self, request, pk=None):
+        product = self.get_object()
+
+        if product.work_tracking:
+            raise ValidationError(
+                "Step material plan is available only when work tracking is disabled."
+            )
+
+        step_items_queryset = (
+            ProductStepItem.objects.filter(product_step__product=product)
+            .select_related(
+                "product_step",
+                "inv_item",
+                "inv_item__category",
+                "inv_item__unit",
+            )
+            .order_by(
+                "inv_item__internal_code",
+                "inv_item_id",
+                "product_step__sort_order",
+                "product_step_id",
+            )
+        )
+
+        items_map = {}
+
+        for step_item in step_items_queryset:
+            inv_item = step_item.inv_item
+            product_step = step_item.product_step
+
+            item_key = inv_item.id
+
+            if item_key not in items_map:
+                items_map[item_key] = {
+                    "inv_item_id": inv_item.id,
+                    "inv_item_internal_code": inv_item.internal_code,
+                    "inv_item_name": inv_item.name,
+                    "inv_item_category_id": inv_item.category_id,
+                    "inv_item_category_name": inv_item.category.name,
+                    "unit_id": inv_item.unit_id,
+                    "unit_name": inv_item.unit.name,
+                    "unit_symbol": inv_item.unit.symbol,
+                    "total_quantity": step_item.quantity,
+                    "steps": [],
+                }
+            else:
+                items_map[item_key]["total_quantity"] += step_item.quantity
+
+            items_map[item_key]["steps"].append(
+                {
+                    "product_step_id": product_step.id,
+                    "product_step_name": product_step.name,
+                    "product_step_sort_order": product_step.sort_order,
+                    "quantity": step_item.quantity,
+                }
+            )
+
+        items = list(items_map.values())
+
+        items.sort(
+            key=lambda x: (
+                x["inv_item_internal_code"],
+                x["inv_item_id"],
+            )
+        )
+
+        payload = {
+            "product": {
+                "id": product.id,
+                "code": product.code,
+                "version": product.version,
+                "description": product.description,
+                "work_tracking": product.work_tracking,
+                "hr_tracking": product.hr_tracking,
+                "development_status": product.development_status,
+                "development_status_display": product.get_development_status_display(),
+                "development_started_at": product.development_started_at,
+                "development_finished_at": product.development_finished_at,
+                "is_base_modification": product.is_base_modification,
+                "product_family_id": product.product_family_id,
+                "product_family_code": product.product_family.code,
+                "product_family_name": product.product_family.name,
+            },
+            "items": items,
+        }
+
+        serializer = ProductStepMaterialPlanSerializer(payload)
         return Response(serializer.data)
 
     @action(detail=True, methods=["get"], url_path="work-material-plan")

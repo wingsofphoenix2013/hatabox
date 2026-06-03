@@ -665,6 +665,35 @@ class ProductWorkMaterialPlanSerializer(serializers.Serializer):
     items = ProductWorkMaterialPlanItemSerializer(many=True)
 
 
+class ProductStepMaterialPlanStepSerializer(serializers.Serializer):
+    product_step_id = serializers.IntegerField()
+    product_step_name = serializers.CharField()
+    product_step_sort_order = serializers.IntegerField()
+    quantity = serializers.DecimalField(max_digits=12, decimal_places=3)
+
+
+class ProductStepMaterialPlanItemSerializer(serializers.Serializer):
+    inv_item_id = serializers.IntegerField()
+    inv_item_internal_code = serializers.CharField()
+    inv_item_name = serializers.CharField()
+
+    inv_item_category_id = serializers.IntegerField()
+    inv_item_category_name = serializers.CharField()
+
+    unit_id = serializers.IntegerField()
+    unit_name = serializers.CharField()
+    unit_symbol = serializers.CharField()
+
+    total_quantity = serializers.DecimalField(max_digits=12, decimal_places=3)
+
+    steps = ProductStepMaterialPlanStepSerializer(many=True)
+
+
+class ProductStepMaterialPlanSerializer(serializers.Serializer):
+    product = ProductMaterialPlanProductSerializer()
+    items = ProductStepMaterialPlanItemSerializer(many=True)
+
+
 class ProductMaterialPlanSerializer(serializers.Serializer):
     product = ProductMaterialPlanProductSerializer()
     summary_items = ProductMaterialPlanSummaryItemSerializer(many=True)
