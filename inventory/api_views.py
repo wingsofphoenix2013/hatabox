@@ -20,6 +20,7 @@ from .models import (
     ProductWork,
     ProductWorkItem,
     ProductStepItem,
+    ProductAttachment,
 )
 from .serializers import (
     InvUnitSerializer,
@@ -33,6 +34,7 @@ from .serializers import (
     ProductWorkSerializer,
     ProductWorkItemSerializer,
     ProductStepItemSerializer,
+    ProductAttachmentSerializer,
     ProductMaterialPlanSerializer,
     ProductWorkMaterialPlanSerializer,
     ProductStepMaterialPlanSerializer,
@@ -920,6 +922,101 @@ class ProductWorkItemViewSet(ModelViewSet):
                 | models.Q(product_work__product_step__name__icontains=search)
                 | models.Q(product_work__product_step__product__code__icontains=search)
             )
+
+        return queryset
+
+
+class ProductAttachmentViewSet(ModelViewSet):
+    queryset = ProductAttachment.objects.select_related(
+        "product",
+        "product_step",
+        "product_step__product",
+        "product_work",
+        "product_work__product_step",
+        "product_work__product_step__product",
+    )
+    serializer_class = ProductAttachmentSerializer
+    permission_classes = [DjangoModelPermissions]
+
+    def _get_attachment_product(self, attachment):
+        if attachment.product_id:
+            return attachment.product
+
+        if attachment.product_step_id:
+            return attachment.product_step.product
+
+        if attachment.product_work_id:
+            return attachment.product_work.product_step.product
+
+        return None
+
+    def _validate_product_not_finished(self, product):
+        if product.development_status == Product.DevelopmentStatus.FINISHED:
+            raise ValidationError("Finished product attachments cannot be modified.")
+
+    def perform_create(self, serializer):
+        validated_data = serializer.validated_data
+
+        product = (
+            validated_data.get("product")
+            or validated_data.get("product_step").product
+            or validated_data.get("product_work").product_step.product
+        )
+
+        self._validate_product_not_finished(product)
+
+        serializer.save()
+
+    def perform_update(self, serializer):
+        forbidden_fields = {
+            "product",
+            "product_step",
+            "product_work",
+            "file",
+            "attachment_type",
+        }
+
+        if forbidden_fields.intersection(serializer.validated_data.keys()):
+            raise ValidationError(
+                "Only name and description can be changed after attachment creation."
+            )
+
+        product = self._get_attachment_product(self.get_object())
+        self._validate_product_not_finished(product)
+
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        product = self._get_attachment_product(instance)
+        self._validate_product_not_finished(product)
+
+        instance.delete()
+
+    def get_queryset(self):
+        queryset = self.queryset
+
+        product = self.request.query_params.getlist("product")
+        if product:
+            queryset = queryset.filter(
+                models.Q(product_id__in=product)
+                | models.Q(product_step__product_id__in=product)
+                | models.Q(product_work__product_step__product_id__in=product)
+            )
+
+        product_step = self.request.query_params.getlist("product_step")
+        if product_step:
+            queryset = queryset.filter(
+                models.Q(product_step_id__in=product_step)
+                | models.Q(product_work__product_step_id__in=product_step)
+            )
+
+        product_work = self.request.query_params.getlist("product_work")
+        if product_work:
+            queryset = queryset.filter(product_work_id__in=product_work)
+
+        attachment_type = self.request.query_params.getlist("attachment_type")
+        if attachment_type:
+            queryset = queryset.filter(attachment_type__in=attachment_type)
 
         return queryset
 

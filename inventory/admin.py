@@ -10,6 +10,7 @@ from .models import (
     ProductWork,
     ProductWorkItem,
     ProductStepItem,
+    ProductAttachment,
 )
 
 
@@ -198,6 +199,40 @@ class ProductWorkItemAdmin(admin.ModelAdmin):
     autocomplete_fields = ("product_work", "inv_item")
     ordering = ("product_work", "inv_item")
     readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(ProductAttachment)
+class ProductAttachmentAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "attachment_type",
+        "name",
+        "product",
+        "product_step",
+        "product_work",
+        "file",
+        "created_at",
+    )
+    list_filter = (
+        "attachment_type",
+        "product",
+        "product_step",
+        "product_work",
+    )
+    search_fields = (
+        "name",
+        "description",
+        "product__code",
+        "product_step__name",
+        "product_work__name",
+    )
+    autocomplete_fields = (
+        "product",
+        "product_step",
+        "product_work",
+    )
+    ordering = ("-created_at", "-id")
+    readonly_fields = ("created_at",)
 
 
 @admin.register(ProductStepItem)

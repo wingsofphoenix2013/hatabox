@@ -1,5 +1,6 @@
 import uuid
 
+from django.core.exceptions import ValidationError
 from django.db import models
 
 def inv_item_image_upload_to(instance, filename):
@@ -252,6 +253,87 @@ class ProductWorkItem(models.Model):
     def __str__(self):
         return f"{self.product_work} — {self.inv_item.name} ({self.quantity})"
 
+
+class ProductAttachment(models.Model):
+    class AttachmentTypeChoices(models.TextChoices):
+        PHOTO = "photo", "Фотографія"
+        VIDEO = "video", "Відео"
+        DOCUMENT = "document", "Документ"
+        DRAWING = "drawing", "Креслення"
+        INSTRUCTION = "instruction", "Інструкція"
+        OTHER = "other", "Інше"
+
+    product = models.ForeignKey(
+        "Product",
+        on_delete=models.CASCADE,
+        related_name="attachments",
+        null=True,
+        blank=True,
+    )
+
+    product_step = models.ForeignKey(
+        "ProductStep",
+        on_delete=models.CASCADE,
+        related_name="attachments",
+        null=True,
+        blank=True,
+    )
+
+    product_work = models.ForeignKey(
+        "ProductWork",
+        on_delete=models.CASCADE,
+        related_name="attachments",
+        null=True,
+        blank=True,
+    )
+
+    file = models.FileField(
+        upload_to="product_attachments/",
+    )
+
+    attachment_type = models.CharField(
+        max_length=30,
+        choices=AttachmentTypeChoices.choices,
+    )
+
+    name = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    description = models.TextField(
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        db_table = "product_attachments"
+        ordering = ["-created_at", "-id"]
+
+    def clean(self):
+        super().clean()
+
+        targets = [
+            bool(self.product_id),
+            bool(self.product_step_id),
+            bool(self.product_work_id),
+        ]
+
+        if sum(targets) != 1:
+            raise ValidationError(
+                "Attachment must be linked to exactly one target."
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name or self.file.name
+        
 
 class ProductStepItem(models.Model):
     product_step = models.ForeignKey(

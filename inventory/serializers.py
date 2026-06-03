@@ -12,6 +12,7 @@ from .models import (
     ProductWork,
     ProductWorkItem,
     ProductStepItem,
+    ProductAttachment,
 )
 
 
@@ -297,6 +298,31 @@ class ProductWorkItemSerializer(serializers.ModelSerializer):
             "quantity",
             "created_at",
             "updated_at",
+        ]
+
+
+class ProductAttachmentSerializer(serializers.ModelSerializer):
+    attachment_type_display = serializers.CharField(
+        source="get_attachment_type_display",
+        read_only=True,
+    )
+
+    class Meta:
+        model = ProductAttachment
+        fields = [
+            "id",
+            "product",
+            "product_step",
+            "product_work",
+            "file",
+            "attachment_type",
+            "attachment_type_display",
+            "name",
+            "description",
+            "created_at",
+        ]
+        read_only_fields = [
+            "created_at",
         ]
 
 
