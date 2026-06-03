@@ -562,3 +562,42 @@ class ProductMaterialPlanSerializer(serializers.Serializer):
     product = ProductMaterialPlanProductSerializer()
     summary_items = ProductMaterialPlanSummaryItemSerializer(many=True)
     steps = ProductMaterialPlanStepSerializer(many=True)
+
+
+class ProductAttachmentOverviewAttachmentSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    file = serializers.FileField()
+    attachment_type = serializers.CharField()
+    attachment_type_display = serializers.CharField()
+    name = serializers.CharField()
+    description = serializers.CharField()
+    created_at = serializers.DateTimeField()
+
+
+class ProductAttachmentOverviewWorkSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    sort_order = serializers.IntegerField()
+    attachments = ProductAttachmentOverviewAttachmentSerializer(many=True)
+
+
+class ProductAttachmentOverviewStepSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    sort_order = serializers.IntegerField()
+    attachments = ProductAttachmentOverviewAttachmentSerializer(many=True)
+    works = ProductAttachmentOverviewWorkSerializer(many=True)
+
+
+class ProductAttachmentOverviewGroupSerializer(serializers.Serializer):
+    attachment_type = serializers.CharField()
+    attachment_type_display = serializers.CharField()
+
+    product_attachments = ProductAttachmentOverviewAttachmentSerializer(many=True)
+
+    steps = ProductAttachmentOverviewStepSerializer(many=True)
+
+
+class ProductAttachmentOverviewSerializer(serializers.Serializer):
+    product = ProductMaterialPlanProductSerializer()
+    attachment_groups = ProductAttachmentOverviewGroupSerializer(many=True)

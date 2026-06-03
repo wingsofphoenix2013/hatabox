@@ -39,6 +39,7 @@ from .serializers import (
     ProductMaterialPlanSerializer,
     ProductWorkMaterialPlanSerializer,
     ProductStepMaterialPlanSerializer,
+    ProductAttachmentOverviewSerializer,
 )
 
 
@@ -647,6 +648,154 @@ class ProductViewSet(ModelViewSet):
         }
 
         serializer = ProductMaterialPlanSerializer(payload)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["get"], url_path="attachments-overview")
+    def attachments_overview(self, request, pk=None):
+        product = self.get_object()
+
+        attachments = (
+            ProductAttachment.objects.filter(
+                models.Q(product=product)
+                | models.Q(product_step__product=product)
+                | models.Q(product_work__product_step__product=product)
+            )
+            .select_related(
+                "product_step",
+                "product_work",
+                "product_work__product_step",
+            )
+            .order_by("-created_at", "-id")
+        )
+
+        steps = (
+            ProductStep.objects.filter(product=product)
+            .prefetch_related("works")
+            .order_by("sort_order", "id")
+        )
+
+        groups_map = {
+            attachment_type: {
+                "attachment_type": attachment_type,
+                "attachment_type_display": label,
+                "product_attachments": [],
+                "steps": [],
+            }
+            for attachment_type, label in ProductAttachment.AttachmentTypeChoices.choices
+        }
+
+        for step in steps:
+            works = [
+                {
+                    "id": work.id,
+                    "name": work.name,
+                    "sort_order": work.sort_order,
+                    "attachments": [],
+                }
+                for work in step.works.all()
+            ]
+
+            for group in groups_map.values():
+                group["steps"].append({
+                    "id": step.id,
+                    "name": step.name,
+                    "sort_order": step.sort_order,
+                    "attachments": [],
+                    "works": [
+                        {
+                            "id": work["id"],
+                            "name": work["name"],
+                            "sort_order": work["sort_order"],
+                            "attachments": [],
+                        }
+                        for work in works
+                    ],
+                })
+
+        for attachment in attachments:
+            attachment_data = {
+                "id": attachment.id,
+                "file": attachment.file,
+                "attachment_type": attachment.attachment_type,
+                "attachment_type_display": attachment.get_attachment_type_display(),
+                "name": attachment.name,
+                "description": attachment.description,
+                "created_at": attachment.created_at,
+            }
+
+            group = groups_map[attachment.attachment_type]
+
+            if attachment.product_id:
+                group["product_attachments"].append(attachment_data)
+                continue
+
+            if attachment.product_step_id:
+                for step in group["steps"]:
+                    if step["id"] == attachment.product_step_id:
+                        step["attachments"].append(attachment_data)
+                        break
+
+                continue
+
+            if attachment.product_work_id:
+                product_work = attachment.product_work
+
+                for step in group["steps"]:
+                    if step["id"] != product_work.product_step_id:
+                        continue
+
+                    for work in step["works"]:
+                        if work["id"] == product_work.id:
+                            work["attachments"].append(attachment_data)
+                            break
+
+                    break
+
+        attachment_groups = []
+
+        for group in groups_map.values():
+            steps = []
+
+            for step in group["steps"]:
+                works = [
+                    work
+                    for work in step["works"]
+                    if work["attachments"]
+                ]
+
+                if step["attachments"] or works:
+                    steps.append({
+                        "id": step["id"],
+                        "name": step["name"],
+                        "sort_order": step["sort_order"],
+                        "attachments": step["attachments"],
+                        "works": works,
+                    })
+
+            if group["product_attachments"] or steps:
+                attachment_groups.append({
+                    "attachment_type": group["attachment_type"],
+                    "attachment_type_display": group["attachment_type_display"],
+                    "product_attachments": group["product_attachments"],
+                    "steps": steps,
+                })
+
+        payload = {
+            "product": {
+                "id": product.id,
+                "code": product.code,
+                "version": product.version,
+                "work_tracking": product.work_tracking,
+                "development_status": product.development_status,
+                "development_status_display": product.get_development_status_display(),
+                "product_family_id": product.product_family_id,
+                "product_family_code": product.product_family.code,
+                "product_family_name": product.product_family.name,
+            },
+            "attachment_groups": attachment_groups,
+        }
+
+        serializer = ProductAttachmentOverviewSerializer(payload)
         return Response(serializer.data)
 
         
