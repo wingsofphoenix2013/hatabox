@@ -10,6 +10,12 @@ def inv_item_image_upload_to(instance, filename):
     return f"items/{new_filename}"
 
 
+def product_attachment_upload_to(instance, filename):
+    extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    new_filename = f"{uuid.uuid4()}.{extension}" if extension else str(uuid.uuid4())
+    return f"product_attachments/{new_filename}"
+
+
 class InvUnit(models.Model):
     code = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=100)
@@ -308,7 +314,12 @@ class ProductAttachment(models.Model):
     )
 
     file = models.FileField(
-        upload_to="product_attachments/",
+        upload_to=product_attachment_upload_to,
+    )
+
+    display_filename = models.CharField(
+        max_length=255,
+        blank=True,
     )
 
     attachment_type = models.CharField(
@@ -356,6 +367,9 @@ class ProductAttachment(models.Model):
                 })
 
     def save(self, *args, **kwargs):
+        if self.file and not self.display_filename:
+            self.display_filename = os.path.basename(self.file.name)
+
         self.full_clean()
         super().save(*args, **kwargs)
 

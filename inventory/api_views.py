@@ -1212,7 +1212,7 @@ class ProductAttachmentViewSet(ModelViewSet):
 
         if forbidden_fields.intersection(serializer.validated_data.keys()):
             raise ValidationError(
-                "Only name and description can be changed after attachment creation."
+                "Only display_filename, name and description can be changed after attachment creation."
             )
 
         product = self._get_attachment_product(self.get_object())

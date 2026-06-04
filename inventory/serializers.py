@@ -315,6 +315,7 @@ class ProductAttachmentSerializer(serializers.ModelSerializer):
             "product_step",
             "product_work",
             "file",
+            "display_filename",
             "attachment_type",
             "attachment_type_display",
             "name",
