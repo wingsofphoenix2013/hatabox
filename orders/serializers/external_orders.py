@@ -423,6 +423,7 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
             return annotated
 
         total = Decimal("0.00")
+
         payment_documents = getattr(obj, "prefetched_payment_documents", None)
         if payment_documents is None:
             payment_documents = obj.payment_documents.all()
@@ -430,6 +431,14 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
         for payment_document in payment_documents:
             if payment_document.status == ExternalPaymentDocument.StatusChoices.PAID:
                 total += payment_document.payment_amount
+
+        refund_documents = getattr(obj, "prefetched_refund_documents", None)
+        if refund_documents is None:
+            refund_documents = obj.refund_documents.all()
+
+        for refund_document in refund_documents:
+            total -= refund_document.refund_amount
+
         return total
 
     def get_refunded_amount(self, obj):
