@@ -43,6 +43,10 @@ from orders.serializers import (
 
 from orders.services.external_order_events import create_external_order_event
 
+from warehouse.tasks import (
+    recalculate_warehouse_shortages_task,
+)
+
 
 VAT_RATE = Decimal("0.20")
 VAT_DIVISOR = Decimal("1.20")
@@ -622,8 +626,24 @@ class ExternalOrderViewSet(ModelViewSet):
         )
 
     def perform_destroy(self, instance):
+        affected_inv_item_ids = list({
+            item.vendor_item.item_id
+            for item in instance.items.select_related(
+                "vendor_item",
+                "vendor_item__item",
+            )
+        })
+
         if instance.status == ExternalOrder.StatusChoices.DRAFT:
             instance.delete()
+
+            if affected_inv_item_ids:
+                transaction.on_commit(
+                    lambda: recalculate_warehouse_shortages_task.delay(
+                        inv_item_ids=affected_inv_item_ids,
+                    )
+                )
+
             return
 
         if instance.status != ExternalOrder.StatusChoices.IN_PROGRESS:
@@ -657,6 +677,13 @@ class ExternalOrderViewSet(ModelViewSet):
             )
 
         instance.delete()
+
+        if affected_inv_item_ids:
+            transaction.on_commit(
+                lambda: recalculate_warehouse_shortages_task.delay(
+                    inv_item_ids=affected_inv_item_ids,
+                )
+            )
 
     def perform_update(self, serializer):
         if serializer.instance.status == ExternalOrder.StatusChoices.COMPLETED:
