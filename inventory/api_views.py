@@ -716,6 +716,7 @@ class ProductViewSet(ModelViewSet):
             attachment_data = {
                 "id": attachment.id,
                 "file": attachment.file,
+                "display_filename": attachment.display_filename,
                 "attachment_type": attachment.attachment_type,
                 "attachment_type_display": attachment.get_attachment_type_display(),
                 "name": attachment.name,

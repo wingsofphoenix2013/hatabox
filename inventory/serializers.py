@@ -568,6 +568,7 @@ class ProductMaterialPlanSerializer(serializers.Serializer):
 class ProductAttachmentOverviewAttachmentSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     file = serializers.FileField()
+    display_filename = serializers.CharField()
     attachment_type = serializers.CharField()
     attachment_type_display = serializers.CharField()
     name = serializers.CharField()
