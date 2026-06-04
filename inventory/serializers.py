@@ -1,3 +1,4 @@
+from django.db import models
 from django.utils import timezone
 
 from rest_framework import serializers
@@ -126,6 +127,7 @@ class ProductSerializer(serializers.ModelSerializer):
         read_only=True,
     )
     steps = serializers.SerializerMethodField()
+    primary_image = serializers.SerializerMethodField()
 
     def get_steps(self, obj):
         return [
@@ -146,6 +148,29 @@ class ProductSerializer(serializers.ModelSerializer):
             }
             for step in obj.steps.all()
         ]
+
+    def get_primary_image(self, obj):
+        attachment = (
+            ProductAttachment.objects.filter(
+                is_primary_image=True,
+            )
+            .filter(
+                models.Q(product=obj)
+                | models.Q(product_step__product=obj)
+                | models.Q(product_work__product_step__product=obj)
+            )
+            .order_by("-created_at", "-id")
+            .first()
+        )
+
+        if not attachment:
+            return None
+
+        return {
+            "id": attachment.id,
+            "file": attachment.file.url if attachment.file else None,
+            "display_filename": attachment.display_filename,
+        }
 
     def validate(self, attrs):
         product_family = attrs.get("product_family") or getattr(self.instance, "product_family", None)
@@ -200,6 +225,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "steps",
+            "primary_image",
         ]
         
 
@@ -318,6 +344,7 @@ class ProductAttachmentSerializer(serializers.ModelSerializer):
             "display_filename",
             "attachment_type",
             "attachment_type_display",
+            "is_primary_image",
             "name",
             "description",
             "created_at",
@@ -336,6 +363,7 @@ class ProductAttachmentSerializer(serializers.ModelSerializer):
                 "product_work",
                 "file",
                 "attachment_type",
+                "is_primary_image",
             ]:
                 extra_kwargs[field_name] = {"read_only": True}
 
@@ -571,6 +599,7 @@ class ProductAttachmentOverviewAttachmentSerializer(serializers.Serializer):
     display_filename = serializers.CharField()
     attachment_type = serializers.CharField()
     attachment_type_display = serializers.CharField()
+    is_primary_image = serializers.BooleanField()
     name = serializers.CharField()
     description = serializers.CharField()
     created_at = serializers.DateTimeField()

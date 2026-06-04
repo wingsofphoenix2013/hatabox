@@ -719,6 +719,7 @@ class ProductViewSet(ModelViewSet):
                 "display_filename": attachment.display_filename,
                 "attachment_type": attachment.attachment_type,
                 "attachment_type_display": attachment.get_attachment_type_display(),
+                "is_primary_image": attachment.is_primary_image,
                 "name": attachment.name,
                 "description": attachment.description,
                 "created_at": attachment.created_at,
@@ -1141,6 +1142,34 @@ class ProductAttachmentViewSet(ModelViewSet):
             }
             for value, label in ProductAttachment.AttachmentTypeChoices.choices
         ])
+
+    @action(detail=True, methods=["post"], url_path="set-primary-image")
+    def set_primary_image(self, request, pk=None):
+        attachment = self.get_object()
+
+        if attachment.attachment_type != ProductAttachment.AttachmentTypeChoices.PHOTO:
+            raise ValidationError(
+                "Only photo attachments can be primary images."
+            )
+
+        product = self._get_attachment_product(attachment)
+        self._validate_product_not_finished(product)
+
+        ProductAttachment.objects.filter(
+            is_primary_image=True,
+        ).filter(
+            models.Q(product=product)
+            | models.Q(product_step__product=product)
+            | models.Q(product_work__product_step__product=product)
+        ).update(
+            is_primary_image=False
+        )
+
+        attachment.is_primary_image = True
+        attachment.save(update_fields=["is_primary_image"])
+
+        serializer = self.get_serializer(attachment)
+        return Response(serializer.data)
 
     @action(detail=False, methods=["post"], url_path="bulk-upload")
     def bulk_upload(self, request):

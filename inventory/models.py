@@ -327,6 +327,10 @@ class ProductAttachment(models.Model):
         choices=AttachmentTypeChoices.choices,
     )
 
+    is_primary_image = models.BooleanField(
+        default=False,
+    )
+
     name = models.CharField(
         max_length=255,
         blank=True,
@@ -365,6 +369,14 @@ class ProductAttachment(models.Model):
                 raise ValidationError({
                     "file": "Unsupported file type."
                 })
+
+        if (
+            self.is_primary_image
+            and self.attachment_type != self.AttachmentTypeChoices.PHOTO
+        ):
+            raise ValidationError({
+                "is_primary_image": "Only photo attachments can be primary images."
+            })
 
     def save(self, *args, **kwargs):
         if self.file and not self.display_filename:
