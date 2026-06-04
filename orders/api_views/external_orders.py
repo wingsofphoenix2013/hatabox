@@ -596,6 +596,35 @@ class ExternalOrderViewSet(ModelViewSet):
             created_by=self.request.user,
         )
 
+    def perform_destroy(self, instance):
+        if instance.status == ExternalOrder.StatusChoices.DRAFT:
+            instance.delete()
+            return
+
+        if instance.status != ExternalOrder.StatusChoices.IN_PROGRESS:
+            raise ValidationError(
+                "Цей статус замовлення не дозволяє видалення."
+            )
+
+        if instance.payment_documents.filter(
+            status=ExternalPaymentDocument.StatusChoices.PAID,
+        ).exists():
+            raise ValidationError(
+                "Неможливо видалити замовлення, за яким вже є оплачені платежі."
+            )
+
+        if instance.receipt_documents.exists():
+            raise ValidationError(
+                "Неможливо видалити замовлення, за яким вже є документи приходу."
+            )
+
+        if instance.reclamation_returns.exists():
+            raise ValidationError(
+                "Неможливо видалити замовлення, за яким вже є рекламації."
+            )
+
+        instance.delete()
+
     def perform_update(self, serializer):
         if serializer.instance.status == ExternalOrder.StatusChoices.COMPLETED:
             raise ValidationError("Замовлення у статусі 'Виконано' не можна змінювати.")

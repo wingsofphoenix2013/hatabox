@@ -250,6 +250,7 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
     receipt_overdue_days = serializers.SerializerMethodField()
     receipt_expected_days = serializers.SerializerMethodField()
     can_start_reclamation_flow = serializers.SerializerMethodField()
+    can_delete = serializers.SerializerMethodField()
 
     class Meta:
         model = ExternalOrder
@@ -271,6 +272,7 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
             "comment",
             "has_reclamation",
             "can_start_reclamation_flow",
+            "can_delete",
             "image",
             "clear_image",
             "items_total_amount",
@@ -344,6 +346,37 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
                 return True
 
         return False
+
+    def get_can_delete(self, obj):
+        if obj.status == ExternalOrder.StatusChoices.DRAFT:
+            return True
+
+        if obj.status != ExternalOrder.StatusChoices.IN_PROGRESS:
+            return False
+
+        payment_documents = getattr(obj, "prefetched_payment_documents", None)
+        if payment_documents is None:
+            payment_documents = obj.payment_documents.all()
+
+        for payment_document in payment_documents:
+            if payment_document.status == ExternalPaymentDocument.StatusChoices.PAID:
+                return False
+
+        receipt_documents = getattr(obj, "prefetched_receipt_documents", None)
+        if receipt_documents is None:
+            receipt_documents = obj.receipt_documents.all()
+
+        if receipt_documents:
+            return False
+
+        reclamation_returns = getattr(obj, "prefetched_reclamation_returns", None)
+        if reclamation_returns is None:
+            reclamation_returns = obj.reclamation_returns.all()
+
+        if reclamation_returns:
+            return False
+
+        return True
 
     def get_items_total_amount(self, obj):
         annotated = self._get_annotated_value(obj, "items_total_amount")
