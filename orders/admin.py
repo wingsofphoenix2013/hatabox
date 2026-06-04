@@ -6,6 +6,7 @@ from .models import (
     ExternalOrderItem,
     TollingOrderEvent,
     ExternalPaymentDocument,
+    ExternalRefundDocument,
     ExternalReceiptDocument,
     ExternalReceiptItem,
     TollingOrder,
@@ -142,6 +143,37 @@ class ExternalReceiptItemInline(admin.TabularInline):
     model = ExternalReceiptItem
     extra = 0
     autocomplete_fields = ("order_item",)
+
+@admin.register(ExternalRefundDocument)
+class ExternalRefundDocumentAdmin(admin.ModelAdmin):
+    list_display = (
+        "refund_no",
+        "order",
+        "refund_amount",
+        "refund_date",
+        "created_by",
+        "created_at",
+    )
+    search_fields = (
+        "refund_no",
+        "order__order_no",
+        "order__vendor__code",
+        "order__vendor__name",
+        "comment",
+    )
+    list_filter = (
+        "refund_date",
+        "order__vendor",
+        "created_by",
+    )
+    autocomplete_fields = (
+        "order",
+        "created_by",
+    )
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+    )
 
 
 @admin.register(ExternalReceiptDocument)

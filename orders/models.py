@@ -97,6 +97,8 @@ class ExternalOrderEvent(models.Model):
         PAYMENT_DOCUMENT_CREATED = "payment_document_created", "Створено платіжний документ"
         PAYMENT_DOCUMENT_STATUS_CHANGED = "payment_document_status_changed", "Статус платіжного документа змінено"
 
+        REFUND_DOCUMENT_CREATED = "refund_document_created", "Отримано повернення коштів"
+
         RECEIPT_DOCUMENT_CREATED = "receipt_document_created", "Створено документ приходу"
         RECEIPT_DOCUMENT_COMPLETED = "receipt_document_completed", "Документ приходу завершено"
         RECEIPT_DOCUMENT_SENT_TO_WAREHOUSE = "receipt_document_sent_to_warehouse", "Документ приходу передано на склад"
@@ -269,6 +271,53 @@ class ExternalPaymentDocument(models.Model):
 
     def __str__(self):
         return self.payment_no
+
+
+class ExternalRefundDocument(models.Model):
+    refund_no = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name="Номер документа повернення коштів",
+    )
+
+    order = models.ForeignKey(
+        ExternalOrder,
+        on_delete=models.CASCADE,
+        related_name="refund_documents",
+        verbose_name="Замовлення",
+    )
+
+    refund_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        verbose_name="Сума повернення",
+    )
+
+    refund_date = models.DateField(
+        verbose_name="Дата повернення коштів",
+    )
+
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="created_external_refund_documents",
+        verbose_name="Створено користувачем",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    comment = models.TextField(
+        blank=True,
+        verbose_name="Коментар",
+    )
+
+    class Meta:
+        db_table = "external_refund_documents"
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return self.refund_no
 
 
 class ExternalReceiptDocument(models.Model):

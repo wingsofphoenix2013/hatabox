@@ -5,6 +5,7 @@ from rest_framework import serializers
 from orders.models import (
     ExternalOrder,
     ExternalPaymentDocument,
+    ExternalRefundDocument,
 )
 
 PAYMENT_COMPLETION_TOLERANCE = Decimal("0.01")
@@ -133,5 +134,64 @@ class ExternalPaymentDocumentSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Сума всіх платіжних документів не може перевищувати суму замовлення."
             )
+
+        return attrs
+        
+class ExternalRefundDocumentSerializer(serializers.ModelSerializer):
+    order_no = serializers.CharField(
+        source="order.order_no",
+        read_only=True,
+    )
+    order_vendor_id = serializers.IntegerField(
+        source="order.vendor.id",
+        read_only=True,
+    )
+    order_vendor_code = serializers.CharField(
+        source="order.vendor.code",
+        read_only=True,
+    )
+    order_vendor_name = serializers.CharField(
+        source="order.vendor.name",
+        read_only=True,
+    )
+    created_by_username = serializers.CharField(
+        source="created_by.username",
+        read_only=True,
+    )
+
+    class Meta:
+        model = ExternalRefundDocument
+        fields = [
+            "id",
+            "refund_no",
+            "order",
+            "order_no",
+            "order_vendor_id",
+            "order_vendor_code",
+            "order_vendor_name",
+            "refund_amount",
+            "refund_date",
+            "created_by",
+            "created_by_username",
+            "created_at",
+            "updated_at",
+            "comment",
+        ]
+        read_only_fields = (
+            "created_by",
+            "created_at",
+            "updated_at",
+        )
+
+    def validate(self, attrs):
+        refund_amount = attrs.get("refund_amount")
+
+        if self.instance is not None and refund_amount is None:
+            refund_amount = self.instance.refund_amount
+
+        if refund_amount is not None and refund_amount <= 0:
+            raise serializers.ValidationError({
+                "refund_amount": "Сума повернення повинна бути більше 0."
+            })
 
         return attrs

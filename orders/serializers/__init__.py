@@ -6,6 +6,7 @@ from .external_order_items import (
 from .external_payments import (
     ExternalPaymentDocumentShortSerializer,
     ExternalPaymentDocumentSerializer,
+    ExternalRefundDocumentSerializer,
 )
 
 from .external_receipts import (

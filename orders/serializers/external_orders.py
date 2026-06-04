@@ -10,7 +10,10 @@ from orders.models import (
 )
 
 from .external_order_items import ExternalOrderItemNestedSerializer
-from .external_payments import ExternalPaymentDocumentShortSerializer
+from .external_payments import (
+    ExternalPaymentDocumentShortSerializer,
+    ExternalRefundDocumentSerializer,
+)
 
 PAYMENT_COMPLETION_TOLERANCE = Decimal("0.01")
 
@@ -230,6 +233,12 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
         source="prefetched_payment_documents",
     )
 
+    refund_documents = ExternalRefundDocumentSerializer(
+        many=True,
+        read_only=True,
+        source="prefetched_refund_documents",
+    )
+
     reclamation_returns = ExternalOrderReclamationReturnSerializer(
         many=True,
         read_only=True,
@@ -239,6 +248,7 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
     order_total_amount = serializers.SerializerMethodField()
     paid_amount = serializers.SerializerMethodField()
     remaining_amount = serializers.SerializerMethodField()
+    refunded_amount = serializers.SerializerMethodField()
 
     payment_percent = serializers.SerializerMethodField()
     receipt_percent = serializers.SerializerMethodField()
@@ -279,6 +289,7 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
             "order_total_amount",
             "paid_amount",
             "remaining_amount",
+            "refunded_amount",
             "payment_percent",
             "receipt_percent",
             "receipt_state",
@@ -288,6 +299,7 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
             "receipt_expected_days",
             "items",
             "payment_documents",
+            "refund_documents",
             "reclamation_returns",
         ]
         read_only_fields = ("created_by", "created_at", "updated_at", "vat_amount")
@@ -358,9 +370,15 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
         if payment_documents is None:
             payment_documents = obj.payment_documents.all()
 
+        paid_amount = Decimal("0.00")
         for payment_document in payment_documents:
             if payment_document.status == ExternalPaymentDocument.StatusChoices.PAID:
-                return False
+                paid_amount += payment_document.payment_amount
+
+        refunded_amount = self.get_refunded_amount(obj)
+
+        if paid_amount > refunded_amount + PAYMENT_COMPLETION_TOLERANCE:
+            return False
 
         receipt_documents = getattr(obj, "prefetched_receipt_documents", None)
         if receipt_documents is None:
@@ -412,6 +430,18 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
         for payment_document in payment_documents:
             if payment_document.status == ExternalPaymentDocument.StatusChoices.PAID:
                 total += payment_document.payment_amount
+        return total
+
+    def get_refunded_amount(self, obj):
+        total = Decimal("0.00")
+        refund_documents = getattr(obj, "prefetched_refund_documents", None)
+
+        if refund_documents is None:
+            refund_documents = obj.refund_documents.all()
+
+        for refund_document in refund_documents:
+            total += refund_document.refund_amount
+
         return total
 
     def get_remaining_amount(self, obj):

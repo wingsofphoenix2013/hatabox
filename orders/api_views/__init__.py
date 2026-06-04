@@ -26,6 +26,10 @@ from .external_payments import (
     ExternalPaymentDocumentViewSet,
 )
 
+from .external_refunds import (
+    ExternalRefundDocumentViewSet,
+)
+
 from .external_receipts import (
     ExternalReceiptDocumentViewSet,
     ExternalReceiptItemViewSet,
