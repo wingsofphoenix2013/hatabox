@@ -631,11 +631,19 @@ class ExternalOrderViewSet(ModelViewSet):
                 "Цей статус замовлення не дозволяє видалення."
             )
 
-        if instance.payment_documents.filter(
+        paid_amount = Decimal("0.00")
+        for payment_document in instance.payment_documents.filter(
             status=ExternalPaymentDocument.StatusChoices.PAID,
-        ).exists():
+        ):
+            paid_amount += payment_document.payment_amount
+
+        refunded_amount = Decimal("0.00")
+        for refund_document in instance.refund_documents.all():
+            refunded_amount += refund_document.refund_amount
+
+        if paid_amount > refunded_amount + PAYMENT_COMPLETION_TOLERANCE:
             raise ValidationError(
-                "Неможливо видалити замовлення, за яким вже є оплачені платежі."
+                "Неможливо видалити замовлення, за яким є неповернена оплата."
             )
 
         if instance.receipt_documents.exists():
