@@ -171,6 +171,7 @@ class ExternalRefundDocumentSerializer(serializers.ModelSerializer):
             "order_vendor_name",
             "refund_amount",
             "refund_date",
+            "file",
             "created_by",
             "created_by_username",
             "created_at",

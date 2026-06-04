@@ -312,6 +312,14 @@ class ExternalRefundDocument(models.Model):
         verbose_name="Коментар",
     )
 
+    file = models.FileField(
+        upload_to="refund_documents/",
+        db_column="file_path",
+        blank=True,
+        null=True,
+        verbose_name="Файл",
+    )
+
     class Meta:
         db_table = "external_refund_documents"
         ordering = ["-created_at", "-id"]

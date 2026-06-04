@@ -1,5 +1,6 @@
 from django.db import models
 
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.viewsets import ModelViewSet
 
@@ -20,6 +21,7 @@ class ExternalRefundDocumentViewSet(ModelViewSet):
 
     serializer_class = ExternalRefundDocumentSerializer
     permission_classes = [DjangoModelPermissions]
+    parser_classes = [MultiPartParser, FormParser]
 
     def get_queryset(self):
         queryset = self.queryset
