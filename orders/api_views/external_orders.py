@@ -33,6 +33,8 @@ from orders.models import (
     ExternalRefundDocument,
     ExternalReceiptDocument,
     ExternalReceiptItem,
+    ReclamationReturnDocument,
+    ReclamationReturnItem,
 )
 
 from orders.serializers import (
@@ -361,6 +363,19 @@ class ExternalOrderViewSet(ModelViewSet):
                 "created_by",
             ),
             to_attr="prefetched_refund_documents",
+        ),
+        Prefetch(
+            "reclamation_returns",
+            queryset=ReclamationReturnDocument.objects.prefetch_related(
+                Prefetch(
+                    "items",
+                    queryset=ReclamationReturnItem.objects.select_related(
+                        "order_item",
+                    ),
+                    to_attr="prefetched_items",
+                )
+            ),
+            to_attr="prefetched_reclamation_returns",
         ),
     ).order_by("-created_at", "-id")
     serializer_class = ExternalOrderSerializer

@@ -250,6 +250,7 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
     remaining_amount = serializers.SerializerMethodField()
     refunded_amount = serializers.SerializerMethodField()
     received_total_amount = serializers.SerializerMethodField()
+    reclamation_returned_amount = serializers.SerializerMethodField()
     refund_possible_amount = serializers.SerializerMethodField()
     can_create_refund = serializers.SerializerMethodField()
 
@@ -294,6 +295,7 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
             "remaining_amount",
             "refunded_amount",
             "received_total_amount",
+            "reclamation_returned_amount",
             "refund_possible_amount",
             "can_create_refund",
             "payment_percent",
@@ -475,10 +477,31 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
         progress = self._get_receipt_progress_data(obj)
         return progress["received_total_amount"]
 
+    def get_reclamation_returned_amount(self, obj):
+        total = Decimal("0.00")
+
+        reclamation_returns = getattr(obj, "prefetched_reclamation_returns", None)
+        if reclamation_returns is None:
+            reclamation_returns = obj.reclamation_returns.all()
+
+        for reclamation_return in reclamation_returns:
+            if reclamation_return.status != ReclamationReturnDocument.StatusChoices.COMPLETED:
+                continue
+
+            items = getattr(reclamation_return, "prefetched_items", None)
+            if items is None:
+                items = reclamation_return.items.all()
+
+            for item in items:
+                total += item.quantity * item.order_item.agreed_price
+
+        return total
+
     def get_refund_possible_amount(self, obj):
         refund_possible_amount = (
             self.get_paid_amount(obj)
             - self.get_received_total_amount(obj)
+            + self.get_reclamation_returned_amount(obj)
         )
 
         if refund_possible_amount <= PAYMENT_COMPLETION_TOLERANCE:
@@ -487,7 +510,10 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
         return refund_possible_amount
 
     def get_can_create_refund(self, obj):
-        if obj.status != ExternalOrder.StatusChoices.IN_PROGRESS:
+        if obj.status not in [
+            ExternalOrder.StatusChoices.IN_PROGRESS,
+            ExternalOrder.StatusChoices.COMPLETED,
+        ]:
             return False
 
         return self.get_refund_possible_amount(obj) > Decimal("0.00")
