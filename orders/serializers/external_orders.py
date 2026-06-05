@@ -264,7 +264,7 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
     receipt_overdue_days = serializers.SerializerMethodField()
     receipt_expected_days = serializers.SerializerMethodField()
     can_start_reclamation_flow = serializers.SerializerMethodField()
-    can_delete = serializers.SerializerMethodField()
+    delete_mode = serializers.SerializerMethodField()
 
     class Meta:
         model = ExternalOrder
@@ -286,7 +286,7 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
             "comment",
             "has_reclamation",
             "can_start_reclamation_flow",
-            "can_delete",
+            "delete_mode",
             "image",
             "clear_image",
             "items_total_amount",
@@ -367,42 +367,50 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
 
         return False
 
-    def get_can_delete(self, obj):
+    def get_delete_mode(self, obj):
         if obj.status == ExternalOrder.StatusChoices.DRAFT:
-            return True
+            return "hard"
 
         if obj.status != ExternalOrder.StatusChoices.IN_PROGRESS:
-            return False
+            return "false"
 
         payment_documents = getattr(obj, "prefetched_payment_documents", None)
         if payment_documents is None:
             payment_documents = obj.payment_documents.all()
 
-        paid_amount = Decimal("0.00")
+        has_paid_payments = False
         for payment_document in payment_documents:
             if payment_document.status == ExternalPaymentDocument.StatusChoices.PAID:
-                paid_amount += payment_document.payment_amount
+                has_paid_payments = True
+                break
 
-        refunded_amount = self.get_refunded_amount(obj)
+        refund_documents = getattr(obj, "prefetched_refund_documents", None)
+        if refund_documents is None:
+            refund_documents = obj.refund_documents.all()
 
-        if paid_amount > refunded_amount + PAYMENT_COMPLETION_TOLERANCE:
-            return False
+        has_refunds = bool(refund_documents)
 
         receipt_documents = getattr(obj, "prefetched_receipt_documents", None)
         if receipt_documents is None:
             receipt_documents = obj.receipt_documents.all()
 
-        if receipt_documents:
-            return False
+        has_receipts = bool(receipt_documents)
 
         reclamation_returns = getattr(obj, "prefetched_reclamation_returns", None)
         if reclamation_returns is None:
             reclamation_returns = obj.reclamation_returns.all()
 
-        if reclamation_returns:
-            return False
+        has_reclamations = bool(reclamation_returns)
 
-        return True
+        if (
+            has_paid_payments
+            or has_refunds
+            or has_receipts
+            or has_reclamations
+        ):
+            return "soft"
+
+        return "hard"
 
     def get_items_total_amount(self, obj):
         annotated = self._get_annotated_value(obj, "items_total_amount")

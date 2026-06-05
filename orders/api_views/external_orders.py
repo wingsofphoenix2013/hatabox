@@ -20,8 +20,10 @@ from django.db.models import (
 )
 from django.db.models.functions import Cast, Coalesce, Least, Round
 
+from rest_framework.decorators import action
 from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.exceptions import ValidationError
 
@@ -640,65 +642,96 @@ class ExternalOrderViewSet(ModelViewSet):
             created_by=self.request.user,
         )
 
-    def perform_destroy(self, instance):
-        affected_inv_item_ids = list({
+    def _get_affected_inv_item_ids(self, order):
+        return list({
             item.vendor_item.item_id
-            for item in instance.items.select_related(
+            for item in order.items.select_related(
                 "vendor_item",
                 "vendor_item__item",
             )
         })
 
+    def _schedule_shortage_recalculation(self, inv_item_ids):
+        if not inv_item_ids:
+            return
+
+        transaction.on_commit(
+            lambda: recalculate_warehouse_shortages_task.delay(
+                inv_item_ids=inv_item_ids,
+            )
+        )
+
+    def _delete_order_and_recalculate(self, order):
+        affected_inv_item_ids = self._get_affected_inv_item_ids(order)
+        order.delete()
+        self._schedule_shortage_recalculation(affected_inv_item_ids)
+
+    def perform_destroy(self, instance):
         if instance.status == ExternalOrder.StatusChoices.DRAFT:
-            instance.delete()
-
-            if affected_inv_item_ids:
-                transaction.on_commit(
-                    lambda: recalculate_warehouse_shortages_task.delay(
-                        inv_item_ids=affected_inv_item_ids,
-                    )
-                )
-
+            self._delete_order_and_recalculate(instance)
             return
 
         if instance.status != ExternalOrder.StatusChoices.IN_PROGRESS:
             raise ValidationError(
-                "Цей статус замовлення не дозволяє видалення."
+                "Цей статус замовлення не дозволяє фізичне видалення."
             )
 
-        paid_amount = Decimal("0.00")
-        for payment_document in instance.payment_documents.filter(
+        if instance.payment_documents.filter(
             status=ExternalPaymentDocument.StatusChoices.PAID,
-        ):
-            paid_amount += payment_document.payment_amount
-
-        refunded_amount = Decimal("0.00")
-        for refund_document in instance.refund_documents.all():
-            refunded_amount += refund_document.refund_amount
-
-        if paid_amount > refunded_amount + PAYMENT_COMPLETION_TOLERANCE:
+        ).exists():
             raise ValidationError(
-                "Неможливо видалити замовлення, за яким є неповернена оплата."
+                "Замовлення з оплаченими платежами можна лише скасувати."
+            )
+
+        if instance.refund_documents.exists():
+            raise ValidationError(
+                "Замовлення з поверненнями коштів можна лише скасувати."
             )
 
         if instance.receipt_documents.exists():
             raise ValidationError(
-                "Неможливо видалити замовлення, за яким вже є документи приходу."
+                "Замовлення з документами приходу можна лише скасувати."
             )
 
         if instance.reclamation_returns.exists():
             raise ValidationError(
-                "Неможливо видалити замовлення, за яким вже є рекламації."
+                "Замовлення з рекламаціями можна лише скасувати."
             )
 
-        instance.delete()
+        self._delete_order_and_recalculate(instance)
 
-        if affected_inv_item_ids:
-            transaction.on_commit(
-                lambda: recalculate_warehouse_shortages_task.delay(
-                    inv_item_ids=affected_inv_item_ids,
-                )
+    @action(detail=True, methods=["post"], url_path="cancel")
+    def cancel(self, request, pk=None):
+        order = self.get_object()
+
+        if order.status != ExternalOrder.StatusChoices.IN_PROGRESS:
+            raise ValidationError(
+                "Скасувати можна лише замовлення у статусі 'В роботі'."
             )
+
+        old_status = order.status
+        affected_inv_item_ids = self._get_affected_inv_item_ids(order)
+
+        with transaction.atomic():
+            order.status = ExternalOrder.StatusChoices.CANCELLED
+            order.save(update_fields=["status"])
+
+            create_external_order_event(
+                order=order,
+                event_type=ExternalOrderEvent.EventType.ORDER_STATUS_CHANGED,
+                source=ExternalOrderEvent.Source.PROCUREMENT,
+                title="Замовлення скасовано",
+                payload={
+                    "from": old_status,
+                    "to": order.status,
+                },
+                created_by=request.user,
+            )
+
+            self._schedule_shortage_recalculation(affected_inv_item_ids)
+
+        serializer = self.get_serializer(order)
+        return Response(serializer.data)
 
     def perform_update(self, serializer):
         if serializer.instance.status == ExternalOrder.StatusChoices.COMPLETED:
