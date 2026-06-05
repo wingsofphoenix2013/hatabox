@@ -8,7 +8,10 @@ from orders.models import (
     ExternalPaymentDocument,
     ReclamationReturnDocument,
 )
-from warehouse.models import WarehouseUnit
+from warehouse.models import (
+    WarehouseReceiptItemConversion,
+    WarehouseUnit,
+)
 
 from .external_order_items import ExternalOrderItemNestedSerializer
 from .external_payments import (
@@ -500,7 +503,23 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
                 items = reclamation_return.items.all()
 
             for item in items:
-                total += item.quantity * item.order_item.agreed_price
+                if not item.order_item.requires_unit_conversion:
+                    total += item.quantity * item.order_item.agreed_price
+                    continue
+
+                conversion = WarehouseReceiptItemConversion.objects.filter(
+                    receipt_item=item.warehouse_unit.source_receipt_item,
+                ).first()
+
+                if conversion is None or conversion.target_quantity <= 0:
+                    continue
+
+                source_quantity = (
+                    item.quantity
+                    * conversion.source_quantity
+                    / conversion.target_quantity
+                )
+                total += source_quantity * item.order_item.agreed_price
 
         return total
 

@@ -6,6 +6,10 @@ from orders.models import (
     ExternalPaymentDocument,
     ReclamationReturnDocument,
 )
+
+from warehouse.models import (
+    WarehouseReceiptItemConversion,
+)
 from orders.services.external_order_events import create_external_order_event
 
 
@@ -31,8 +35,33 @@ def get_external_order_financial_recovery_data(order):
         if reclamation_return.status != ReclamationReturnDocument.StatusChoices.COMPLETED:
             continue
 
-        for item in reclamation_return.items.select_related("order_item"):
-            reclamation_returned_amount += item.quantity * item.order_item.agreed_price
+        for item in reclamation_return.items.select_related(
+            "order_item",
+            "warehouse_unit",
+            "warehouse_unit__source_receipt_item",
+        ):
+            if not item.order_item.requires_unit_conversion:
+                reclamation_returned_amount += (
+                    item.quantity * item.order_item.agreed_price
+                )
+                continue
+
+            conversion = WarehouseReceiptItemConversion.objects.filter(
+                receipt_item=item.warehouse_unit.source_receipt_item,
+            ).first()
+
+            if conversion is None or conversion.target_quantity <= 0:
+                continue
+
+            source_quantity = (
+                item.quantity
+                * conversion.source_quantity
+                / conversion.target_quantity
+            )
+
+            reclamation_returned_amount += (
+                source_quantity * item.order_item.agreed_price
+            )
 
     paid_amount = Decimal("0.00")
 
