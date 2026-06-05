@@ -459,13 +459,6 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
             if payment_document.status == ExternalPaymentDocument.StatusChoices.PAID:
                 total += payment_document.payment_amount
 
-        refund_documents = getattr(obj, "prefetched_refund_documents", None)
-        if refund_documents is None:
-            refund_documents = obj.refund_documents.all()
-
-        for refund_document in refund_documents:
-            total -= refund_document.refund_amount
-
         return total
 
     def get_refunded_amount(self, obj):
@@ -521,6 +514,7 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
             self.get_paid_amount(obj)
             - self.get_received_total_amount(obj)
             + self.get_reclamation_returned_amount(obj)
+            - self.get_refunded_amount(obj)
         )
 
         if refund_possible_amount <= PAYMENT_COMPLETION_TOLERANCE:

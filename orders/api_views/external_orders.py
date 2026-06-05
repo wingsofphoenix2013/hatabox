@@ -397,15 +397,6 @@ class ExternalOrderViewSet(ModelViewSet):
             .values("total")[:1]
         )
 
-        refunded_amount_subquery = (
-            ExternalRefundDocument.objects.filter(
-                order_id=OuterRef("pk"),
-            )
-            .values("order_id")
-            .annotate(total=Sum("refund_amount"))
-            .values("total")[:1]
-        )
-
         order_items_base = ExternalOrderItem.objects.filter(order_id=OuterRef("pk")).annotate(
             receipt_quantity_total=Coalesce(
                 Subquery(
@@ -462,18 +453,10 @@ class ExternalOrderViewSet(ModelViewSet):
                 Value(0),
                 output_field=DecimalField(max_digits=18, decimal_places=4),
             ),
-            paid_amount=(
-                Coalesce(
-                    Subquery(paid_amount_subquery),
-                    Value(0),
-                    output_field=DecimalField(max_digits=18, decimal_places=4),
-                )
-                -
-                Coalesce(
-                    Subquery(refunded_amount_subquery),
-                    Value(0),
-                    output_field=DecimalField(max_digits=18, decimal_places=4),
-                )
+            paid_amount=Coalesce(
+                Subquery(paid_amount_subquery),
+                Value(0),
+                output_field=DecimalField(max_digits=18, decimal_places=4),
             ),
             received_total_amount=Coalesce(
                 Subquery(received_total_amount_subquery),
