@@ -30,6 +30,7 @@ class InvItemCategorySerializer(serializers.ModelSerializer):
 
 
 class InvItemSerializer(serializers.ModelSerializer):
+    internal_code = serializers.CharField(read_only=True)
     category_name = serializers.CharField(source="category.name", read_only=True)
     unit_name = serializers.CharField(source="unit.name", read_only=True)
     unit_symbol = serializers.CharField(source="unit.symbol", read_only=True)

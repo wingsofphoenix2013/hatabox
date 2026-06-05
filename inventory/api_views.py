@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Sum
 from django.db.models.deletion import ProtectedError
 from django.utils import timezone
@@ -58,6 +58,35 @@ class InvItemViewSet(ModelViewSet):
     queryset = InvItem.objects.filter(is_active=True)
     serializer_class = InvItemSerializer
     permission_classes = [DjangoModelPermissions]
+
+    def perform_create(self, serializer):
+        category = serializer.validated_data["category"]
+
+        with transaction.atomic():
+            category = InvItemCategory.objects.select_for_update().get(
+                pk=category.pk
+            )
+
+            prefix = f"{category.sort_order:02d}"
+
+            last_item = (
+                InvItem.objects.select_for_update()
+                .filter(category=category)
+                .order_by("-internal_code")
+                .first()
+            )
+
+            if last_item:
+                last_number = int(last_item.internal_code.split("-")[1])
+                next_number = last_number + 1
+            else:
+                next_number = 1
+
+            internal_code = f"{prefix}-{next_number:03d}"
+
+            serializer.save(
+                internal_code=internal_code,
+            )
 
     def get_queryset(self):
         queryset = self.queryset.select_related("category", "unit")
