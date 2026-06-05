@@ -6,6 +6,7 @@ from orders.models import (
     ExternalOrder,
     ExternalOrderItem,
 )
+from warehouse.models import WarehouseReceiptItemConversion
 
 
 class ExternalOrderItemSerializer(serializers.ModelSerializer):
@@ -46,6 +47,7 @@ class ExternalOrderItemSerializer(serializers.ModelSerializer):
 
     line_total_amount = serializers.SerializerMethodField()
     received_quantity = serializers.SerializerMethodField()
+    received_converted_quantity = serializers.SerializerMethodField()
     remaining_quantity = serializers.SerializerMethodField()
 
     class Meta:
@@ -80,6 +82,7 @@ class ExternalOrderItemSerializer(serializers.ModelSerializer):
             "expected_delivery_date",
             "line_total_amount",
             "received_quantity",
+            "received_converted_quantity",
             "remaining_quantity",
         ]
 
@@ -95,6 +98,30 @@ class ExternalOrderItemSerializer(serializers.ModelSerializer):
         for receipt_item in receipt_items:
             if receipt_item.receipt_document.completed:
                 total += receipt_item.received_quantity
+        return total
+
+    def get_received_converted_quantity(self, obj):
+        if not obj.requires_unit_conversion:
+            return self.get_received_quantity(obj)
+
+        total = Decimal("0.000")
+        receipt_items = getattr(obj, "prefetched_receipt_items", None)
+        if receipt_items is None:
+            receipt_items = obj.receipt_items.all()
+
+        for receipt_item in receipt_items:
+            if not receipt_item.receipt_document.completed:
+                continue
+
+            conversion = WarehouseReceiptItemConversion.objects.filter(
+                receipt_item=receipt_item,
+            ).first()
+
+            if conversion is None:
+                continue
+
+            total += conversion.target_quantity
+
         return total
 
     def get_remaining_quantity(self, obj):
