@@ -38,6 +38,10 @@ from orders.services.reclamation_returns import (
     get_reclamation_return_availability,
 )
 
+from orders.services.external_order_status import (
+    recalculate_external_order_status_after_reclamation_or_refund,
+)
+
 from orders.services.external_order_events import create_external_order_event
 
 logger = logging.getLogger(__name__)
@@ -282,6 +286,11 @@ class ReclamationReturnDocumentViewSet(ModelViewSet):
                         "reclamation_return_document_id": reclamation_document.id,
                         "return_no": reclamation_document.return_no,
                     },
+                    created_by=self.request.user,
+                )
+
+                recalculate_external_order_status_after_reclamation_or_refund(
+                    order=reclamation_document.order,
                     created_by=self.request.user,
                 )
 

@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import DjangoModelPermissions
@@ -10,6 +10,11 @@ from orders.models import (
 )
 from orders.serializers import ExternalRefundDocumentSerializer
 from orders.services.external_order_events import create_external_order_event
+from orders.services.external_order_status import (
+    recalculate_external_order_status_after_reclamation_or_refund,
+)
+
+from warehouse.tasks import recalculate_warehouse_shortages_task
 
 
 class ExternalRefundDocumentViewSet(ModelViewSet):
@@ -65,3 +70,23 @@ class ExternalRefundDocumentViewSet(ModelViewSet):
             },
             created_by=self.request.user,
         )
+
+        recalculate_external_order_status_after_reclamation_or_refund(
+            order=refund_document.order,
+            created_by=self.request.user,
+        )
+
+        affected_inv_item_ids = list({
+            item.vendor_item.item_id
+            for item in refund_document.order.items.select_related(
+                "vendor_item",
+                "vendor_item__item",
+            )
+        })
+
+        if affected_inv_item_ids:
+            transaction.on_commit(
+                lambda: recalculate_warehouse_shortages_task.delay(
+                    inv_item_ids=affected_inv_item_ids,
+                )
+            )
