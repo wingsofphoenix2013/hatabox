@@ -408,7 +408,18 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
             or has_receipts
             or has_reclamations
         ):
-            return "soft"
+            effective_received_amount = (
+                self.get_received_total_amount(obj)
+                - self.get_reclamation_returned_amount(obj)
+            )
+
+            if (
+                effective_received_amount <= PAYMENT_COMPLETION_TOLERANCE
+                and self.get_refund_possible_amount(obj) <= Decimal("0.00")
+            ):
+                return "soft"
+
+            return "false"
 
         return "hard"
 
