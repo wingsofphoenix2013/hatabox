@@ -1,8 +1,15 @@
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
 from orders.models import ExternalOrderEvent
 from orders.serializers import ExternalOrderEventSerializer
+
+
+class ExternalOrderEventPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = "page_size"
+    max_page_size = 100
 
 
 class ExternalOrderEventViewSet(ReadOnlyModelViewSet):
@@ -12,6 +19,7 @@ class ExternalOrderEventViewSet(ReadOnlyModelViewSet):
     ).order_by("-created_at", "-id")
     serializer_class = ExternalOrderEventSerializer
     permission_classes = [DjangoModelPermissions]
+    pagination_class = ExternalOrderEventPagination
 
     def get_queryset(self):
         queryset = self.queryset
