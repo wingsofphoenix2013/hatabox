@@ -249,6 +249,9 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
     paid_amount = serializers.SerializerMethodField()
     remaining_amount = serializers.SerializerMethodField()
     refunded_amount = serializers.SerializerMethodField()
+    received_total_amount = serializers.SerializerMethodField()
+    refund_possible_amount = serializers.SerializerMethodField()
+    can_create_refund = serializers.SerializerMethodField()
 
     payment_percent = serializers.SerializerMethodField()
     receipt_percent = serializers.SerializerMethodField()
@@ -290,6 +293,9 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
             "paid_amount",
             "remaining_amount",
             "refunded_amount",
+            "received_total_amount",
+            "refund_possible_amount",
+            "can_create_refund",
             "payment_percent",
             "receipt_percent",
             "receipt_state",
@@ -460,6 +466,31 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
             return Decimal("0.00")
 
         return remaining_amount
+
+    def get_received_total_amount(self, obj):
+        annotated = self._get_annotated_value(obj, "received_total_amount")
+        if annotated is not None:
+            return annotated
+
+        progress = self._get_receipt_progress_data(obj)
+        return progress["received_total_amount"]
+
+    def get_refund_possible_amount(self, obj):
+        refund_possible_amount = (
+            self.get_paid_amount(obj)
+            - self.get_received_total_amount(obj)
+        )
+
+        if refund_possible_amount <= PAYMENT_COMPLETION_TOLERANCE:
+            return Decimal("0.00")
+
+        return refund_possible_amount
+
+    def get_can_create_refund(self, obj):
+        if obj.status != ExternalOrder.StatusChoices.IN_PROGRESS:
+            return False
+
+        return self.get_refund_possible_amount(obj) > Decimal("0.00")
 
     def get_payment_percent(self, obj):
         annotated = self._get_annotated_value(obj, "payment_percent")
