@@ -150,6 +150,11 @@ class ReclamationReturnDocumentViewSet(ModelViewSet):
     def cancel(self, request, pk=None):
         reclamation_document = self.get_object()
 
+        if reclamation_document.status != ReclamationReturnDocument.StatusChoices.DRAFT:
+            raise ValidationError(
+                "Скасувати можна лише рекламацію у статусі 'Чернетка'."
+            )
+
         serializer = self.get_serializer(
             reclamation_document,
             data={

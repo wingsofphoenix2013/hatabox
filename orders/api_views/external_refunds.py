@@ -1,5 +1,6 @@
 from django.db import models, transaction
 
+from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.viewsets import ModelViewSet
@@ -51,6 +52,21 @@ class ExternalRefundDocumentViewSet(ModelViewSet):
             )
 
         return queryset
+
+    def update(self, request, *args, **kwargs):
+        raise ValidationError(
+            "Документ повернення коштів не можна змінювати після створення."
+        )
+
+    def partial_update(self, request, *args, **kwargs):
+        raise ValidationError(
+            "Документ повернення коштів не можна змінювати після створення."
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        raise ValidationError(
+            "Документ повернення коштів не можна видаляти після створення."
+        )
 
     def perform_create(self, serializer):
         refund_document = serializer.save(
