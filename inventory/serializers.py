@@ -632,3 +632,33 @@ class ProductAttachmentOverviewGroupSerializer(serializers.Serializer):
 class ProductAttachmentOverviewSerializer(serializers.Serializer):
     product = ProductMaterialPlanProductSerializer()
     attachment_groups = ProductAttachmentOverviewGroupSerializer(many=True)
+
+
+class InvItemProductUsageProductSerializer(serializers.Serializer):
+    product_id = serializers.IntegerField()
+    product_code = serializers.CharField()
+    product_version = serializers.CharField()
+
+    product_family_id = serializers.IntegerField()
+    product_family_code = serializers.CharField()
+    product_family_name = serializers.CharField()
+
+    work_tracking = serializers.BooleanField()
+
+    development_status = serializers.CharField()
+    development_status_display = serializers.CharField()
+
+    total_quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+    )
+
+
+class InvItemProductUsageSerializer(serializers.Serializer):
+    inv_item = InvItemOptionSerializer()
+
+    usage_count = serializers.IntegerField()
+
+    products = InvItemProductUsageProductSerializer(
+        many=True,
+    )

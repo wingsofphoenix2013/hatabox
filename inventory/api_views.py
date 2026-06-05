@@ -40,6 +40,7 @@ from .serializers import (
     ProductWorkMaterialPlanSerializer,
     ProductStepMaterialPlanSerializer,
     ProductAttachmentOverviewSerializer,
+    InvItemProductUsageSerializer,
 )
 
 
@@ -73,6 +74,104 @@ class InvItemViewSet(ModelViewSet):
             )
 
         return queryset
+
+    @action(detail=True, methods=["get"], url_path="product-usage-summary")
+    def product_usage_summary(self, request, pk=None):
+        inv_item = self.get_object()
+
+        step_usage = (
+            ProductStepItem.objects.filter(
+                inv_item=inv_item,
+                product_step__product__development_status=Product.DevelopmentStatus.FINISHED,
+            )
+            .values(
+                "product_step__product_id",
+                "product_step__product__code",
+                "product_step__product__version",
+                "product_step__product__product_family_id",
+                "product_step__product__product_family__code",
+                "product_step__product__product_family__name",
+                "product_step__product__work_tracking",
+                "product_step__product__development_status",
+            )
+            .annotate(total_quantity=Sum("quantity"))
+        )
+
+        work_usage = (
+            ProductWorkItem.objects.filter(
+                inv_item=inv_item,
+                product_work__product_step__product__development_status=Product.DevelopmentStatus.FINISHED,
+            )
+            .values(
+                "product_work__product_step__product_id",
+                "product_work__product_step__product__code",
+                "product_work__product_step__product__version",
+                "product_work__product_step__product__product_family_id",
+                "product_work__product_step__product__product_family__code",
+                "product_work__product_step__product__product_family__name",
+                "product_work__product_step__product__work_tracking",
+                "product_work__product_step__product__development_status",
+            )
+            .annotate(total_quantity=Sum("quantity"))
+        )
+
+        products_map = {}
+
+        for item in step_usage:
+            product_id = item["product_step__product_id"]
+            products_map[product_id] = {
+                "product_id": product_id,
+                "product_code": item["product_step__product__code"],
+                "product_version": item["product_step__product__version"],
+                "product_family_id": item["product_step__product__product_family_id"],
+                "product_family_code": item["product_step__product__product_family__code"],
+                "product_family_name": item["product_step__product__product_family__name"],
+                "work_tracking": item["product_step__product__work_tracking"],
+                "development_status": item["product_step__product__development_status"],
+                "development_status_display": Product.DevelopmentStatus(
+                    item["product_step__product__development_status"]
+                ).label,
+                "total_quantity": item["total_quantity"],
+            }
+
+        for item in work_usage:
+            product_id = item["product_work__product_step__product_id"]
+
+            if product_id not in products_map:
+                products_map[product_id] = {
+                    "product_id": product_id,
+                    "product_code": item["product_work__product_step__product__code"],
+                    "product_version": item["product_work__product_step__product__version"],
+                    "product_family_id": item["product_work__product_step__product__product_family_id"],
+                    "product_family_code": item["product_work__product_step__product__product_family__code"],
+                    "product_family_name": item["product_work__product_step__product__product_family__name"],
+                    "work_tracking": item["product_work__product_step__product__work_tracking"],
+                    "development_status": item["product_work__product_step__product__development_status"],
+                    "development_status_display": Product.DevelopmentStatus(
+                        item["product_work__product_step__product__development_status"]
+                    ).label,
+                    "total_quantity": item["total_quantity"],
+                }
+            else:
+                products_map[product_id]["total_quantity"] += item["total_quantity"]
+
+        products = list(products_map.values())
+        products.sort(
+            key=lambda item: (
+                item["product_family_name"],
+                item["product_code"],
+                item["product_id"],
+            )
+        )
+
+        payload = {
+            "inv_item": inv_item,
+            "usage_count": len(products),
+            "products": products,
+        }
+
+        serializer = InvItemProductUsageSerializer(payload)
+        return Response(serializer.data)
 
 class InvItemOptionsView(ListAPIView):
     serializer_class = InvItemOptionSerializer
