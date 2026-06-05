@@ -8,6 +8,7 @@ from orders.models import (
     ExternalPaymentDocument,
     ReclamationReturnDocument,
 )
+from warehouse.models import WarehouseUnit
 
 from .external_order_items import ExternalOrderItemNestedSerializer
 from .external_payments import (
@@ -356,16 +357,10 @@ class ExternalOrderSerializer(serializers.ModelSerializer):
         return None
 
     def get_can_start_reclamation_flow(self, obj):
-        receipt_documents = getattr(obj, "prefetched_receipt_documents", None)
-
-        if receipt_documents is None:
-            receipt_documents = obj.receipt_documents.all()
-
-        for receipt_document in receipt_documents:
-            if receipt_document.completed and receipt_document.sent_to_warehouse:
-                return True
-
-        return False
+        return WarehouseUnit.objects.filter(
+            source_order_item__order=obj,
+            status=WarehouseUnit.Status.ON_STOCK,
+        ).exists()
 
     def get_delete_mode(self, obj):
         if obj.status == ExternalOrder.StatusChoices.DRAFT:
