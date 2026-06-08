@@ -297,6 +297,45 @@ class ProductionOrderMaterialSnapshotItem(models.Model):
         blank=True,
     )
 
+    external_order = models.ForeignKey(
+        "orders.ExternalOrder",
+        on_delete=models.PROTECT,
+        related_name="production_material_snapshot_items",
+        null=True,
+        blank=True,
+    )
+
+    external_order_no = models.CharField(
+        max_length=50,
+        blank=True,
+    )
+
+    vendor = models.ForeignKey(
+        "vendors.Vendor",
+        on_delete=models.PROTECT,
+        related_name="production_material_snapshot_items",
+        null=True,
+        blank=True,
+    )
+
+    vendor_name = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    vendor_item = models.ForeignKey(
+        "vendors.VendorItem",
+        on_delete=models.PROTECT,
+        related_name="production_material_snapshot_items",
+        null=True,
+        blank=True,
+    )
+
+    vendor_sku = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
     tolling_source_order_item = models.ForeignKey(
         "orders.TollingOrderItem",
         on_delete=models.PROTECT,

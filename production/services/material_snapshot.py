@@ -76,6 +76,25 @@ def build_production_order_material_snapshot(
             else:
                 continue
 
+            external_order = None
+            external_order_no = ""
+
+            vendor = None
+            vendor_name = ""
+
+            vendor_item = None
+            vendor_sku = ""
+
+            if unit.source_order_item_id:
+                external_order = unit.source_order_item.order
+                external_order_no = external_order.order_no
+
+                vendor = external_order.vendor
+                vendor_name = vendor.name
+
+                vendor_item = unit.source_order_item.vendor_item
+                vendor_sku = vendor_item.vendor_sku
+
             items_to_create.append(
                 ProductionOrderMaterialSnapshotItem(
                     snapshot=snapshot,
@@ -85,6 +104,12 @@ def build_production_order_material_snapshot(
                     origin_type=origin_type,
                     source_order_item_id=unit.source_order_item_id,
                     source_receipt_item_id=unit.source_receipt_item_id,
+                    external_order=external_order,
+                    external_order_no=external_order_no,
+                    vendor=vendor,
+                    vendor_name=vendor_name,
+                    vendor_item=vendor_item,
+                    vendor_sku=vendor_sku,
                     tolling_source_order_item_id=(
                         unit.tolling_source_order_item_id
                     ),
