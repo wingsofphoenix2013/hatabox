@@ -243,8 +243,7 @@ class InvItemViewSet(ModelViewSet):
             "product_usage": self._build_product_usage(inv_item),
         }
 
-        serializer = InvItemDetailSerializer(payload)
-        return Response(serializer.data)
+        return Response(payload)
 
 
 class InvItemOptionsView(ListAPIView):
