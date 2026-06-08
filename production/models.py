@@ -336,6 +336,46 @@ class ProductionOrderMaterialSnapshotItem(models.Model):
         blank=True,
     )
 
+    prices_include_vat = models.BooleanField(
+        null=True,
+        blank=True,
+    )
+
+    vat_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    unit_price = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+    )
+
+    cost_without_vat = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+    )
+
+    vat_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+    )
+
+    cost_with_vat = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+    )
+
     tolling_source_order_item = models.ForeignKey(
         "orders.TollingOrderItem",
         on_delete=models.PROTECT,

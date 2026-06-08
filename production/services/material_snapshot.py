@@ -85,6 +85,15 @@ def build_production_order_material_snapshot(
             vendor_item = None
             vendor_sku = ""
 
+            prices_include_vat = None
+            vat_rate = None
+
+            unit_price = None
+
+            cost_without_vat = None
+            vat_amount = None
+            cost_with_vat = None
+
             if unit.source_order_item_id:
                 external_order = unit.source_order_item.order
                 external_order_no = external_order.order_no
@@ -94,6 +103,37 @@ def build_production_order_material_snapshot(
 
                 vendor_item = unit.source_order_item.vendor_item
                 vendor_sku = vendor_item.vendor_sku
+
+                prices_include_vat = (
+                    external_order.prices_include_vat
+                )
+
+                vat_rate = Decimal("20.00")
+
+                unit_price = (
+                    unit.source_order_item.agreed_price
+                )
+
+                line_cost = (
+                    movement_item.quantity
+                    * unit.source_order_item.agreed_price
+                )
+
+                if prices_include_vat:
+                    cost_with_vat = line_cost
+                    vat_amount = (
+                        line_cost
+                        * Decimal("20")
+                        / Decimal("120")
+                    )
+                    cost_without_vat = (
+                        cost_with_vat
+                        - vat_amount
+                    )
+                else:
+                    cost_without_vat = line_cost
+                    vat_amount = Decimal("0.0000")
+                    cost_with_vat = line_cost
 
             items_to_create.append(
                 ProductionOrderMaterialSnapshotItem(
@@ -110,6 +150,12 @@ def build_production_order_material_snapshot(
                     vendor_name=vendor_name,
                     vendor_item=vendor_item,
                     vendor_sku=vendor_sku,
+                    prices_include_vat=prices_include_vat,
+                    vat_rate=vat_rate,
+                    unit_price=unit_price,
+                    cost_without_vat=cost_without_vat,
+                    vat_amount=vat_amount,
+                    cost_with_vat=cost_with_vat,
                     tolling_source_order_item_id=(
                         unit.tolling_source_order_item_id
                     ),
