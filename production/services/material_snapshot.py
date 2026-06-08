@@ -31,6 +31,7 @@ def build_production_order_material_snapshot(
             "result_warehouse_unit",
             "result_warehouse_unit__inventory_item",
             "result_warehouse_unit__source_order_item",
+            "result_warehouse_unit__source_order_item__warehouse_cost",
             "result_warehouse_unit__source_receipt_item",
             "result_warehouse_unit__tolling_source_order_item",
             "result_warehouse_unit__tolling_source_receipt_item",
@@ -112,30 +113,31 @@ def build_production_order_material_snapshot(
 
                 vat_rate = Decimal("20.00")
 
+                try:
+                    warehouse_cost = (
+                        unit.source_order_item.warehouse_cost
+                    )
+                except unit.source_order_item.__class__.warehouse_cost.RelatedObjectDoesNotExist:
+                    raise ValidationError(
+                        "Для рядка закупки відсутній розрахунок складської собівартості."
+                    )
+
                 unit_price = (
-                    unit.source_order_item.agreed_price
+                    warehouse_cost.cost_with_vat_per_warehouse_unit
                 )
 
-                line_cost = (
+                cost_without_vat = (
                     movement_item.quantity
-                    * unit.source_order_item.agreed_price
+                    * warehouse_cost.cost_without_vat_per_warehouse_unit
                 )
-
-                if prices_include_vat:
-                    cost_with_vat = line_cost
-                    vat_amount = (
-                        line_cost
-                        * Decimal("20")
-                        / Decimal("120")
-                    )
-                    cost_without_vat = (
-                        cost_with_vat
-                        - vat_amount
-                    )
-                else:
-                    cost_without_vat = line_cost
-                    vat_amount = Decimal("0.0000")
-                    cost_with_vat = line_cost
+                vat_amount = (
+                    movement_item.quantity
+                    * warehouse_cost.vat_per_warehouse_unit
+                )
+                cost_with_vat = (
+                    movement_item.quantity
+                    * warehouse_cost.cost_with_vat_per_warehouse_unit
+                )
 
             items_to_create.append(
                 ProductionOrderMaterialSnapshotItem(
