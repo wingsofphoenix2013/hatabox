@@ -663,3 +663,28 @@ class InvItemProductUsageSerializer(serializers.Serializer):
     products = InvItemProductUsageProductSerializer(
         many=True,
     )
+
+
+class InvItemVendorAliasSerializer(serializers.Serializer):
+    vendor_item_id = serializers.IntegerField()
+
+    vendor_sku = serializers.CharField()
+    vendor_item_name = serializers.CharField()
+
+    is_active = serializers.BooleanField()
+
+    vendor_id = serializers.IntegerField()
+    vendor_code = serializers.CharField()
+    vendor_name = serializers.CharField()
+
+    vendor_is_active = serializers.BooleanField()
+
+
+class InvItemDetailSerializer(serializers.Serializer):
+    summary = InvItemSerializer()
+
+    vendor_aliases = InvItemVendorAliasSerializer(
+        many=True,
+    )
+
+    product_usage = serializers.DictField()

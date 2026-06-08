@@ -41,7 +41,10 @@ from .serializers import (
     ProductStepMaterialPlanSerializer,
     ProductAttachmentOverviewSerializer,
     InvItemProductUsageSerializer,
+    InvItemDetailSerializer,
 )
+
+from vendors.models import VendorItem
 
 
 class InvUnitViewSet(ReadOnlyModelViewSet):
@@ -89,26 +92,7 @@ class InvItemViewSet(ModelViewSet):
                 is_active=True,
             )
 
-    def get_queryset(self):
-        queryset = self.queryset.select_related("category", "unit")
-
-        category = self.request.query_params.getlist("category")
-        if category:
-            queryset = queryset.filter(category_id__in=category)
-
-        search = self.request.query_params.get("search")
-        if search:
-            queryset = queryset.filter(
-                models.Q(name__icontains=search)
-                | models.Q(internal_code__icontains=search)
-            )
-
-        return queryset
-
-    @action(detail=True, methods=["get"], url_path="product-usage-summary")
-    def product_usage_summary(self, request, pk=None):
-        inv_item = self.get_object()
-
+    def _build_product_usage(self, inv_item):
         step_usage = (
             ProductStepItem.objects.filter(
                 inv_item=inv_item,
@@ -194,14 +178,74 @@ class InvItemViewSet(ModelViewSet):
             )
         )
 
-        payload = {
-            "inv_item": inv_item,
+        return {
             "usage_count": len(products),
             "products": products,
         }
 
+    def get_queryset(self):
+        queryset = self.queryset.select_related("category", "unit")
+
+        category = self.request.query_params.getlist("category")
+        if category:
+            queryset = queryset.filter(category_id__in=category)
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                models.Q(name__icontains=search)
+                | models.Q(internal_code__icontains=search)
+            )
+
+        return queryset
+
+    @action(detail=True, methods=["get"], url_path="product-usage-summary")
+    def product_usage_summary(self, request, pk=None):
+        inv_item = self.get_object()
+
+        product_usage = self._build_product_usage(inv_item)
+
+        payload = {
+            "inv_item": inv_item,
+            **product_usage,
+        }
+
         serializer = InvItemProductUsageSerializer(payload)
         return Response(serializer.data)
+
+    def retrieve(self, request, *args, **kwargs):
+        inv_item = self.get_object()
+
+        vendor_aliases = [
+            {
+                "vendor_item_id": vendor_item.id,
+                "vendor_sku": vendor_item.vendor_sku,
+                "vendor_item_name": vendor_item.name,
+                "is_active": vendor_item.is_active,
+                "vendor_id": vendor_item.vendor_id,
+                "vendor_code": vendor_item.vendor.code,
+                "vendor_name": vendor_item.vendor.name,
+                "vendor_is_active": vendor_item.vendor.is_active,
+            }
+            for vendor_item in (
+                VendorItem.objects.filter(item=inv_item)
+                .select_related("vendor")
+                .order_by("vendor__name", "vendor_sku", "id")
+            )
+        ]
+
+        payload = {
+            "summary": InvItemSerializer(
+                inv_item,
+                context=self.get_serializer_context(),
+            ).data,
+            "vendor_aliases": vendor_aliases,
+            "product_usage": self._build_product_usage(inv_item),
+        }
+
+        serializer = InvItemDetailSerializer(payload)
+        return Response(serializer.data)
+
 
 class InvItemOptionsView(ListAPIView):
     serializer_class = InvItemOptionSerializer
