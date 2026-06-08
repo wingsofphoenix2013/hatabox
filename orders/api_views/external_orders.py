@@ -46,6 +46,7 @@ from orders.serializers import (
 )
 
 from orders.services.external_order_events import create_external_order_event
+from orders.services.warehouse_costs import recalculate_order_item_warehouse_cost
 
 from warehouse.tasks import (
     recalculate_warehouse_shortages_task,
@@ -134,6 +135,14 @@ def try_complete_order(order, created_by=None):
             },
             created_by=created_by,
         )
+
+        for item in order.items.select_related(
+            "order",
+            "order__vendor",
+            "vendor_item",
+            "vendor_item__item",
+        ):
+            recalculate_order_item_warehouse_cost(item)
         
 
 class ExternalOrderRegisterLightViewSet(ModelViewSet):

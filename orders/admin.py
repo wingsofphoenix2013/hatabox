@@ -7,6 +7,7 @@ from .models import (
     TollingOrderEvent,
     ExternalPaymentDocument,
     ExternalRefundDocument,
+    ExternalOrderItemWarehouseCost,
     ExternalReceiptDocument,
     ExternalReceiptItem,
     TollingOrder,
@@ -446,4 +447,32 @@ class ReclamationReturnDocumentLibraryItemAdmin(admin.ModelAdmin):
     )
     autocomplete_fields = (
         "library",
+    )
+    
+@admin.register(ExternalOrderItemWarehouseCost)
+class ExternalOrderItemWarehouseCostAdmin(admin.ModelAdmin):
+    list_display = (
+        "order",
+        "order_item",
+        "inventory_item",
+        "source_quantity",
+        "warehouse_quantity",
+        "cost_with_vat_per_warehouse_unit",
+        "cost_without_vat_per_warehouse_unit",
+    )
+
+    search_fields = (
+        "order__order_no",
+        "inventory_item__internal_code",
+        "inventory_item__name",
+    )
+
+    autocomplete_fields = (
+        "order",
+        "order_item",
+        "inventory_item",
+    )
+
+    readonly_fields = (
+        "calculated_at",
     )

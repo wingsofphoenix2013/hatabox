@@ -328,6 +328,77 @@ class ExternalRefundDocument(models.Model):
         return self.refund_no
 
 
+class ExternalOrderItemWarehouseCost(models.Model):
+    order = models.ForeignKey(
+        ExternalOrder,
+        on_delete=models.CASCADE,
+        related_name="warehouse_costs",
+        verbose_name="Замовлення",
+    )
+
+    order_item = models.OneToOneField(
+        ExternalOrderItem,
+        on_delete=models.CASCADE,
+        related_name="warehouse_cost",
+        verbose_name="Рядок замовлення",
+    )
+
+    inventory_item = models.ForeignKey(
+        "inventory.InvItem",
+        on_delete=models.PROTECT,
+        related_name="external_order_warehouse_costs",
+        verbose_name="Складська номенклатура",
+    )
+
+    source_quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        verbose_name="Кількість у замовленні",
+    )
+
+    warehouse_quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        verbose_name="Кількість після складської конвертації",
+    )
+
+    line_total_amount = models.DecimalField(
+        max_digits=18,
+        decimal_places=4,
+        verbose_name="Сума рядка",
+    )
+
+    cost_with_vat_per_warehouse_unit = models.DecimalField(
+        max_digits=18,
+        decimal_places=6,
+        verbose_name="Собівартість складської одиниці з ПДВ",
+    )
+
+    vat_per_warehouse_unit = models.DecimalField(
+        max_digits=18,
+        decimal_places=6,
+        verbose_name="ПДВ на складську одиницю",
+    )
+
+    cost_without_vat_per_warehouse_unit = models.DecimalField(
+        max_digits=18,
+        decimal_places=6,
+        verbose_name="Собівартість складської одиниці без ПДВ",
+    )
+
+    calculated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Дата розрахунку",
+    )
+
+    class Meta:
+        db_table = "external_order_item_warehouse_costs"
+        ordering = ["order_id", "order_item_id"]
+
+    def __str__(self):
+        return f"{self.order.order_no} / {self.inventory_item}"
+
+
 class ExternalReceiptDocument(models.Model):
     receipt_no = models.CharField(
         max_length=50,
