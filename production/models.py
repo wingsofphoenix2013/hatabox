@@ -208,6 +208,121 @@ class ProductionDiaryAttachment(models.Model):
         return f"DiaryEntry #{self.entry_id} — {self.attachment_type}"
 
 
+class ProductionOrderMaterialSnapshot(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Очікує"
+        PROCESSING = "processing", "Обробляється"
+        COMPLETED = "completed", "Завершено"
+        FAILED = "failed", "Помилка"
+
+    production_order = models.OneToOneField(
+        ProductionOrder,
+        on_delete=models.CASCADE,
+        related_name="material_snapshot",
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+
+    calculated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    error_message = models.TextField(
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "production_order_material_snapshots"
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return f"Material snapshot — ProductionOrder #{self.production_order_id}"
+
+
+class ProductionOrderMaterialSnapshotItem(models.Model):
+    class OriginType(models.TextChoices):
+        OWN = "own", "Закупівля"
+        CUSTOMER = "customer", "Замовник"
+        DONOR = "donor", "Донор"
+
+    snapshot = models.ForeignKey(
+        ProductionOrderMaterialSnapshot,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+
+    inv_item = models.ForeignKey(
+        InvItem,
+        on_delete=models.PROTECT,
+        related_name="production_material_snapshot_items",
+    )
+
+    warehouse_unit = models.ForeignKey(
+        "warehouse.WarehouseUnit",
+        on_delete=models.PROTECT,
+        related_name="production_material_snapshot_items",
+    )
+
+    quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+    )
+
+    origin_type = models.CharField(
+        max_length=20,
+        choices=OriginType.choices,
+    )
+
+    source_order_item = models.ForeignKey(
+        "orders.ExternalOrderItem",
+        on_delete=models.PROTECT,
+        related_name="production_material_snapshot_items",
+        null=True,
+        blank=True,
+    )
+
+    source_receipt_item = models.ForeignKey(
+        "orders.ExternalReceiptItem",
+        on_delete=models.PROTECT,
+        related_name="production_material_snapshot_items",
+        null=True,
+        blank=True,
+    )
+
+    tolling_source_order_item = models.ForeignKey(
+        "orders.TollingOrderItem",
+        on_delete=models.PROTECT,
+        related_name="production_material_snapshot_items",
+        null=True,
+        blank=True,
+    )
+
+    tolling_source_receipt_item = models.ForeignKey(
+        "orders.TollingReceiptItem",
+        on_delete=models.PROTECT,
+        related_name="production_material_snapshot_items",
+        null=True,
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "production_order_material_snapshot_items"
+        ordering = ["snapshot", "inv_item", "id"]
+
+    def __str__(self):
+        return f"{self.snapshot_id} — {self.inv_item_id} ({self.quantity})"
+
+
 class ProductionOrderStepComponent(models.Model):
     production_order_step = models.ForeignKey(
         ProductionOrderStep,

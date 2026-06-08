@@ -250,6 +250,16 @@ def finish_production_order_step(
                 created_by=created_by,
             )
 
+            from production.tasks import (
+                build_production_order_material_snapshot_task,
+            )
+
+            transaction.on_commit(
+                lambda: build_production_order_material_snapshot_task.delay(
+                    production_order_id=production_order.id,
+                )
+            )
+
     return {
         "production_order_step": step.id,
         "status": step.status,
