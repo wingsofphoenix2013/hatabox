@@ -86,6 +86,7 @@ class InvItemViewSet(ModelViewSet):
 
             serializer.save(
                 internal_code=internal_code,
+                is_active=True,
             )
 
     def get_queryset(self):
