@@ -141,6 +141,11 @@ class InventoryIntakeHistoryView(APIView):
             reverse=True,
         )
 
+        summary_only = (
+            request.query_params.get("summary_only", "").lower()
+            == "true"
+        )
+
         serializer = InventoryIntakeHistoryItemSerializer(results, many=True)
 
         external_intake_quantity = 0
@@ -167,17 +172,22 @@ class InventoryIntakeHistoryView(APIView):
             else:
                 tolling_intake_quantity += quantity
 
+        summary = {
+            "unit_id": summary_unit_id,
+            "unit_name": summary_unit_name,
+            "unit_symbol": summary_unit_symbol,
+            "total_intake_quantity": (
+                external_intake_quantity
+                + tolling_intake_quantity
+            ),
+            "external_intake_quantity": external_intake_quantity,
+            "tolling_intake_quantity": tolling_intake_quantity,
+        }
+
+        if summary_only:
+            return Response(summary)
+
         return Response({
-            "summary": {
-                "unit_id": summary_unit_id,
-                "unit_name": summary_unit_name,
-                "unit_symbol": summary_unit_symbol,
-                "total_intake_quantity": (
-                    external_intake_quantity
-                    + tolling_intake_quantity
-                ),
-                "external_intake_quantity": external_intake_quantity,
-                "tolling_intake_quantity": tolling_intake_quantity,
-            },
+            "summary": summary,
             "results": serializer.data,
         })
