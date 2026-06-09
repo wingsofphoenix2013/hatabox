@@ -143,4 +143,30 @@ class InventoryIntakeHistoryView(APIView):
 
         serializer = InventoryIntakeHistoryItemSerializer(results, many=True)
 
-        return Response(serializer.data)
+        external_intake_quantity = 0
+        tolling_intake_quantity = 0
+
+        for row in serializer.data:
+            quantity = row.get("converted_quantity")
+
+            if quantity is None:
+                quantity = row.get("quantity")
+
+            quantity = float(quantity)
+
+            if row["source_type"] == "external":
+                external_intake_quantity += quantity
+            else:
+                tolling_intake_quantity += quantity
+
+        return Response({
+            "summary": {
+                "total_intake_quantity": (
+                    external_intake_quantity
+                    + tolling_intake_quantity
+                ),
+                "external_intake_quantity": external_intake_quantity,
+                "tolling_intake_quantity": tolling_intake_quantity,
+            },
+            "results": serializer.data,
+        })
