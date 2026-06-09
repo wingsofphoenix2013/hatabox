@@ -15,6 +15,13 @@ class InventoryIntakeHistoryItemSerializer(serializers.Serializer):
 
     quantity = serializers.DecimalField(max_digits=12, decimal_places=3)
 
+    converted_quantity = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        allow_null=True,
+        required=False,
+    )
+
     unit_id = serializers.IntegerField()
     unit_name = serializers.CharField()
     unit_symbol = serializers.CharField()

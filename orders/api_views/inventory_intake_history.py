@@ -1,5 +1,5 @@
 from django.db import models
-from django.db.models import Max
+from django.db.models import Max, Sum
 
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -44,6 +44,12 @@ class InventoryIntakeHistoryView(APIView):
                     filter=models.Q(
                         receipt_items__receipt_document__completed=True,
                     ),
+                ),
+                converted_quantity=Sum(
+                    "receipt_items__warehouse_conversion__target_quantity",
+                    filter=models.Q(
+                        receipt_items__receipt_document__completed=True,
+                    ),
                 )
             )
         )
@@ -62,6 +68,11 @@ class InventoryIntakeHistoryView(APIView):
                 "order_item_id": item.id,
 
                 "quantity": item.quantity,
+                "converted_quantity": (
+                    item.converted_quantity
+                    if item.requires_unit_conversion
+                    else item.quantity
+                ),
 
                 "unit_id": item.vendor_item.item.unit_id,
                 "unit_name": item.vendor_item.item.unit.name,
@@ -109,6 +120,7 @@ class InventoryIntakeHistoryView(APIView):
                 "order_item_id": item.id,
 
                 "quantity": item.quantity,
+                "converted_quantity": None,
 
                 "unit_id": item.inv_item.unit_id,
                 "unit_name": item.inv_item.unit.name,
