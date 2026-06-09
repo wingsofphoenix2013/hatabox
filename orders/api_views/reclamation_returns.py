@@ -197,113 +197,117 @@ class ReclamationReturnDocumentViewSet(ModelViewSet):
         return Response(serializer.data)
 
     def perform_update(self, serializer):
-        if serializer.instance.status in [
-            ReclamationReturnDocument.StatusChoices.COMPLETED,
-            ReclamationReturnDocument.StatusChoices.CANCELLED,
-        ]:
-            raise ValidationError(
-                "Неможливо змінювати завершену або скасовану рекламацію."
-            )
-
-        old_status = serializer.instance.status
-
-        with transaction.atomic():
-            reclamation_document = serializer.save()
-
-            affected_inv_item_ids = set()
-
-            if (
-                old_status != ReclamationReturnDocument.StatusChoices.CANCELLED
-                and reclamation_document.status == ReclamationReturnDocument.StatusChoices.CANCELLED
-            ):
-                items = list(
-                    reclamation_document.items.select_related(
-                        "warehouse_unit",
-                        "source_location",
-                        "source_storage_place",
-                    )
+        try:
+            if serializer.instance.status in [
+                ReclamationReturnDocument.StatusChoices.COMPLETED,
+                ReclamationReturnDocument.StatusChoices.CANCELLED,
+            ]:
+                raise ValidationError(
+                    "Неможливо змінювати завершену або скасовану рекламацію."
                 )
 
-                for item in items:
-                    unit = item.warehouse_unit
+            old_status = serializer.instance.status
 
-                    if unit.status != WarehouseUnit.Status.BLOCKED:
-                        raise ValidationError(
-                            "Усі складські одиниці рекламації повинні бути заблоковані перед скасуванням."
+            with transaction.atomic():
+                reclamation_document = serializer.save()
+
+                affected_inv_item_ids = set()
+
+                if (
+                    old_status != ReclamationReturnDocument.StatusChoices.CANCELLED
+                    and reclamation_document.status == ReclamationReturnDocument.StatusChoices.CANCELLED
+                ):
+                    items = list(
+                        reclamation_document.items.select_related(
+                            "warehouse_unit",
+                            "source_location",
+                            "source_storage_place",
                         )
-
-                    unit.status = WarehouseUnit.Status.ON_STOCK
-                    unit.location = item.source_location if item.source_storage_place is None else None
-                    unit.storage_place = item.source_storage_place
-                    unit.save()
-
-                    affected_inv_item_ids.add(unit.inventory_item_id)
-
-            if (
-                old_status != ReclamationReturnDocument.StatusChoices.COMPLETED
-                and reclamation_document.status == ReclamationReturnDocument.StatusChoices.COMPLETED
-            ):
-                items = list(
-                    reclamation_document.items.select_related(
-                        "warehouse_unit",
-                    )
-                )
-
-                if not items:
-                    raise ValidationError(
-                        "Неможливо завершити рекламацію без складських одиниць."
                     )
 
-                for item in items:
-                    unit = item.warehouse_unit
+                    for item in items:
+                        unit = item.warehouse_unit
 
-                    if unit.status != WarehouseUnit.Status.BLOCKED:
+                        if unit.status != WarehouseUnit.Status.BLOCKED:
+                            raise ValidationError(
+                                "Усі складські одиниці рекламації повинні бути заблоковані перед скасуванням."
+                            )
+
+                        unit.status = WarehouseUnit.Status.ON_STOCK
+                        unit.location = item.source_location if item.source_storage_place is None else None
+                        unit.storage_place = item.source_storage_place
+                        unit.save()
+
+                        affected_inv_item_ids.add(unit.inventory_item_id)
+
+                if (
+                    old_status != ReclamationReturnDocument.StatusChoices.COMPLETED
+                    and reclamation_document.status == ReclamationReturnDocument.StatusChoices.COMPLETED
+                ):
+                    items = list(
+                        reclamation_document.items.select_related(
+                            "warehouse_unit",
+                        )
+                    )
+
+                    if not items:
                         raise ValidationError(
-                            "Усі складські одиниці рекламації повинні бути заблоковані перед завершенням."
+                            "Неможливо завершити рекламацію без складських одиниць."
                         )
 
-                    unit.status = WarehouseUnit.Status.RETURNED
-                    unit.location = None
-                    unit.storage_place = None
-                    unit.save()
+                    for item in items:
+                        unit = item.warehouse_unit
 
-                    WarehouseUnitEvent.objects.create(
-                        operation_type=WarehouseUnitEvent.OperationType.RECLAMATION_RETURN,
-                        source_unit=unit,
-                        result_unit=unit,
-                        quantity=item.quantity,
-                        from_location=item.source_location,
-                        from_storage_place=item.source_storage_place,
-                        to_location=None,
-                        to_storage_place=None,
+                        if unit.status != WarehouseUnit.Status.BLOCKED:
+                            raise ValidationError(
+                                "Усі складські одиниці рекламації повинні бути заблоковані перед завершенням."
+                            )
+
+                        unit.status = WarehouseUnit.Status.RETURNED
+                        unit.location = None
+                        unit.storage_place = None
+                        unit.save()
+
+                        WarehouseUnitEvent.objects.create(
+                            operation_type=WarehouseUnitEvent.OperationType.RECLAMATION_RETURN,
+                            source_unit=unit,
+                            result_unit=unit,
+                            quantity=item.quantity,
+                            from_location=item.source_location,
+                            from_storage_place=item.source_storage_place,
+                            to_location=None,
+                            to_storage_place=None,
+                            created_by=self.request.user,
+                        )
+
+                        affected_inv_item_ids.add(unit.inventory_item_id)
+
+                    create_external_order_event(
+                        order=reclamation_document.order,
+                        event_type=ExternalOrderEvent.EventType.RECLAMATION_RETURN_COMPLETED,
+                        source=ExternalOrderEvent.Source.SYSTEM,
+                        title="Завершено рекламацію",
+                        message="Складські одиниці повернено постачальнику.",
+                        payload={
+                            "reclamation_return_document_id": reclamation_document.id,
+                            "return_no": reclamation_document.return_no,
+                        },
                         created_by=self.request.user,
                     )
 
-                    affected_inv_item_ids.add(unit.inventory_item_id)
+                    recalculate_external_order_status_after_reclamation_or_refund(
+                        order=reclamation_document.order,
+                        created_by=self.request.user,
+                    )
 
-                create_external_order_event(
-                    order=reclamation_document.order,
-                    event_type=ExternalOrderEvent.EventType.RECLAMATION_RETURN_COMPLETED,
-                    source=ExternalOrderEvent.Source.SYSTEM,
-                    title="Завершено рекламацію",
-                    message="Складські одиниці повернено постачальнику.",
-                    payload={
-                        "reclamation_return_document_id": reclamation_document.id,
-                        "return_no": reclamation_document.return_no,
-                    },
-                    created_by=self.request.user,
-                )
+                if affected_inv_item_ids:
+                    recalculate_warehouse_shortages_task.delay(
+                        inv_item_ids=list(affected_inv_item_ids),
+                    )
 
-                recalculate_external_order_status_after_reclamation_or_refund(
-                    order=reclamation_document.order,
-                    created_by=self.request.user,
-                )
-
-            if affected_inv_item_ids:
-                recalculate_warehouse_shortages_task.delay(
-                    inv_item_ids=list(affected_inv_item_ids),
-                )
-
+        except Exception:
+            logger.exception("Reclamation return update failed")
+            raise
 
 class ReclamationReturnItemViewSet(ModelViewSet):
     queryset = ReclamationReturnItem.objects.select_related(
