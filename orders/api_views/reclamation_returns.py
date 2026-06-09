@@ -271,9 +271,9 @@ class ReclamationReturnDocumentViewSet(ModelViewSet):
                         WarehouseUnitEvent.objects.create(
                             operation_type=WarehouseUnitEvent.OperationType.RECLAMATION_RETURN,
                             source_unit=unit,
-                            result_unit=None,
+                            result_unit=unit,
                             quantity=item.quantity,
-                            from_location=item.source_location,
+                            from_location=item.source_location if item.source_storage_place is None else None,
                             from_storage_place=item.source_storage_place,
                             to_location=None,
                             to_storage_place=None,
