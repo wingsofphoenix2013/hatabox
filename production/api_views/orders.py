@@ -23,6 +23,7 @@ from production.services.schedule import (
 )
 from production.services.material_snapshot_report import (
     build_production_order_material_snapshot_report,
+    build_production_order_material_snapshot_summary,
 )
 
 
@@ -157,6 +158,20 @@ class ProductionOrderViewSet(ModelViewSet):
         production_order = self.get_object()
 
         data = build_production_order_material_snapshot_report(
+            production_order=production_order,
+        )
+
+        return Response(data)
+
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="material-snapshot-summary",
+    )
+    def material_snapshot_summary(self, request, pk=None):
+        production_order = self.get_object()
+
+        data = build_production_order_material_snapshot_summary(
             production_order=production_order,
         )
 

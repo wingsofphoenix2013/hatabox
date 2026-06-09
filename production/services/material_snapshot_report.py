@@ -7,16 +7,92 @@ from production.models import (
 )
 
 
-def build_production_order_material_snapshot_report(
+def _get_material_snapshot(
     *,
     production_order,
 ):
     try:
-        snapshot = production_order.material_snapshot
+        return production_order.material_snapshot
     except ProductionOrderMaterialSnapshot.DoesNotExist:
         raise ValidationError(
             "Snapshot матеріалів для цього ProductionOrder ще не створено."
         )
+
+
+def build_production_order_material_snapshot_summary(
+    *,
+    production_order,
+):
+    snapshot = _get_material_snapshot(
+        production_order=production_order,
+    )
+
+    items = snapshot.items.all()
+
+    summary = items.aggregate(
+        total_items_count=Count("id"),
+        total_warehouse_units_count=Count("warehouse_unit_id"),
+        total_cost_without_vat=Sum("cost_without_vat"),
+        total_vat_amount=Sum("vat_amount"),
+        total_cost_with_vat=Sum("cost_with_vat"),
+    )
+
+    summary["unique_components_count"] = (
+        items.values(
+            "inv_item_id",
+        ).distinct().count()
+    )
+
+    summary.update({
+        "snapshot": snapshot.id,
+        "snapshot_status": snapshot.status,
+        "calculated_at": snapshot.calculated_at,
+        "production_order": production_order.id,
+        "production_order_status": production_order.status,
+        "sales_order": production_order.sales_order_id,
+        "serial_number": production_order.serial_number,
+        "ready_at": production_order.ready_at,
+        "own_rows_count": (
+            items.filter(
+                origin_type=ProductionOrderMaterialSnapshotItem.OriginType.OWN,
+            ).values(
+                "inv_item_id",
+                "external_order_id",
+                "vendor_id",
+                "vendor_item_id",
+                "unit_price",
+                "prices_include_vat",
+                "vat_rate",
+            ).distinct().count()
+        ),
+        "donor_rows_count": (
+            items.filter(
+                origin_type=ProductionOrderMaterialSnapshotItem.OriginType.DONOR,
+            ).values(
+                "inv_item_id",
+                "tolling_source_order_item_id",
+            ).distinct().count()
+        ),
+        "customer_rows_count": (
+            items.filter(
+                origin_type=ProductionOrderMaterialSnapshotItem.OriginType.CUSTOMER,
+            ).values(
+                "inv_item_id",
+                "tolling_source_order_item_id",
+            ).distinct().count()
+        ),
+    })
+
+    return summary
+
+
+def build_production_order_material_snapshot_report(
+    *,
+    production_order,
+):
+    snapshot = _get_material_snapshot(
+        production_order=production_order,
+    )
 
     items = snapshot.items.select_related(
         "inv_item",
