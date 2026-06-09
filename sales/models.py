@@ -59,7 +59,13 @@ class SalesOrder(models.Model):
     completed_at = models.DateTimeField(
         null=True,
         blank=True,
-        verbose_name="Дата виконання",
+        verbose_name="Дата готовності",
+    )
+
+    closed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Дата закриття",
     )
 
     comment = models.TextField(blank=True, verbose_name="Коментар")
@@ -69,11 +75,45 @@ class SalesOrder(models.Model):
         ordering = ["-created_at", "-id"]
 
     def save(self, *args, **kwargs):
-        if self.status == self.Status.COMPLETED and self.completed_at is None:
+        update_fields = kwargs.get("update_fields")
+
+        if self.status in [
+            self.Status.READY,
+            self.Status.COMPLETED,
+        ] and self.completed_at is None:
             self.completed_at = timezone.now()
 
-        if self.status != self.Status.COMPLETED:
+            if update_fields is not None:
+                kwargs["update_fields"] = list(set(update_fields) | {
+                    "completed_at",
+                })
+
+        if self.status not in [
+            self.Status.READY,
+            self.Status.COMPLETED,
+        ]:
             self.completed_at = None
+
+            if update_fields is not None:
+                kwargs["update_fields"] = list(set(update_fields) | {
+                    "completed_at",
+                })
+
+        if self.status == self.Status.COMPLETED and self.closed_at is None:
+            self.closed_at = timezone.now()
+
+            if update_fields is not None:
+                kwargs["update_fields"] = list(set(update_fields) | {
+                    "closed_at",
+                })
+
+        if self.status != self.Status.COMPLETED:
+            self.closed_at = None
+
+            if update_fields is not None:
+                kwargs["update_fields"] = list(set(update_fields) | {
+                    "closed_at",
+                })
 
         super().save(*args, **kwargs)
 
