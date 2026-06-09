@@ -111,6 +111,12 @@ def build_production_order_material_snapshot_report(
         total_cost_with_vat=Sum("cost_with_vat"),
     )
 
+    summary["unique_components_count"] = (
+        items.values(
+            "inv_item_id",
+        ).distinct().count()
+    )
+
     summary.update({
         "snapshot": snapshot.id,
         "snapshot_status": snapshot.status,
