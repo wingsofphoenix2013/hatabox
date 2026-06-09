@@ -21,6 +21,9 @@ from production.services.detail import (
 from production.services.schedule import (
     update_production_order_steps_schedule,
 )
+from production.services.material_snapshot_report import (
+    build_production_order_material_snapshot_report,
+)
 
 
 class StartProductionOrderSerializer(serializers.Serializer):
@@ -148,6 +151,16 @@ class ProductionOrderViewSet(ModelViewSet):
             )
 
             raise
+
+    @action(detail=True, methods=["get"], url_path="material-snapshot")
+    def material_snapshot(self, request, pk=None):
+        production_order = self.get_object()
+
+        data = build_production_order_material_snapshot_report(
+            production_order=production_order,
+        )
+
+        return Response(data)
 
     @action(
         detail=True,
