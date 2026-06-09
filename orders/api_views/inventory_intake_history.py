@@ -146,7 +146,15 @@ class InventoryIntakeHistoryView(APIView):
         external_intake_quantity = 0
         tolling_intake_quantity = 0
 
+        summary_unit_id = None
+        summary_unit_name = None
+        summary_unit_symbol = None
+
         for row in serializer.data:
+            if summary_unit_id is None:
+                summary_unit_id = row["unit_id"]
+                summary_unit_name = row["unit_name"]
+                summary_unit_symbol = row["unit_symbol"]
             quantity = row.get("converted_quantity")
 
             if quantity is None:
@@ -161,6 +169,9 @@ class InventoryIntakeHistoryView(APIView):
 
         return Response({
             "summary": {
+                "unit_id": summary_unit_id,
+                "unit_name": summary_unit_name,
+                "unit_symbol": summary_unit_symbol,
                 "total_intake_quantity": (
                     external_intake_quantity
                     + tolling_intake_quantity
