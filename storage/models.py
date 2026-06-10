@@ -244,6 +244,16 @@ class StoragePlace(models.Model):
         verbose_name="Локація",
     )
 
+    root_location = models.ForeignKey(
+        StorageLocation,
+        on_delete=models.PROTECT,
+        related_name="all_storage_places",
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name="Коренева локація",
+    )
+
     parent = models.ForeignKey(
         "self",
         on_delete=models.PROTECT,
@@ -271,6 +281,13 @@ class StoragePlace(models.Model):
         unique=True,
         editable=False,
         verbose_name="Адреса",
+    )
+
+    address_verbose = models.CharField(
+        max_length=500,
+        blank=True,
+        editable=False,
+        verbose_name="Повна адреса",
     )
 
     name = models.CharField(
@@ -479,34 +496,49 @@ class StoragePlace(models.Model):
 
         raise ValidationError("Неможливо визначити кореневу локацію.")
 
-    def _generate_address(self):
-        parts = [self.code]
-
-        current = self.parent
-        visited_ids = {self.id} if self.id else set()
+    def _generate_address_data(self):
+        codes = [self.code]
+        verbose_parts = []
         root_location = self.location
 
+        current = self
+        visited_ids = {self.id} if self.id else set()
+
         while current is not None:
-            if current.id in visited_ids:
-                raise ValidationError("Виявлено циклічну вкладеність місць зберігання.")
+            verbose_parts.append(
+                f"{current.get_place_type_display()} {current.code}"
+            )
 
-            visited_ids.add(current.id)
-            parts.append(current.code)
+            if current.parent is None:
+                if current.location is None:
+                    raise ValidationError(
+                        "Неможливо сформувати адресу без кореневої локації."
+                    )
 
-            if current.location is not None:
                 root_location = current.location
                 break
 
             current = current.parent
 
-        if root_location is None:
-            raise ValidationError(
-                "Неможливо сформувати адресу без кореневої локації."
-            )
+            if current.id in visited_ids:
+                raise ValidationError(
+                    "Виявлено циклічну вкладеність місць зберігання."
+                )
 
-        parts.reverse()
+            visited_ids.add(current.id)
+            codes.append(current.code)
 
-        return "-".join([root_location.code] + parts)
+        codes.reverse()
+        verbose_parts.reverse()
+
+        return {
+            "root_location": root_location,
+            "address": "-".join([root_location.code] + codes),
+            "address_verbose": (
+                f"локація {root_location.code} | "
+                + " | ".join(verbose_parts)
+            ),
+        }
 
     def save(self, *args, **kwargs):
         is_new = self.pk is None
@@ -538,7 +570,11 @@ class StoragePlace(models.Model):
         if self.is_default:
             self.is_active = True
 
-        self.address = self._generate_address()
+        address_data = self._generate_address_data()
+
+        self.root_location = address_data["root_location"]
+        self.address = address_data["address"]
+        self.address_verbose = address_data["address_verbose"]
 
         self.full_clean()
         super().save(*args, **kwargs)
