@@ -50,6 +50,12 @@ from orders.api_views import (
     ReclamationReturnDocumentLibraryItemViewSet,
 )
 
+from storage.api_views import (
+    StorageLocationViewSet,
+    StoragePlaceViewSet,
+    StoragePlacePreferredItemViewSet,
+)
+
 from warehouse.api_views import (
     WarehouseProductionMovementViewSet,
     WarehouseProductionReservationViewSet,
@@ -151,6 +157,13 @@ router.register(
     "people-directory",
     PeopleDirectoryViewSet,
     basename="people-directory",
+)
+
+router.register("storage-locations", StorageLocationViewSet)
+router.register("storage-places", StoragePlaceViewSet)
+router.register(
+    "storage-place-preferred-items",
+    StoragePlacePreferredItemViewSet,
 )
 
 router.register("warehouse-locations", WarehouseLocationViewSet)
