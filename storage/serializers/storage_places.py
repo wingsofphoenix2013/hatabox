@@ -46,6 +46,10 @@ class StoragePlaceSummaryPreferredItemSerializer(serializers.ModelSerializer):
 
 
 class StoragePlaceSummarySerializer(serializers.ModelSerializer):
+    place_type_name = serializers.CharField(
+        source="get_place_type_display",
+        read_only=True,
+    )
     location_id = serializers.IntegerField(
         source="root_location.id",
         read_only=True,
@@ -77,6 +81,7 @@ class StoragePlaceSummarySerializer(serializers.ModelSerializer):
             "name",
             "comment",
             "place_type",
+            "place_type_name",
             "is_default",
             "preferred_items_count",
             "preferred_items",
