@@ -2,6 +2,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 
+from inventory.models import InvItem
 
 class StorageLocation(models.Model):
     code = models.CharField(
@@ -80,6 +81,94 @@ class StorageLocation(models.Model):
         super().save(*args, **kwargs)
 
 
+class StoragePlacePreferredItem(models.Model):
+    storage_place = models.ForeignKey(
+        "StoragePlace",
+        on_delete=models.PROTECT,
+        related_name="preferred_items",
+        verbose_name="Місце зберігання",
+    )
+
+    inv_item = models.OneToOneField(
+        InvItem,
+        on_delete=models.PROTECT,
+        related_name="preferred_storage_place",
+        verbose_name="Номенклатура",
+    )
+
+    class Meta:
+        db_table = "storage_place_preferred_items"
+        ordering = ["storage_place", "inv_item"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["storage_place", "inv_item"],
+                name="uq_storage_place_preferred_item_place_item",
+            ),
+        ]
+        verbose_name = "Бажана номенклатура місця зберігання"
+        verbose_name_plural = "Бажані номенклатури місць зберігання"
+
+    def __str__(self):
+        return f"{self.storage_place} — {self.inv_item}"
+
+    def clean(self):
+        super().clean()
+
+        if self.inv_item_id and not self.inv_item.requires_storage_place:
+            raise ValidationError({
+                "inv_item": "Для цієї номенклатури не потрібне стабільне місце зберігання."
+            })
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+        if is_new:
+            from storage.services.events import create_storage_place_event
+
+            create_storage_place_event(
+                storage_place=self.storage_place,
+                event_type=StoragePlaceEvent.EventType.PREFERRED_ITEMS_CHANGED,
+                payload={
+                    "added": [
+                        {
+                            "inv_item_id": self.inv_item.id,
+                            "internal_code": self.inv_item.internal_code,
+                            "name": self.inv_item.name,
+                        }
+                    ],
+                    "removed": [],
+                },
+            )
+
+    def delete(self, *args, **kwargs):
+        storage_place = self.storage_place
+        inv_item_payload = {
+            "inv_item_id": self.inv_item.id,
+            "internal_code": self.inv_item.internal_code,
+            "name": self.inv_item.name,
+        }
+
+        result = super().delete(*args, **kwargs)
+
+        from storage.services.events import create_storage_place_event
+
+        create_storage_place_event(
+            storage_place=storage_place,
+            event_type=StoragePlaceEvent.EventType.PREFERRED_ITEMS_CHANGED,
+            payload={
+                "added": [],
+                "removed": [
+                    inv_item_payload,
+                ],
+            },
+        )
+
+        return result
+
+
 class StoragePlaceEvent(models.Model):
     class EventType(models.TextChoices):
         CREATED = "created", "Створено"
@@ -88,6 +177,7 @@ class StoragePlaceEvent(models.Model):
         ACTIVATED = "activated", "Активовано"
         DEACTIVATED = "deactivated", "Деактивовано"
         DEFAULT_CHANGED = "default_changed", "Змінено місце за замовчуванням"
+        PREFERRED_ITEMS_CHANGED = "preferred_items_changed", "Змінено бажані номенклатури"
 
     storage_place = models.ForeignKey(
         "StoragePlace",

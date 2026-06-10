@@ -4,6 +4,7 @@ from .models import (
     StorageLocation,
     StoragePlace,
     StoragePlaceEvent,
+    StoragePlacePreferredItem,
 )
 from .services.default_place import set_default_storage_place
 
@@ -114,4 +115,21 @@ class StoragePlaceEventAdmin(admin.ModelAdmin):
         "created_by",
         "created_at",
         "comment",
+    )
+    
+@admin.register(StoragePlacePreferredItem)
+class StoragePlacePreferredItemAdmin(admin.ModelAdmin):
+    list_display = (
+        "storage_place",
+        "inv_item",
+    )
+    search_fields = (
+        "storage_place__address",
+        "storage_place__code",
+        "inv_item__internal_code",
+        "inv_item__name",
+    )
+    autocomplete_fields = (
+        "storage_place",
+        "inv_item",
     )
