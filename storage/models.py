@@ -83,6 +83,7 @@ class StorageLocation(models.Model):
 class StoragePlaceEvent(models.Model):
     class EventType(models.TextChoices):
         CREATED = "created", "Створено"
+        EDITED = "edited", "Відредаговано"
         MOVED = "moved", "Переміщено"
         ACTIVATED = "activated", "Активовано"
         DEACTIVATED = "deactivated", "Деактивовано"
@@ -418,6 +419,28 @@ class StoragePlace(models.Model):
         return "-".join([root_location.code] + parts)
 
     def save(self, *args, **kwargs):
+        is_new = self.pk is None
+
+        original_is_active = None
+        original_editable_values = None
+
+        if not is_new:
+            original_editable_values = (
+                StoragePlace.objects
+                .filter(pk=self.pk)
+                .values(
+                    "name",
+                    "comment",
+                )
+                .first()
+            )
+            original_is_active = (
+                StoragePlace.objects
+                .filter(pk=self.pk)
+                .values_list("is_active", flat=True)
+                .first()
+            )
+
         if not self.code:
             with transaction.atomic():
                 self.code = self._generate_next_code()
@@ -429,3 +452,67 @@ class StoragePlace(models.Model):
 
         self.full_clean()
         super().save(*args, **kwargs)
+
+        from storage.services.events import create_storage_place_event
+
+        if is_new:
+            create_storage_place_event(
+                storage_place=self,
+                event_type=StoragePlaceEvent.EventType.CREATED,
+                payload={
+                    "new": {
+                        "location_id": self.location_id,
+                        "parent_id": self.parent_id,
+                        "place_type": self.place_type,
+                        "code": self.code,
+                        "address": self.address,
+                        "name": self.name,
+                        "comment": self.comment,
+                        "is_active": self.is_active,
+                        "is_default": self.is_default,
+                    }
+                },
+            )
+
+        elif original_is_active != self.is_active:
+            create_storage_place_event(
+                storage_place=self,
+                event_type=(
+                    StoragePlaceEvent.EventType.ACTIVATED
+                    if self.is_active
+                    else StoragePlaceEvent.EventType.DEACTIVATED
+                ),
+                payload={
+                    "old": {
+                        "is_active": original_is_active,
+                    },
+                    "new": {
+                        "is_active": self.is_active,
+                    },
+                },
+            )
+
+        elif original_editable_values:
+            changed = {}
+
+            for field_name in [
+                "name",
+                "comment",
+            ]:
+                old_value = original_editable_values[field_name]
+                new_value = getattr(self, field_name)
+
+                if old_value != new_value:
+                    changed[field_name] = {
+                        "old": old_value,
+                        "new": new_value,
+                    }
+
+            if changed:
+                create_storage_place_event(
+                    storage_place=self,
+                    event_type=StoragePlaceEvent.EventType.EDITED,
+                    payload={
+                        "changed": changed,
+                    },
+                )
