@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "reference.apps.ReferenceConfig",
     "orders.apps.OrdersConfig",
     "warehouse.apps.WarehouseConfig",
+    "storage.apps.StorageConfig",
     "organizations.apps.OrganizationsConfig",
     "sales.apps.SalesConfig",
     "production.apps.ProductionConfig",
