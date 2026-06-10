@@ -26,6 +26,63 @@ class StoragePlacePreferredItemSerializer(serializers.ModelSerializer):
         ]
 
 
+class StoragePlaceSummaryPreferredItemSerializer(serializers.ModelSerializer):
+    internal_code = serializers.CharField(
+        source="inv_item.internal_code",
+        read_only=True,
+    )
+    name = serializers.CharField(
+        source="inv_item.name",
+        read_only=True,
+    )
+
+    class Meta:
+        model = StoragePlacePreferredItem
+        fields = [
+            "id",
+            "internal_code",
+            "name",
+        ]
+
+
+class StoragePlaceSummarySerializer(serializers.ModelSerializer):
+    location_id = serializers.IntegerField(
+        source="root_location.id",
+        read_only=True,
+    )
+    location_code = serializers.CharField(
+        source="root_location.code",
+        read_only=True,
+    )
+    location_name = serializers.CharField(
+        source="root_location.name",
+        read_only=True,
+    )
+    preferred_items_count = serializers.IntegerField(read_only=True)
+    preferred_items = StoragePlaceSummaryPreferredItemSerializer(
+        many=True,
+        read_only=True,
+    )
+
+    class Meta:
+        model = StoragePlace
+        fields = [
+            "id",
+            "location_id",
+            "location_code",
+            "location_name",
+            "code",
+            "address",
+            "address_verbose",
+            "name",
+            "comment",
+            "place_type",
+            "is_default",
+            "preferred_items_count",
+            "preferred_items",
+        ]
+
+
 class StoragePlaceSerializer(serializers.ModelSerializer):
     parent_code = serializers.CharField(
         source="parent.code",

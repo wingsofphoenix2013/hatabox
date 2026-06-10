@@ -54,6 +54,7 @@ from storage.api_views import (
     StorageLocationViewSet,
     StoragePlaceViewSet,
     StoragePlacePreferredItemViewSet,
+    StoragePlaceSummaryViewSet,
 )
 
 from warehouse.api_views import (
@@ -161,6 +162,13 @@ router.register(
 
 router.register("storage-locations", StorageLocationViewSet)
 router.register("storage-places", StoragePlaceViewSet)
+
+router.register(
+    "storage-places-summary",
+    StoragePlaceSummaryViewSet,
+    basename="storage-places-summary",
+)
+
 router.register(
     "storage-place-preferred-items",
     StoragePlacePreferredItemViewSet,

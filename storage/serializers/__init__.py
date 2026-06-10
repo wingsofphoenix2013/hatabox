@@ -4,4 +4,5 @@ from .locations import (
 from .storage_places import (
     StoragePlaceSerializer,
     StoragePlacePreferredItemSerializer,
+    StoragePlaceSummarySerializer,
 )
