@@ -46,23 +46,44 @@ class StoragePlaceSummaryPreferredItemSerializer(serializers.ModelSerializer):
 
 
 class StoragePlaceSummarySerializer(serializers.ModelSerializer):
+    level = serializers.IntegerField(
+        source="topology_level",
+        read_only=True,
+    )
+
+    has_children = serializers.BooleanField(
+        source="topology_has_children",
+        read_only=True,
+    )
+
+    parent_id = serializers.IntegerField(
+        read_only=True,
+    )
+
     place_type_name = serializers.CharField(
         source="get_place_type_display",
         read_only=True,
     )
+
     location_id = serializers.IntegerField(
         source="root_location.id",
         read_only=True,
     )
+
     location_code = serializers.CharField(
         source="root_location.code",
         read_only=True,
     )
+
     location_name = serializers.CharField(
         source="root_location.name",
         read_only=True,
     )
-    preferred_items_count = serializers.IntegerField(read_only=True)
+
+    preferred_items_count = serializers.IntegerField(
+        read_only=True,
+    )
+
     preferred_items = StoragePlaceSummaryPreferredItemSerializer(
         many=True,
         read_only=True,
@@ -75,6 +96,9 @@ class StoragePlaceSummarySerializer(serializers.ModelSerializer):
             "location_id",
             "location_code",
             "location_name",
+            "parent_id",
+            "level",
+            "has_children",
             "code",
             "address",
             "address_verbose",
@@ -86,7 +110,6 @@ class StoragePlaceSummarySerializer(serializers.ModelSerializer):
             "preferred_items_count",
             "preferred_items",
         ]
-
 
 class StoragePlaceSerializer(serializers.ModelSerializer):
     parent_code = serializers.CharField(
@@ -114,6 +137,7 @@ class StoragePlaceSerializer(serializers.ModelSerializer):
             "place_type",
             "code",
             "address",
+            "address_verbose",
             "name",
             "comment",
             "is_active",
@@ -123,5 +147,6 @@ class StoragePlaceSerializer(serializers.ModelSerializer):
         read_only_fields = (
             "code",
             "address",
+            "address_verbose",
             "is_default",
         )

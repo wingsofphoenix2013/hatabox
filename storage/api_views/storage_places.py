@@ -16,6 +16,7 @@ from storage.serializers import (
     StoragePlaceSummarySerializer,
 )
 from storage.services.default_place import set_default_storage_place
+from storage.services.storage_places import sort_storage_places_hierarchically
 
 
 class StoragePlaceViewSet(ModelViewSet):
@@ -108,7 +109,9 @@ class StoragePlaceSummaryViewSet(ReadOnlyModelViewSet):
         )
         .order_by(
             "root_location__code",
-            "address",
+            "parent_id",
+            "code",
+            "id",
         )
     )
 
@@ -135,3 +138,15 @@ class StoragePlaceSummaryViewSet(ReadOnlyModelViewSet):
             ).distinct()
 
         return queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        ordered_places = sort_storage_places_hierarchically(queryset)
+
+        page = self.paginate_queryset(ordered_places)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(ordered_places, many=True)
+        return Response(serializer.data)
