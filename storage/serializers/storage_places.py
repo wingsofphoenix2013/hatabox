@@ -7,6 +7,23 @@ from storage.models import (
 
 
 class StoragePlacePreferredItemSerializer(serializers.ModelSerializer):
+    def validate_inv_item(self, inv_item):
+        if not inv_item.requires_storage_place:
+            raise serializers.ValidationError(
+                "Ця номенклатура не потребує стабільного місця зберігання."
+            )
+
+        existing = StoragePlacePreferredItem.objects.filter(
+            inv_item=inv_item,
+        ).first()
+
+        if existing:
+            raise serializers.ValidationError(
+                f"Для цієї номенклатури вже призначено місце зберігання: {existing.storage_place.address}."
+            )
+
+        return inv_item
+
     inv_item_code = serializers.CharField(
         source="inv_item.internal_code",
         read_only=True,
