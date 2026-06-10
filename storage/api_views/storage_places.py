@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from storage.models import (
+    StorageLocation,
     StoragePlace,
     StoragePlacePreferredItem,
 )
@@ -14,9 +15,13 @@ from storage.serializers import (
     StoragePlaceSerializer,
     StoragePlacePreferredItemSerializer,
     StoragePlaceSummarySerializer,
+    StoragePlaceParentOptionSerializer,
 )
 from storage.services.default_place import set_default_storage_place
-from storage.services.storage_places import sort_storage_places_hierarchically
+from storage.services.storage_places import (
+    get_allowed_parent_places,
+    sort_storage_places_hierarchically,
+)
 
 
 class StoragePlaceViewSet(ModelViewSet):
@@ -149,4 +154,65 @@ class StoragePlaceSummaryViewSet(ReadOnlyModelViewSet):
             return self.get_paginated_response(serializer.data)
 
         serializer = self.get_serializer(ordered_places, many=True)
+        return Response(serializer.data)
+        
+class StoragePlaceParentOptionViewSet(ReadOnlyModelViewSet):
+    serializer_class = StoragePlaceParentOptionSerializer
+    permission_classes = [DjangoModelPermissions]
+
+    def list(self, request, *args, **kwargs):
+        location_id = request.query_params.get("location")
+        place_type = request.query_params.get("place_type")
+
+        if not location_id:
+            return Response(
+                {"detail": "Потрібно вказати location."},
+                status=400,
+            )
+
+        if not place_type:
+            return Response(
+                {"detail": "Потрібно вказати place_type."},
+                status=400,
+            )
+
+        location = StorageLocation.objects.get(pk=location_id)
+
+        options = []
+
+        if place_type in [
+            StoragePlace.PlaceType.AREA,
+            StoragePlace.PlaceType.CONTAINER,
+            StoragePlace.PlaceType.RACK,
+            StoragePlace.PlaceType.BOX,
+        ]:
+            options.append({
+                "id": None,
+                "address": None,
+                "address_verbose": None,
+                "place_type": None,
+                "place_type_name": None,
+                "level": 0,
+                "label": "Створити прямо на локації",
+            })
+
+        parent_places = get_allowed_parent_places(
+            location=location,
+            place_type=place_type,
+        )
+
+        ordered_parent_places = sort_storage_places_hierarchically(parent_places)
+
+        for place in ordered_parent_places:
+            options.append({
+                "id": place.id,
+                "address": place.address,
+                "address_verbose": place.address_verbose,
+                "place_type": place.place_type,
+                "place_type_name": place.get_place_type_display(),
+                "level": getattr(place, "topology_level", 0),
+                "label": f"{place.address} — {place.get_place_type_display()} {place.code}",
+            })
+
+        serializer = self.get_serializer(options, many=True)
         return Response(serializer.data)

@@ -3,4 +3,5 @@ from .storage_places import (
     StoragePlaceViewSet,
     StoragePlacePreferredItemViewSet,
     StoragePlaceSummaryViewSet,
+    StoragePlaceParentOptionViewSet,
 )

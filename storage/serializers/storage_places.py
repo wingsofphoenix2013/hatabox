@@ -45,6 +45,16 @@ class StoragePlaceSummaryPreferredItemSerializer(serializers.ModelSerializer):
         ]
 
 
+class StoragePlaceParentOptionSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True, allow_null=True)
+    address = serializers.CharField(read_only=True, allow_null=True)
+    address_verbose = serializers.CharField(read_only=True, allow_null=True)
+    place_type = serializers.CharField(read_only=True, allow_null=True)
+    place_type_name = serializers.CharField(read_only=True, allow_null=True)
+    level = serializers.IntegerField(read_only=True)
+    label = serializers.CharField(read_only=True)
+
+
 class StoragePlaceSummarySerializer(serializers.ModelSerializer):
     level = serializers.IntegerField(
         source="topology_level",

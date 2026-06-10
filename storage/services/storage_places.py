@@ -73,3 +73,62 @@ def sort_storage_places_hierarchically(storage_places):
             walk(root.id, 1)
 
     return ordered
+
+
+def get_allowed_parent_places(
+    *,
+    location,
+    place_type,
+):
+    queryset = (
+        StoragePlace.objects
+        .filter(
+            root_location=location,
+            is_active=True,
+        )
+        .select_related(
+            "parent",
+        )
+    )
+
+    if place_type in [
+        StoragePlace.PlaceType.AREA,
+        StoragePlace.PlaceType.CONTAINER,
+    ]:
+        return []
+
+    if place_type == StoragePlace.PlaceType.RACK:
+        return queryset.filter(
+            place_type=StoragePlace.PlaceType.CONTAINER,
+        )
+
+    if place_type == StoragePlace.PlaceType.SHELF:
+        return queryset.filter(
+            place_type__in=[
+                StoragePlace.PlaceType.CONTAINER,
+                StoragePlace.PlaceType.RACK,
+            ]
+        )
+
+    if place_type == StoragePlace.PlaceType.BOX:
+        result = []
+
+        for place in queryset:
+            if place.place_type in [
+                StoragePlace.PlaceType.CONTAINER,
+                StoragePlace.PlaceType.RACK,
+                StoragePlace.PlaceType.SHELF,
+            ]:
+                result.append(place)
+                continue
+
+            if place.place_type == StoragePlace.PlaceType.BOX:
+                if (
+                    place.parent is None
+                    or place.parent.place_type != StoragePlace.PlaceType.BOX
+                ):
+                    result.append(place)
+
+        return result
+
+    return []

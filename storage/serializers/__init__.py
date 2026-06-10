@@ -5,4 +5,5 @@ from .storage_places import (
     StoragePlaceSerializer,
     StoragePlacePreferredItemSerializer,
     StoragePlaceSummarySerializer,
+    StoragePlaceParentOptionSerializer,
 )
