@@ -1,4 +1,4 @@
-Django
+Django==5.2.6
 gunicorn
 psycopg[binary]
 dj-database-url
@@ -10,5 +10,5 @@ djangorestframework
 django-cors-headers
 reportlab
 weasyprint
-celery
-redis
+celery==5.5.3
+redis==6.4.0
