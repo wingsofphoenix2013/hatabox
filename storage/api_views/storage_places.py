@@ -223,6 +223,13 @@ class StoragePlaceParentOptionViewSet(ReadOnlyModelViewSet):
                 ),
             })
 
+        if place_type in [
+            StoragePlace.PlaceType.AREA,
+            StoragePlace.PlaceType.CONTAINER,
+        ]:
+            serializer = self.get_serializer(options, many=True)
+            return Response(serializer.data)
+
         children = get_storage_place_children_for_parent_options(
             location=location,
             parent=parent,
