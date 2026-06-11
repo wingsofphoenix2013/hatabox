@@ -158,6 +158,7 @@ class StoragePlaceSummaryViewSet(ReadOnlyModelViewSet):
         return Response(serializer.data)
         
 class StoragePlaceParentOptionViewSet(ReadOnlyModelViewSet):
+    queryset = StoragePlace.objects.all()
     serializer_class = StoragePlaceParentOptionSerializer
     permission_classes = [DjangoModelPermissions]
 
