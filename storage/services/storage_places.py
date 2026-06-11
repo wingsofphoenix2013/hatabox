@@ -161,4 +161,18 @@ def get_storage_place_children_for_parent_options(
     else:
         queryset = queryset.none()
 
-    return sort_storage_places_hierarchically(queryset)
+    places = list(queryset)
+
+    places.sort(
+        key=lambda x: (
+            get_storage_place_type_priority(x.place_type),
+            x.code,
+            x.id,
+        )
+    )
+
+    for place in places:
+        place.topology_level = max(place.address.count("-") - 1, 0)
+        place.topology_has_children = place.children_count > 0
+
+    return places
