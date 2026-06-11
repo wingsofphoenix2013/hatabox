@@ -127,6 +127,26 @@ class StoragePlaceViewSet(ModelViewSet):
         serializer = StoragePlaceDetailSerializer(data)
         return Response(serializer.data)
 
+    @action(detail=True, methods=["post"], url_path="activate")
+    def activate(self, request, pk=None):
+        storage_place = self.get_object()
+
+        storage_place.is_active = True
+        storage_place.save()
+
+        serializer = self.get_serializer(storage_place)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["post"], url_path="deactivate")
+    def deactivate(self, request, pk=None):
+        storage_place = self.get_object()
+
+        storage_place.is_active = False
+        storage_place.save()
+
+        serializer = self.get_serializer(storage_place)
+        return Response(serializer.data)
+
     @action(detail=True, methods=["post"], url_path="set-default")
     def set_default(self, request, pk=None):
         storage_place = self.get_object()
