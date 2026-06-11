@@ -117,6 +117,7 @@ def is_allowed_parent_for_place_type(
 def get_storage_place_children_for_parent_options(
     *,
     location,
+    place_type,
     parent=None,
 ):
     queryset = (
@@ -133,5 +134,31 @@ def get_storage_place_children_for_parent_options(
             children_count=Count("children"),
         )
     )
+
+    if place_type == StoragePlace.PlaceType.RACK:
+        queryset = queryset.filter(
+            place_type=StoragePlace.PlaceType.CONTAINER,
+        )
+
+    elif place_type == StoragePlace.PlaceType.SHELF:
+        queryset = queryset.filter(
+            place_type__in=[
+                StoragePlace.PlaceType.CONTAINER,
+                StoragePlace.PlaceType.RACK,
+            ]
+        )
+
+    elif place_type == StoragePlace.PlaceType.BOX:
+        queryset = queryset.filter(
+            place_type__in=[
+                StoragePlace.PlaceType.CONTAINER,
+                StoragePlace.PlaceType.RACK,
+                StoragePlace.PlaceType.SHELF,
+                StoragePlace.PlaceType.BOX,
+            ]
+        )
+
+    else:
+        queryset = queryset.none()
 
     return sort_storage_places_hierarchically(queryset)

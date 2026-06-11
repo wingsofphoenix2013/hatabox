@@ -232,6 +232,7 @@ class StoragePlaceParentOptionViewSet(ReadOnlyModelViewSet):
 
         children = get_storage_place_children_for_parent_options(
             location=location,
+            place_type=place_type,
             parent=parent,
         )
 
