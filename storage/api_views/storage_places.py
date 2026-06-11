@@ -39,7 +39,7 @@ class StoragePlaceViewSet(ModelViewSet):
     permission_classes = [DjangoModelPermissions]
 
     def get_queryset(self):
-        queryset = self.queryset
+        queryset = self.queryset.all()
 
         place_type = self.request.query_params.getlist("place_type")
         if place_type:
@@ -166,7 +166,7 @@ class StoragePlacePreferredItemViewSet(ModelViewSet):
     permission_classes = [DjangoModelPermissions]
 
     def get_queryset(self):
-        queryset = self.queryset
+        queryset = self.queryset.all()
 
         storage_place = self.request.query_params.getlist("storage_place")
         if storage_place:
@@ -207,7 +207,7 @@ class StoragePlaceSummaryViewSet(ReadOnlyModelViewSet):
     )
 
     def get_queryset(self):
-        queryset = self.queryset
+        queryset = self.queryset.all()
 
         location = self.request.query_params.getlist("location")
         if location:
