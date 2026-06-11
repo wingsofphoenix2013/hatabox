@@ -69,6 +69,7 @@ class StoragePlaceParentOptionSerializer(serializers.Serializer):
     place_type = serializers.CharField(read_only=True, allow_null=True)
     place_type_name = serializers.CharField(read_only=True, allow_null=True)
     level = serializers.IntegerField(read_only=True)
+    has_children = serializers.BooleanField(read_only=True)
     label = serializers.CharField(read_only=True)
 
 

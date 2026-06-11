@@ -1,5 +1,7 @@
 from collections import OrderedDict
 
+from django.db.models import Count
+
 from storage.models import StoragePlace
 
 
@@ -126,6 +128,9 @@ def get_storage_place_children_for_parent_options(
         )
         .select_related(
             "parent",
+        )
+        .annotate(
+            children_count=Count("children"),
         )
     )
 

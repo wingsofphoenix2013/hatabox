@@ -214,6 +214,7 @@ class StoragePlaceParentOptionViewSet(ReadOnlyModelViewSet):
                 "place_type": None,
                 "place_type_name": None,
                 "level": 0,
+                "has_children": False,
                 "label": (
                     "Створити прямо на локації"
                     if parent is None
@@ -234,6 +235,7 @@ class StoragePlaceParentOptionViewSet(ReadOnlyModelViewSet):
                 "place_type": child.place_type,
                 "place_type_name": child.get_place_type_display(),
                 "level": getattr(child, "topology_level", 0),
+                "has_children": child.children_count > 0,
                 "label": f"{child.address} — {child.get_place_type_display()} {child.code}",
             })
 
