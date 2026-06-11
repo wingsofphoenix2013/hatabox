@@ -145,6 +145,20 @@ class StoragePlacePreferredItem(models.Model):
 
     def delete(self, *args, **kwargs):
         storage_place = self.storage_place
+
+        has_name = bool((storage_place.name or "").strip())
+        has_other_preferred_items = (
+            StoragePlacePreferredItem.objects
+            .filter(storage_place=storage_place)
+            .exclude(pk=self.pk)
+            .exists()
+        )
+
+        if not has_name and not has_other_preferred_items:
+            raise ValidationError(
+                "Неможливо видалити бажану номенклатуру, якщо у місця зберігання немає назви або іншої бажаної номенклатури."
+            )
+
         inv_item_payload = {
             "inv_item_id": self.inv_item.id,
             "internal_code": self.inv_item.internal_code,
@@ -478,6 +492,26 @@ class StoragePlace(models.Model):
             if not has_active_default:
                 raise ValidationError({
                     "is_active": "Неможливо активувати місце без активної площадки за замовчуванням на локації."
+                })
+
+        if self.is_active:
+            has_name = bool((self.name or "").strip())
+            has_preferred_items = (
+                self.pk is not None
+                and self.preferred_items.exists()
+            )
+
+            if not has_name and not has_preferred_items:
+                raise ValidationError({
+                    "is_active": "Неможливо активувати місце без назви або бажаної номенклатури."
+                })
+
+        if self.pk and not self.is_active:
+            original = StoragePlace.objects.get(pk=self.pk)
+
+            if original.is_active and self.preferred_items.exists():
+                raise ValidationError({
+                    "is_active": "Неможливо деактивувати місце з бажаною номенклатурою. Спочатку видаліть бажану номенклатуру."
                 })
 
     def get_root_location(self):
