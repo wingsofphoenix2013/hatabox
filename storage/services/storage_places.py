@@ -75,60 +75,58 @@ def sort_storage_places_hierarchically(storage_places):
     return ordered
 
 
-def get_allowed_parent_places(
+def is_allowed_parent_for_place_type(
+    *,
+    parent,
+    place_type,
+):
+    if place_type in [
+        StoragePlace.PlaceType.AREA,
+        StoragePlace.PlaceType.CONTAINER,
+    ]:
+        return False
+
+    if place_type == StoragePlace.PlaceType.RACK:
+        return parent.place_type == StoragePlace.PlaceType.CONTAINER
+
+    if place_type == StoragePlace.PlaceType.SHELF:
+        return parent.place_type in [
+            StoragePlace.PlaceType.CONTAINER,
+            StoragePlace.PlaceType.RACK,
+        ]
+
+    if place_type == StoragePlace.PlaceType.BOX:
+        if parent.place_type in [
+            StoragePlace.PlaceType.CONTAINER,
+            StoragePlace.PlaceType.RACK,
+            StoragePlace.PlaceType.SHELF,
+        ]:
+            return True
+
+        if parent.place_type == StoragePlace.PlaceType.BOX:
+            return (
+                parent.parent is None
+                or parent.parent.place_type != StoragePlace.PlaceType.BOX
+            )
+
+    return False
+
+
+def get_storage_place_children_for_parent_options(
     *,
     location,
-    place_type,
+    parent=None,
 ):
     queryset = (
         StoragePlace.objects
         .filter(
             root_location=location,
             is_active=True,
+            parent=parent,
         )
         .select_related(
             "parent",
         )
     )
 
-    if place_type in [
-        StoragePlace.PlaceType.AREA,
-        StoragePlace.PlaceType.CONTAINER,
-    ]:
-        return []
-
-    if place_type == StoragePlace.PlaceType.RACK:
-        return queryset.filter(
-            place_type=StoragePlace.PlaceType.CONTAINER,
-        )
-
-    if place_type == StoragePlace.PlaceType.SHELF:
-        return queryset.filter(
-            place_type__in=[
-                StoragePlace.PlaceType.CONTAINER,
-                StoragePlace.PlaceType.RACK,
-            ]
-        )
-
-    if place_type == StoragePlace.PlaceType.BOX:
-        result = []
-
-        for place in queryset:
-            if place.place_type in [
-                StoragePlace.PlaceType.CONTAINER,
-                StoragePlace.PlaceType.RACK,
-                StoragePlace.PlaceType.SHELF,
-            ]:
-                result.append(place)
-                continue
-
-            if place.place_type == StoragePlace.PlaceType.BOX:
-                if (
-                    place.parent is None
-                    or place.parent.place_type != StoragePlace.PlaceType.BOX
-                ):
-                    result.append(place)
-
-        return result
-
-    return []
+    return sort_storage_places_hierarchically(queryset)

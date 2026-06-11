@@ -19,7 +19,8 @@ from storage.serializers import (
 )
 from storage.services.default_place import set_default_storage_place
 from storage.services.storage_places import (
-    get_allowed_parent_places,
+    get_storage_place_children_for_parent_options,
+    is_allowed_parent_for_place_type,
     sort_storage_places_hierarchically,
 )
 
@@ -163,6 +164,7 @@ class StoragePlaceParentOptionViewSet(ReadOnlyModelViewSet):
     def list(self, request, *args, **kwargs):
         location_id = request.query_params.get("location")
         place_type = request.query_params.get("place_type")
+        parent_id = request.query_params.get("parent")
 
         if not location_id:
             return Response(
@@ -178,14 +180,33 @@ class StoragePlaceParentOptionViewSet(ReadOnlyModelViewSet):
 
         location = StorageLocation.objects.get(pk=location_id)
 
+        parent = None
+        if parent_id:
+            parent = StoragePlace.objects.get(
+                pk=parent_id,
+                root_location=location,
+                is_active=True,
+            )
+
         options = []
 
-        if place_type in [
-            StoragePlace.PlaceType.AREA,
-            StoragePlace.PlaceType.CONTAINER,
-            StoragePlace.PlaceType.RACK,
-            StoragePlace.PlaceType.BOX,
-        ]:
+        can_create_here = (
+            parent is None
+            and place_type in [
+                StoragePlace.PlaceType.AREA,
+                StoragePlace.PlaceType.CONTAINER,
+                StoragePlace.PlaceType.RACK,
+                StoragePlace.PlaceType.BOX,
+            ]
+        ) or (
+            parent is not None
+            and is_allowed_parent_for_place_type(
+                parent=parent,
+                place_type=place_type,
+            )
+        )
+
+        if can_create_here:
             options.append({
                 "id": None,
                 "address": None,
@@ -193,25 +214,27 @@ class StoragePlaceParentOptionViewSet(ReadOnlyModelViewSet):
                 "place_type": None,
                 "place_type_name": None,
                 "level": 0,
-                "label": "Створити прямо на локації",
+                "label": (
+                    "Створити прямо на локації"
+                    if parent is None
+                    else "Створити в цьому об'єкті"
+                ),
             })
 
-        parent_places = get_allowed_parent_places(
+        children = get_storage_place_children_for_parent_options(
             location=location,
-            place_type=place_type,
+            parent=parent,
         )
 
-        ordered_parent_places = sort_storage_places_hierarchically(parent_places)
-
-        for place in ordered_parent_places:
+        for child in children:
             options.append({
-                "id": place.id,
-                "address": place.address,
-                "address_verbose": place.address_verbose,
-                "place_type": place.place_type,
-                "place_type_name": place.get_place_type_display(),
-                "level": getattr(place, "topology_level", 0),
-                "label": f"{place.address} — {place.get_place_type_display()} {place.code}",
+                "id": child.id,
+                "address": child.address,
+                "address_verbose": child.address_verbose,
+                "place_type": child.place_type,
+                "place_type_name": child.get_place_type_display(),
+                "level": getattr(child, "topology_level", 0),
+                "label": f"{child.address} — {child.get_place_type_display()} {child.code}",
             })
 
         serializer = self.get_serializer(options, many=True)
