@@ -102,6 +102,12 @@ class StoragePlaceViewSet(ModelViewSet):
                 "comment": storage_place.comment,
                 "is_active": storage_place.is_active,
                 "is_default": storage_place.is_default,
+                "can_set_default": storage_place.can_be_set_default(),
+                "can_activate": storage_place.can_be_activated(),
+                "activate_block_reason": storage_place.get_activate_block_reason(),
+                "can_deactivate": storage_place.can_be_deactivated(),
+                "deactivate_block_reason": storage_place.get_deactivate_block_reason(),
+                "has_children": storage_place.has_children(),
             },
             "preferred_items": [
                 {

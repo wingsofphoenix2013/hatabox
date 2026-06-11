@@ -530,6 +530,63 @@ class StoragePlace(models.Model):
 
         raise ValidationError("Неможливо визначити кореневу локацію.")
 
+    def can_be_set_default(self):
+        return (
+            self.place_type == self.PlaceType.AREA
+            and not self.is_default
+        )
+
+    def get_activate_block_reason(self):
+        if self.is_active:
+            return "Місце зберігання вже активне."
+
+        if not self.is_default:
+            root_location = self.get_root_location()
+
+            has_active_default = any(
+                place.get_root_location().id == root_location.id
+                for place in StoragePlace.objects.filter(
+                    is_default=True,
+                    is_active=True,
+                    place_type=self.PlaceType.AREA,
+                ).exclude(pk=self.pk)
+            )
+
+            if not has_active_default:
+                return "Неможливо активувати місце без активної площадки за замовчуванням на локації."
+
+        has_name = bool((self.name or "").strip())
+        has_preferred_items = (
+            self.pk is not None
+            and self.preferred_items.exists()
+        )
+
+        if not has_name and not has_preferred_items:
+            return "Неможливо активувати місце без назви або бажаної номенклатури."
+
+        return ""
+
+    def can_be_activated(self):
+        return self.get_activate_block_reason() == ""
+
+    def get_deactivate_block_reason(self):
+        if not self.is_active:
+            return "Місце зберігання вже неактивне."
+
+        if self.is_default:
+            return "Неможливо деактивувати площадку за замовчуванням."
+
+        if self.preferred_items.exists():
+            return "Неможливо деактивувати місце з бажаною номенклатурою. Спочатку видаліть бажану номенклатуру."
+
+        return ""
+
+    def can_be_deactivated(self):
+        return self.get_deactivate_block_reason() == ""
+
+    def has_children(self):
+        return self.children.exists()
+
     def _generate_address_data(self):
         codes = [self.code]
         verbose_parts = []
