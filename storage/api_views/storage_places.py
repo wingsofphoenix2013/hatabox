@@ -10,12 +10,14 @@ from storage.models import (
     StorageLocation,
     StoragePlace,
     StoragePlacePreferredItem,
+    StoragePlaceEvent,
 )
 from storage.serializers import (
     StoragePlaceSerializer,
     StoragePlacePreferredItemSerializer,
     StoragePlaceSummarySerializer,
     StoragePlaceParentOptionSerializer,
+    StoragePlaceDetailSerializer,
 )
 from storage.services.default_place import set_default_storage_place
 from storage.services.storage_places import (
@@ -61,6 +63,69 @@ class StoragePlaceViewSet(ModelViewSet):
             )
 
         return queryset
+
+    @action(detail=True, methods=["get"], url_path="detail-view")
+    def detail_view(self, request, pk=None):
+        storage_place = self.get_object()
+
+        preferred_items = StoragePlacePreferredItem.objects.select_related(
+            "inv_item",
+        ).filter(
+            storage_place=storage_place,
+        )
+
+        events = StoragePlaceEvent.objects.filter(
+            storage_place=storage_place,
+        ).order_by(
+            "-created_at",
+            "-id",
+        )[:20]
+
+        data = {
+            "summary": {
+                "id": storage_place.id,
+                "location_id": storage_place.root_location.id,
+                "location_code": storage_place.root_location.code,
+                "location_name": storage_place.root_location.name,
+                "parent_id": storage_place.parent_id,
+                "parent_address": (
+                    storage_place.parent.address
+                    if storage_place.parent
+                    else None
+                ),
+                "code": storage_place.code,
+                "address": storage_place.address,
+                "address_verbose": storage_place.address_verbose,
+                "place_type": storage_place.place_type,
+                "place_type_name": storage_place.get_place_type_display(),
+                "name": storage_place.name,
+                "comment": storage_place.comment,
+                "is_active": storage_place.is_active,
+                "is_default": storage_place.is_default,
+            },
+            "preferred_items": [
+                {
+                    "id": item.inv_item.id,
+                    "internal_code": item.inv_item.internal_code,
+                    "name": item.inv_item.name,
+                }
+                for item in preferred_items
+            ],
+            "events": [
+                {
+                    "id": event.id,
+                    "event_type": event.event_type,
+                    "event_type_name": event.get_event_type_display(),
+                    "payload": event.payload,
+                    "created_at": event.created_at,
+                    "comment": event.comment,
+                }
+                for event in events
+            ],
+        }
+
+        serializer = StoragePlaceDetailSerializer(data)
+        return Response(serializer.data)
 
     @action(detail=True, methods=["post"], url_path="set-default")
     def set_default(self, request, pk=None):

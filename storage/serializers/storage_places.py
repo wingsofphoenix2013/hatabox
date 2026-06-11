@@ -139,6 +139,27 @@ class StoragePlaceSummarySerializer(serializers.ModelSerializer):
             "preferred_items",
         ]
 
+class StoragePlaceDetailEventSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    event_type = serializers.CharField(read_only=True)
+    event_type_name = serializers.CharField(read_only=True)
+    payload = serializers.DictField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    comment = serializers.CharField(read_only=True)
+
+
+class StoragePlaceDetailSerializer(serializers.Serializer):
+    summary = serializers.DictField(read_only=True)
+    preferred_items = StoragePlaceSummaryPreferredItemSerializer(
+        many=True,
+        read_only=True,
+    )
+    events = StoragePlaceDetailEventSerializer(
+        many=True,
+        read_only=True,
+    )
+
+
 class StoragePlaceSerializer(serializers.ModelSerializer):
     parent_code = serializers.CharField(
         source="parent.code",
