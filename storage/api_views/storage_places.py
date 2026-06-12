@@ -201,9 +201,6 @@ class StoragePlaceSummaryViewSet(ReadOnlyModelViewSet):
         .annotate(
             preferred_items_count=Count("preferred_items"),
         )
-        .filter(
-            is_active=True,
-        )
         .order_by(
             "root_location__code",
             "parent_id",
@@ -222,6 +219,12 @@ class StoragePlaceSummaryViewSet(ReadOnlyModelViewSet):
         place_type = self.request.query_params.getlist("place_type")
         if place_type:
             queryset = queryset.filter(place_type__in=place_type)
+
+        is_active = self.request.query_params.get("is_active")
+        if is_active is None:
+            queryset = queryset.filter(is_active=True)
+        else:
+            queryset = queryset.filter(is_active=is_active.lower() == "true")
 
         search = self.request.query_params.get("search")
         if search:
