@@ -37,6 +37,7 @@ class StoragePlacePreferredItemSerializer(serializers.ModelSerializer):
         model = StoragePlacePreferredItem
         fields = [
             "id",
+            "storage_place",
             "inv_item",
             "inv_item_code",
             "inv_item_name",
