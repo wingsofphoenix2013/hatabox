@@ -71,6 +71,7 @@ class InvItemOptionSerializer(serializers.ModelSerializer):
             "category_name",
             "unit_symbol",
             "description",
+            "requires_storage_place",
         ]
 
 class ProductFamilySerializer(serializers.ModelSerializer):
