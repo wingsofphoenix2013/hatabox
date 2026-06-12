@@ -245,7 +245,19 @@ class StoragePlaceSummaryViewSet(ReadOnlyModelViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
-        ordered_places = sort_storage_places_hierarchically(queryset)
+
+        if request.query_params.get("search"):
+            ordered_places = list(queryset.order_by(
+                "root_location__code",
+                "address",
+                "id",
+            ))
+
+            for place in ordered_places:
+                place.topology_level = max(place.address.count("-") - 1, 0)
+                place.topology_has_children = place.children.exists()
+        else:
+            ordered_places = sort_storage_places_hierarchically(queryset)
 
         page = self.paginate_queryset(ordered_places)
         if page is not None:
