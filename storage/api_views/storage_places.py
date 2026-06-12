@@ -1,5 +1,5 @@
 from django.db import models
-from django.db.models import Count
+from django.db.models import Count, Exists, OuterRef
 
 from rest_framework.decorators import action
 from rest_framework.permissions import DjangoModelPermissions
@@ -225,14 +225,21 @@ class StoragePlaceSummaryViewSet(ReadOnlyModelViewSet):
 
         search = self.request.query_params.get("search")
         if search:
-            queryset = queryset.filter(
+            matching_preferred_items = StoragePlacePreferredItem.objects.filter(
+                storage_place_id=OuterRef("pk"),
+            ).filter(
+                models.Q(inv_item__name__icontains=search)
+                | models.Q(inv_item__internal_code__icontains=search)
+            )
+
+            queryset = queryset.annotate(
+                has_matching_preferred_item=Exists(matching_preferred_items),
+            ).filter(
                 models.Q(code__icontains=search)
                 | models.Q(address__icontains=search)
                 | models.Q(name__icontains=search)
-                | models.Q(
-                    preferred_items__inv_item__name__icontains=search
-                )
-            ).distinct()
+                | models.Q(has_matching_preferred_item=True)
+            )
 
         return queryset
 
