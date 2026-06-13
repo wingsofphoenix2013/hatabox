@@ -555,6 +555,14 @@ class StoragePlace(models.Model):
             if not has_active_default:
                 return "Неможливо активувати місце без активної площадки за замовчуванням на локації."
 
+        current = self.parent
+
+        while current is not None:
+            if not current.is_active:
+                return "Неможливо активувати місце, якщо батьківське місце зберігання неактивне."
+
+            current = current.parent
+
         has_name = bool((self.name or "").strip())
         has_preferred_items = (
             self.pk is not None
