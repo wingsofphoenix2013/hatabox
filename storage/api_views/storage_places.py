@@ -242,7 +242,10 @@ class StoragePlaceSummaryViewSet(ReadOnlyModelViewSet):
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
 
-        if request.query_params.get("search"):
+        if (
+            request.query_params.get("search")
+            or request.query_params.get("is_active") == "false"
+        ):
             ordered_places = list(queryset.order_by(
                 "root_location__code",
                 "address",
