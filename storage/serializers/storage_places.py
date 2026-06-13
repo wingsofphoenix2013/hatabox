@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from inventory.models import InvItem
+
 from storage.models import (
     StoragePlace,
     StoragePlacePreferredItem,
@@ -7,6 +9,11 @@ from storage.models import (
 
 
 class StoragePlacePreferredItemSerializer(serializers.ModelSerializer):
+    inv_item = serializers.PrimaryKeyRelatedField(
+        queryset=InvItem.objects.all(),
+        validators=[],
+    )
+
     def validate_inv_item(self, inv_item):
         if not inv_item.requires_storage_place:
             raise serializers.ValidationError(

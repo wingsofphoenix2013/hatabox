@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Count, Exists, OuterRef
 
@@ -156,6 +157,19 @@ class StoragePlaceViewSet(ModelViewSet):
 
 
 class StoragePlacePreferredItemViewSet(ModelViewSet):
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        try:
+            instance.delete()
+        except ValidationError as exc:
+            return Response(
+                {"detail": exc.message},
+                status=400,
+            )
+
+        return Response(status=204)
+
     queryset = StoragePlacePreferredItem.objects.select_related(
         "storage_place",
         "inv_item",
