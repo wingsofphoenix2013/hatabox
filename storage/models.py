@@ -587,6 +587,14 @@ class StoragePlace(models.Model):
         if self.preferred_items.exists():
             return "Неможливо деактивувати місце з бажаною номенклатурою. Спочатку видаліть бажану номенклатуру."
 
+        active_children_exists = StoragePlace.objects.filter(
+            parent=self,
+            is_active=True,
+        ).exists()
+
+        if active_children_exists:
+            return "Неможливо деактивувати місце, якщо воно має активні вкладені місця зберігання."
+
         return ""
 
     def can_be_deactivated(self):
