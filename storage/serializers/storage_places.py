@@ -130,6 +130,18 @@ class StoragePlaceSummarySerializer(serializers.ModelSerializer):
         read_only=True,
     )
 
+    can_deactivate = serializers.BooleanField(
+        source="can_be_deactivated",
+        read_only=True,
+    )
+    can_add_inside = serializers.BooleanField(
+        read_only=True,
+    )
+    can_activate = serializers.BooleanField(
+        source="can_be_activated",
+        read_only=True,
+    )
+
     class Meta:
         model = StoragePlace
         fields = [
@@ -148,6 +160,9 @@ class StoragePlaceSummarySerializer(serializers.ModelSerializer):
             "place_type",
             "place_type_name",
             "is_default",
+            "can_deactivate",
+            "can_add_inside",
+            "can_activate",
             "preferred_items_count",
             "preferred_items",
         ]

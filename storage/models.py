@@ -603,6 +603,25 @@ class StoragePlace(models.Model):
     def has_children(self):
         return self.children.exists()
 
+    def can_add_inside(self):
+        if not self.is_active:
+            return False
+
+        if self.place_type == self.PlaceType.AREA:
+            return False
+
+        if self.place_type == self.PlaceType.BOX:
+            return (
+                self.parent is None
+                or self.parent.place_type != self.PlaceType.BOX
+            )
+
+        return self.place_type in [
+            self.PlaceType.CONTAINER,
+            self.PlaceType.RACK,
+            self.PlaceType.SHELF,
+        ]
+
     def _generate_address_data(self):
         codes = [self.code]
         verbose_parts = []
