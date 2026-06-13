@@ -109,14 +109,7 @@ class StoragePlaceViewSet(ModelViewSet):
                 "deactivate_block_reason": storage_place.get_deactivate_block_reason(),
                 "has_children": storage_place.has_children(),
             },
-            "preferred_items": [
-                {
-                    "id": item.inv_item.id,
-                    "internal_code": item.inv_item.internal_code,
-                    "name": item.inv_item.name,
-                }
-                for item in preferred_items
-            ],
+            "preferred_items": preferred_items,
             "events": [
                 {
                     "id": event.id,
