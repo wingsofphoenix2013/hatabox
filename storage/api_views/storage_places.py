@@ -260,6 +260,7 @@ class StoragePlaceSummaryViewSet(ReadOnlyModelViewSet):
         if (
             request.query_params.get("search")
             or request.query_params.get("is_active") == "false"
+            or request.query_params.getlist("place_type")
         ):
             ordered_places = list(queryset.order_by(
                 "root_location__code",
