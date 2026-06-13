@@ -56,6 +56,7 @@ from storage.api_views import (
     StoragePlacePreferredItemViewSet,
     StoragePlaceSummaryViewSet,
     StoragePlaceParentOptionViewSet,
+    StorageChildTypeOptionViewSet,
 )
 
 from warehouse.api_views import (
@@ -174,6 +175,12 @@ router.register(
     "storage-parent-options",
     StoragePlaceParentOptionViewSet,
     basename="storage-parent-options",
+)
+
+router.register(
+    "storage-child-type-options",
+    StorageChildTypeOptionViewSet,
+    basename="storage-child-type-options",
 )
 
 router.register(

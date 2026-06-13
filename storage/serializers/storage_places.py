@@ -70,6 +70,11 @@ class StoragePlaceSummaryPreferredItemSerializer(serializers.ModelSerializer):
         ]
 
 
+class StorageChildTypeOptionSerializer(serializers.Serializer):
+    value = serializers.CharField(read_only=True)
+    label = serializers.CharField(read_only=True)
+
+
 class StoragePlaceParentOptionSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True, allow_null=True)
     address = serializers.CharField(read_only=True, allow_null=True)

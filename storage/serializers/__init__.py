@@ -7,4 +7,5 @@ from .storage_places import (
     StoragePlaceSummarySerializer,
     StoragePlaceParentOptionSerializer,
     StoragePlaceDetailSerializer,
+    StorageChildTypeOptionSerializer,
 )

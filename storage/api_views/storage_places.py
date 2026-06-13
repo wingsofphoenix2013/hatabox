@@ -19,6 +19,7 @@ from storage.serializers import (
     StoragePlaceSummarySerializer,
     StoragePlaceParentOptionSerializer,
     StoragePlaceDetailSerializer,
+    StorageChildTypeOptionSerializer,
 )
 from storage.services.default_place import set_default_storage_place
 from storage.services.storage_places import (
@@ -370,6 +371,65 @@ class StoragePlaceParentOptionViewSet(ReadOnlyModelViewSet):
                 "has_children": child.children_count > 0,
                 "label": f"{child.address} — {child.get_place_type_display()} {child.code}",
             })
+
+        serializer = self.get_serializer(options, many=True)
+        return Response(serializer.data)
+        
+class StorageChildTypeOptionViewSet(ReadOnlyModelViewSet):
+    queryset = StoragePlace.objects.all()
+    serializer_class = StorageChildTypeOptionSerializer
+    permission_classes = [DjangoModelPermissions]
+
+    def list(self, request, *args, **kwargs):
+        parent_id = request.query_params.get("parent")
+
+        if not parent_id:
+            return Response(
+                {"detail": "Потрібно вказати parent."},
+                status=400,
+            )
+
+        parent = StoragePlace.objects.get(pk=parent_id)
+
+        if not parent.is_active:
+            return Response(
+                {
+                    "detail": (
+                        "Неможливо створити вкладене місце "
+                        "в неактивному місці зберігання."
+                    )
+                },
+                status=400,
+            )
+
+        options = []
+
+        if parent.place_type == StoragePlace.PlaceType.CONTAINER:
+            options.extend([
+                {"value": "rack", "label": "Стелаж"},
+                {"value": "shelf", "label": "Полка"},
+                {"value": "box", "label": "Коробка"},
+            ])
+
+        elif parent.place_type == StoragePlace.PlaceType.RACK:
+            options.extend([
+                {"value": "shelf", "label": "Полка"},
+                {"value": "box", "label": "Коробка"},
+            ])
+
+        elif parent.place_type == StoragePlace.PlaceType.SHELF:
+            options.append(
+                {"value": "box", "label": "Коробка"}
+            )
+
+        elif parent.place_type == StoragePlace.PlaceType.BOX:
+            if (
+                parent.parent is None
+                or parent.parent.place_type != StoragePlace.PlaceType.BOX
+            ):
+                options.append(
+                    {"value": "box", "label": "Коробка"}
+                )
 
         serializer = self.get_serializer(options, many=True)
         return Response(serializer.data)
