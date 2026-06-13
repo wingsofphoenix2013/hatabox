@@ -109,6 +109,7 @@ class StoragePlaceViewSet(ModelViewSet):
                 "activate_block_reason": storage_place.get_activate_block_reason(),
                 "can_deactivate": storage_place.can_be_deactivated(),
                 "deactivate_block_reason": storage_place.get_deactivate_block_reason(),
+                "can_add_inside": storage_place.can_add_inside(),
                 "has_children": storage_place.has_children(),
             },
             "preferred_items": preferred_items,
