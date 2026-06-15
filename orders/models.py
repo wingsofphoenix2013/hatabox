@@ -406,6 +406,11 @@ class ExternalReceiptDocument(models.Model):
         verbose_name="Номер документа приходу",
     )
 
+    use_new_scenario = models.BooleanField(
+        default=False,
+        verbose_name="Використовувати новий сценарій приймання",
+    )
+
     order = models.ForeignKey(
         ExternalOrder,
         on_delete=models.CASCADE,
@@ -481,6 +486,79 @@ class ExternalReceiptItem(models.Model):
 
     def __str__(self):
         return f"{self.receipt_document} → {self.order_item}"
+
+
+class OrderIntakeDocument(models.Model):
+    class SourceFlow(models.TextChoices):
+        PROCUREMENT = "procurement", "Закупівля"
+        TOLLING = "tolling", "Давальницьке замовлення"
+
+    source_flow = models.CharField(
+        max_length=20,
+        choices=SourceFlow.choices,
+        verbose_name="Сценарій надходження",
+    )
+
+    external_receipt_document = models.OneToOneField(
+        ExternalReceiptDocument,
+        on_delete=models.PROTECT,
+        related_name="intake_document",
+        null=True,
+        blank=True,
+        verbose_name="Документ приходу закупівлі",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "order_intake_documents"
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return f"{self.source_flow} / {self.id}"
+
+
+class OrderIntakeDocumentItem(models.Model):
+    intake_document = models.ForeignKey(
+        OrderIntakeDocument,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name="Документ приймання",
+    )
+
+    external_receipt_item = models.OneToOneField(
+        ExternalReceiptItem,
+        on_delete=models.PROTECT,
+        related_name="intake_item",
+        null=True,
+        blank=True,
+        verbose_name="Рядок приходу закупівлі",
+    )
+
+    inventory_item = models.ForeignKey(
+        "inventory.InvItem",
+        on_delete=models.PROTECT,
+        related_name="order_intake_items",
+        verbose_name="Номенклатура",
+    )
+
+    source_quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        verbose_name="Кількість у документі приходу",
+    )
+
+    requires_unit_conversion = models.BooleanField(
+        default=False,
+        verbose_name="Потребує конвертації одиниць",
+    )
+
+    class Meta:
+        db_table = "order_intake_document_items"
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.intake_document} → {self.inventory_item}"
 
 
 class TollingOrder(models.Model):

@@ -21,6 +21,9 @@ from orders.serializers import (
 from .external_orders import try_complete_order
 
 from orders.services.external_order_events import create_external_order_event
+from orders.services.order_intake_documents import (
+    create_order_intake_document_from_external_receipt,
+)
 
 class ExternalReceiptDocumentViewSet(ModelViewSet):
     queryset = ExternalReceiptDocument.objects.select_related(
@@ -125,6 +128,11 @@ class ExternalReceiptDocumentViewSet(ModelViewSet):
                     },
                     created_by=self.request.user,
                 )
+
+                if receipt_document.use_new_scenario:
+                    create_order_intake_document_from_external_receipt(
+                        receipt_document,
+                    )
 
             if (
                 not old_sent_to_warehouse

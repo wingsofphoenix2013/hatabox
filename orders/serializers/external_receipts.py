@@ -136,6 +136,7 @@ class ExternalReceiptDocumentSerializer(serializers.ModelSerializer):
             "receipt_date",
             "completed",
             "sent_to_warehouse",
+            "use_new_scenario",
             "created_by",
             "created_by_username",
             "created_at",
@@ -206,6 +207,18 @@ class ExternalReceiptDocumentSerializer(serializers.ModelSerializer):
         ):
             raise serializers.ValidationError({
                 "sent_to_warehouse": "Прапорець передачі документа на склад не можна скасувати."
+            })
+
+        if (
+            self.instance is not None
+            and self.instance.completed
+            and "use_new_scenario" in attrs
+            and attrs["use_new_scenario"] != self.instance.use_new_scenario
+        ):
+            raise serializers.ValidationError({
+                "use_new_scenario": (
+                    "Не можна змінювати сценарій після завершення документа приходу."
+                )
             })
 
         return attrs

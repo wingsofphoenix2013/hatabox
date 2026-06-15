@@ -18,6 +18,8 @@ from .models import (
     ReclamationReturnItem,
     ReclamationReturnDocumentLibrary,
     ReclamationReturnDocumentLibraryItem,
+    OrderIntakeDocument,
+    OrderIntakeDocumentItem,
 )
 
 
@@ -185,6 +187,7 @@ class ExternalReceiptDocumentAdmin(admin.ModelAdmin):
         "receipt_date",
         "completed",
         "sent_to_warehouse",
+        "use_new_scenario",
         "created_by",
         "created_at",
     )
@@ -199,6 +202,7 @@ class ExternalReceiptDocumentAdmin(admin.ModelAdmin):
         "receipt_date",
         "completed",
         "sent_to_warehouse",
+        "use_new_scenario",
         "order__vendor",
         "created_by",
     )
@@ -449,6 +453,50 @@ class ReclamationReturnDocumentLibraryItemAdmin(admin.ModelAdmin):
         "library",
     )
     
+@admin.register(OrderIntakeDocument)
+class OrderIntakeDocumentAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "source_flow",
+        "external_receipt_document",
+        "created_at",
+    )
+    search_fields = (
+        "id",
+        "external_receipt_document__receipt_no",
+    )
+    list_filter = (
+        "source_flow",
+        "created_at",
+    )
+    autocomplete_fields = (
+        "external_receipt_document",
+    )
+    readonly_fields = (
+        "created_at",
+    )
+
+
+@admin.register(OrderIntakeDocumentItem)
+class OrderIntakeDocumentItemAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "intake_document",
+        "external_receipt_item",
+        "inventory_item",
+        "source_quantity",
+        "requires_unit_conversion",
+    )
+    list_filter = (
+        "requires_unit_conversion",
+    )
+    autocomplete_fields = (
+        "intake_document",
+        "external_receipt_item",
+        "inventory_item",
+    )
+
+
 @admin.register(ExternalOrderItemWarehouseCost)
 class ExternalOrderItemWarehouseCostAdmin(admin.ModelAdmin):
     list_display = (
