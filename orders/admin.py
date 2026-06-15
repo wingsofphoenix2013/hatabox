@@ -275,6 +275,7 @@ class TollingOrderAdmin(admin.ModelAdmin):
         "order_no",
         "organization",
         "status",
+        "use_new_scenario",
         "created_by",
         "created_at",
     )
@@ -285,6 +286,7 @@ class TollingOrderAdmin(admin.ModelAdmin):
     )
     list_filter = (
         "status",
+        "use_new_scenario",
         "organization",
         "created_by",
     )

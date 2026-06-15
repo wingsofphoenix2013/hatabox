@@ -619,6 +619,11 @@ class TollingOrder(models.Model):
         verbose_name="Статус",
     )
 
+    use_new_scenario = models.BooleanField(
+        default=False,
+        verbose_name="Використовувати новий сценарій приймання",
+    )
+
     created_by = models.ForeignKey(
         User,
         on_delete=models.PROTECT,

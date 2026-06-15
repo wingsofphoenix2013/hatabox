@@ -61,6 +61,7 @@ class TollingOrderSerializer(serializers.ModelSerializer):
             "organization",
             "organization_name",
             "status",
+            "use_new_scenario",
             "created_by",
             "created_at",
             "updated_at",

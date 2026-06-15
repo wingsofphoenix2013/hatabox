@@ -104,6 +104,7 @@ def create_tolling_receipt_draft_from_order(order, created_by):
         receipt_date=date.today(),
         completed=False,
         sent_to_warehouse=False,
+        use_new_scenario=order.use_new_scenario,
         created_by=created_by,
         comment="Автоматично створено при переведенні замовлення в статус 'Активне'.",
     )
@@ -162,6 +163,7 @@ def create_next_tolling_receipt_draft_from_remainders(order, created_by):
         receipt_date=date.today(),
         completed=False,
         sent_to_warehouse=False,
+        use_new_scenario=order.use_new_scenario,
         created_by=created_by,
         comment="Автоматично створено на залишок після завершення попереднього документа приходу.",
     )
