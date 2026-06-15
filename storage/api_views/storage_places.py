@@ -229,6 +229,10 @@ class StoragePlaceSummaryViewSet(ReadOnlyModelViewSet):
         if place_type:
             queryset = queryset.filter(place_type__in=place_type)
 
+        parent = self.request.query_params.get("parent")
+        if parent is not None:
+            queryset = queryset.filter(parent_id=parent)
+
         is_active = self.request.query_params.get("is_active")
         if is_active is None:
             queryset = queryset.filter(is_active=True)
@@ -262,6 +266,7 @@ class StoragePlaceSummaryViewSet(ReadOnlyModelViewSet):
             request.query_params.get("search")
             or request.query_params.get("is_active") == "false"
             or request.query_params.getlist("place_type")
+            or request.query_params.get("parent") is not None
         ):
             ordered_places = list(queryset.order_by(
                 "root_location__code",
