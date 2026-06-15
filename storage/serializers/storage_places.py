@@ -52,6 +52,11 @@ class StoragePlacePreferredItemSerializer(serializers.ModelSerializer):
 
 
 class StoragePlaceSummaryPreferredItemSerializer(serializers.ModelSerializer):
+    inv_item_id = serializers.IntegerField(
+        source="inv_item.id",
+        read_only=True,
+    )
+
     internal_code = serializers.CharField(
         source="inv_item.internal_code",
         read_only=True,
@@ -65,6 +70,7 @@ class StoragePlaceSummaryPreferredItemSerializer(serializers.ModelSerializer):
         model = StoragePlacePreferredItem
         fields = [
             "id",
+            "inv_item_id",
             "internal_code",
             "name",
         ]
