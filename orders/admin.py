@@ -458,6 +458,7 @@ class OrderIntakeDocumentAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "source_flow",
+        "status",
         "external_receipt_document",
         "created_at",
     )
@@ -467,6 +468,7 @@ class OrderIntakeDocumentAdmin(admin.ModelAdmin):
     )
     list_filter = (
         "source_flow",
+        "status",
         "created_at",
     )
     autocomplete_fields = (

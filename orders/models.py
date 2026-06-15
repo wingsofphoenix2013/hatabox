@@ -493,10 +493,24 @@ class OrderIntakeDocument(models.Model):
         PROCUREMENT = "procurement", "Закупівля"
         TOLLING = "tolling", "Давальницьке замовлення"
 
+    class StatusChoices(models.TextChoices):
+        CREATED = "created", "Створено"
+        EXECUTED = "executed", "Оброблено складом"
+        ROLLOVER = "rollover", "Скасовано через відкат"
+        RECLAMATION = "reclamation", "Скасовано через рекламацію"
+        REFUSAL = "refusal", "Відмова складу"
+
     source_flow = models.CharField(
         max_length=20,
         choices=SourceFlow.choices,
         verbose_name="Сценарій надходження",
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=StatusChoices.choices,
+        default=StatusChoices.CREATED,
+        verbose_name="Статус",
     )
 
     external_receipt_document = models.OneToOneField(
