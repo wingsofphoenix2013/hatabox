@@ -328,6 +328,7 @@ class TollingReceiptDocumentAdmin(admin.ModelAdmin):
         "receipt_date",
         "completed",
         "sent_to_warehouse",
+        "use_new_scenario",
         "created_by",
         "created_at",
     )
@@ -341,6 +342,7 @@ class TollingReceiptDocumentAdmin(admin.ModelAdmin):
         "receipt_date",
         "completed",
         "sent_to_warehouse",
+        "use_new_scenario",
         "order__organization",
         "created_by",
     )
@@ -460,11 +462,13 @@ class OrderIntakeDocumentAdmin(admin.ModelAdmin):
         "source_flow",
         "status",
         "external_receipt_document",
+        "tolling_receipt_document",
         "created_at",
     )
     search_fields = (
         "id",
         "external_receipt_document__receipt_no",
+        "tolling_receipt_document__receipt_no",
     )
     list_filter = (
         "source_flow",
@@ -473,6 +477,7 @@ class OrderIntakeDocumentAdmin(admin.ModelAdmin):
     )
     autocomplete_fields = (
         "external_receipt_document",
+        "tolling_receipt_document",
     )
     readonly_fields = (
         "created_at",
@@ -485,6 +490,7 @@ class OrderIntakeDocumentItemAdmin(admin.ModelAdmin):
         "id",
         "intake_document",
         "external_receipt_item",
+        "tolling_receipt_item",
         "inventory_item",
         "source_quantity",
         "requires_unit_conversion",
@@ -495,6 +501,7 @@ class OrderIntakeDocumentItemAdmin(admin.ModelAdmin):
     autocomplete_fields = (
         "intake_document",
         "external_receipt_item",
+        "tolling_receipt_item",
         "inventory_item",
     )
 

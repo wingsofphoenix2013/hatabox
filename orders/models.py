@@ -522,6 +522,15 @@ class OrderIntakeDocument(models.Model):
         verbose_name="Документ приходу закупівлі",
     )
 
+    tolling_receipt_document = models.OneToOneField(
+        "TollingReceiptDocument",
+        on_delete=models.PROTECT,
+        related_name="intake_document",
+        null=True,
+        blank=True,
+        verbose_name="Документ приходу давальницького замовлення",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -547,6 +556,15 @@ class OrderIntakeDocumentItem(models.Model):
         null=True,
         blank=True,
         verbose_name="Рядок приходу закупівлі",
+    )
+
+    tolling_receipt_item = models.OneToOneField(
+        "TollingReceiptItem",
+        on_delete=models.PROTECT,
+        related_name="intake_item",
+        null=True,
+        blank=True,
+        verbose_name="Рядок приходу давальницького замовлення",
     )
 
     inventory_item = models.ForeignKey(
@@ -751,6 +769,11 @@ class TollingReceiptDocument(models.Model):
         max_length=50,
         unique=True,
         verbose_name="Номер документа приходу",
+    )
+
+    use_new_scenario = models.BooleanField(
+        default=False,
+        verbose_name="Використовувати новий сценарій приймання",
     )
 
     order = models.ForeignKey(

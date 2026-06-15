@@ -26,6 +26,9 @@ from .tolling_orders import (
 )
 
 from orders.services.tolling_order_events import create_tolling_order_event
+from orders.services.order_intake_documents import (
+    create_order_intake_document_from_tolling_receipt,
+)
 
 class TollingReceiptDocumentViewSet(ModelViewSet):
     queryset = TollingReceiptDocument.objects.select_related(
@@ -167,6 +170,11 @@ class TollingReceiptDocumentViewSet(ModelViewSet):
                     },
                     created_by=self.request.user,
                 )
+
+                if receipt_document.use_new_scenario:
+                    create_order_intake_document_from_tolling_receipt(
+                        receipt_document,
+                    )
 
                 try_complete_tolling_order(
                     order,
