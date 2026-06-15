@@ -17,6 +17,8 @@ def create_order_intake_document_from_external_receipt(
         },
     )
 
+    intake_document.full_clean()
+
     if not created:
         return intake_document
 
@@ -29,14 +31,18 @@ def create_order_intake_document_from_external_receipt(
     ):
         order_item = receipt_item.order_item
 
+        intake_item = OrderIntakeDocumentItem(
+            intake_document=intake_document,
+            external_receipt_item=receipt_item,
+            inventory_item=order_item.vendor_item.item,
+            source_quantity=receipt_item.received_quantity,
+            requires_unit_conversion=order_item.requires_unit_conversion,
+        )
+
+        intake_item.full_clean()
+
         items_to_create.append(
-            OrderIntakeDocumentItem(
-                intake_document=intake_document,
-                external_receipt_item=receipt_item,
-                inventory_item=order_item.vendor_item.item,
-                source_quantity=receipt_item.received_quantity,
-                requires_unit_conversion=order_item.requires_unit_conversion,
-            )
+            intake_item
         )
 
     if items_to_create:
@@ -58,6 +64,8 @@ def create_order_intake_document_from_tolling_receipt(
         },
     )
 
+    intake_document.full_clean()
+
     if not created:
         return intake_document
 
@@ -69,14 +77,18 @@ def create_order_intake_document_from_tolling_receipt(
     ):
         order_item = receipt_item.order_item
 
+        intake_item = OrderIntakeDocumentItem(
+            intake_document=intake_document,
+            tolling_receipt_item=receipt_item,
+            inventory_item=order_item.inv_item,
+            source_quantity=receipt_item.received_quantity,
+            requires_unit_conversion=False,
+        )
+
+        intake_item.full_clean()
+
         items_to_create.append(
-            OrderIntakeDocumentItem(
-                intake_document=intake_document,
-                tolling_receipt_item=receipt_item,
-                inventory_item=order_item.inv_item,
-                source_quantity=receipt_item.received_quantity,
-                requires_unit_conversion=False,
-            )
+            intake_item
         )
 
     if items_to_create:

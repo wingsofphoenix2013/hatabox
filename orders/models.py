@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.conf import settings
+from django.core.exceptions import ValidationError
 
 from vendors.models import Vendor, VendorItem
 from organizations.models import Organization
@@ -536,6 +537,48 @@ class OrderIntakeDocument(models.Model):
     class Meta:
         db_table = "order_intake_documents"
         ordering = ["-created_at", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                name="ck_order_intake_document_single_source",
+                check=(
+                    models.Q(
+                        source_flow="procurement",
+                        external_receipt_document__isnull=False,
+                        tolling_receipt_document__isnull=True,
+                    )
+                    | models.Q(
+                        source_flow="tolling",
+                        external_receipt_document__isnull=True,
+                        tolling_receipt_document__isnull=False,
+                    )
+                ),
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+
+        if self.source_flow == self.SourceFlow.PROCUREMENT:
+            if self.external_receipt_document_id is None:
+                raise ValidationError({
+                    "external_receipt_document": "Для закупівлі потрібно вказати документ приходу."
+                })
+
+            if self.tolling_receipt_document_id is not None:
+                raise ValidationError({
+                    "tolling_receipt_document": "Для закупівлі не можна вказувати давальницький документ приходу."
+                })
+
+        if self.source_flow == self.SourceFlow.TOLLING:
+            if self.tolling_receipt_document_id is None:
+                raise ValidationError({
+                    "tolling_receipt_document": "Для давальницького замовлення потрібно вказати документ приходу."
+                })
+
+            if self.external_receipt_document_id is not None:
+                raise ValidationError({
+                    "external_receipt_document": "Для давальницького замовлення не можна вказувати документ приходу закупівлі."
+                })
 
     def __str__(self):
         return f"{self.source_flow} / {self.id}"
@@ -588,6 +631,49 @@ class OrderIntakeDocumentItem(models.Model):
     class Meta:
         db_table = "order_intake_document_items"
         ordering = ["id"]
+        constraints = [
+            models.CheckConstraint(
+                name="ck_order_intake_document_item_single_source",
+                check=(
+                    models.Q(
+                        external_receipt_item__isnull=False,
+                        tolling_receipt_item__isnull=True,
+                    )
+                    | models.Q(
+                        external_receipt_item__isnull=True,
+                        tolling_receipt_item__isnull=False,
+                    )
+                ),
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+
+        if self.intake_document_id is None:
+            return
+
+        if self.intake_document.source_flow == OrderIntakeDocument.SourceFlow.PROCUREMENT:
+            if self.external_receipt_item_id is None:
+                raise ValidationError({
+                    "external_receipt_item": "Для закупівлі потрібно вказати рядок приходу закупівлі."
+                })
+
+            if self.tolling_receipt_item_id is not None:
+                raise ValidationError({
+                    "tolling_receipt_item": "Для закупівлі не можна вказувати рядок давальницького приходу."
+                })
+
+        if self.intake_document.source_flow == OrderIntakeDocument.SourceFlow.TOLLING:
+            if self.tolling_receipt_item_id is None:
+                raise ValidationError({
+                    "tolling_receipt_item": "Для давальницького замовлення потрібно вказати рядок приходу."
+                })
+
+            if self.external_receipt_item_id is not None:
+                raise ValidationError({
+                    "external_receipt_item": "Для давальницького замовлення не можна вказувати рядок приходу закупівлі."
+                })
 
     def __str__(self):
         return f"{self.intake_document} → {self.inventory_item}"
