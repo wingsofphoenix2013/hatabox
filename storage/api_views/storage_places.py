@@ -82,6 +82,32 @@ class StoragePlaceViewSet(ModelViewSet):
             "-created_at",
             "-id",
         )[:20]
+        
+        address_chain = [
+            {
+                "id": None,
+                "code": storage_place.root_location.code,
+                "label": "Локація",
+                "place_type": "location",
+            }
+        ]
+
+        chain_places = []
+        current = storage_place
+
+        while current is not None:
+            chain_places.append(current)
+            current = current.parent
+
+        chain_places.reverse()
+
+        for place in chain_places:
+            address_chain.append({
+                "id": place.id,
+                "code": place.code,
+                "label": place.get_place_type_display(),
+                "place_type": place.place_type,
+            })
 
         data = {
             "summary": {
@@ -98,6 +124,7 @@ class StoragePlaceViewSet(ModelViewSet):
                 "code": storage_place.code,
                 "address": storage_place.address,
                 "address_verbose": storage_place.address_verbose,
+                "address_chain": address_chain,
                 "place_type": storage_place.place_type,
                 "place_type_name": storage_place.get_place_type_display(),
                 "name": storage_place.name,
