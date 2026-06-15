@@ -233,6 +233,24 @@ class StoragePlaceSummaryViewSet(ReadOnlyModelViewSet):
         if parent is not None:
             queryset = queryset.filter(parent_id=parent)
 
+        root_parent = self.request.query_params.get("root_parent")
+        if root_parent is not None:
+            parent_ids = {int(root_parent)}
+            collected_ids = set()
+
+            while parent_ids:
+                child_ids = set(
+                    queryset.model.objects.filter(
+                        parent_id__in=parent_ids,
+                    ).values_list("id", flat=True)
+                )
+
+                child_ids = child_ids - collected_ids
+                collected_ids.update(child_ids)
+                parent_ids = child_ids
+
+            queryset = queryset.filter(id__in=collected_ids)
+
         is_active = self.request.query_params.get("is_active")
         if is_active is None:
             queryset = queryset.filter(is_active=True)
@@ -267,6 +285,7 @@ class StoragePlaceSummaryViewSet(ReadOnlyModelViewSet):
             or request.query_params.get("is_active") == "false"
             or request.query_params.getlist("place_type")
             or request.query_params.get("parent") is not None
+            or request.query_params.get("root_parent") is not None
         ):
             ordered_places = list(queryset.order_by(
                 "root_location__code",
